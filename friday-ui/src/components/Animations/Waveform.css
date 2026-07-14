@@ -1,0 +1,14 @@
+.waveform {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 0 0;
+}
+.waveform canvas {
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(2,10,30,0.6), rgba(1,8,23,0.45));
+  box-shadow: 0 4px 18px rgba(0,183,255,0.06) inset;
+}
+.waveform-listening canvas { filter: drop-shadow(0 0 8px rgba(0,200,255,0.18)); }
+.waveform-speaking canvas { filter: drop-shadow(0 0 14px rgba(0,183,255,0.28)); }
+.waveform-thinking canvas { opacity: 0.9; }
+.waveform-verified canvas { box-shadow: 0 0 24px rgba(0,255,180,0.18); }

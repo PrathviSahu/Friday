@@ -1,0 +1,127 @@
+INFO:     Started server process [6089]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+REQUEST: System online, boss.
+INFO:     127.0.0.1:51607 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: Proxy check.
+INFO:     127.0.0.1:51626 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:51732 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51734 - "GET /temp_audio/7cb8ae14c7554ccfadb3fa308fac42fb.mp3 HTTP/1.1" 200 OK
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:51744 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51746 - "GET /temp_audio/c8a875319d3f4ad6ab65b505145360ff.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51747 - "GET /temp_audio/c8a875319d3f4ad6ab65b505145360ff.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:51807 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51812 - "GET /temp_audio/cfdccf429d79458fbfeca744a94ef31f.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51810 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51812 - "GET /temp_audio/bf740bc454b245cdaef1e126227a02e7.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51815 - "GET /temp_audio/bf740bc454b245cdaef1e126227a02e7.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:51835 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51837 - "GET /temp_audio/4a568f8e12f346eeba3d40d87e5e0937.mp3 HTTP/1.1" 200 OK
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:51896 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51898 - "GET /temp_audio/d02dacc3dc8c46dba5c1f8a577138434.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51899 - "GET /temp_audio/d02dacc3dc8c46dba5c1f8a577138434.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52008 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52011 - "GET /temp_audio/7d6a183f463948ab834ec6f45824f937.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52012 - "GET /temp_audio/7d6a183f463948ab834ec6f45824f937.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52014 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52011 - "GET /temp_audio/68a0e77c4b354da7a2140f9f54ef0ad5.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52012 - "GET /temp_audio/68a0e77c4b354da7a2140f9f54ef0ad5.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52017 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52011 - "GET /temp_audio/11aeeb585fe749bc96356160c6f0b724.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52012 - "GET /temp_audio/11aeeb585fe749bc96356160c6f0b724.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52023 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52028 - "GET /temp_audio/937fb79a55f24ef283dd9471f004aa84.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52029 - "GET /temp_audio/937fb79a55f24ef283dd9471f004aa84.mp3 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:52026 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52028 - "GET /temp_audio/d9f8feb779364c2585ea28b354f9eabd.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52029 - "GET /temp_audio/d9f8feb779364c2585ea28b354f9eabd.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52079 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52081 - "GET /temp_audio/c100a300dc4045ecb97aa36ce553d3a5.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52082 - "GET /temp_audio/c100a300dc4045ecb97aa36ce553d3a5.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52083 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52081 - "GET /temp_audio/9c295a2601dc4c08b10ac5ed8931b656.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52082 - "GET /temp_audio/9c295a2601dc4c08b10ac5ed8931b656.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:52086 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52088 - "GET /temp_audio/c2f14942341147e0a1077f8e17a48473.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52089 - "GET /temp_audio/c2f14942341147e0a1077f8e17a48473.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: That is not the password.
+INFO:     127.0.0.1:53446 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53448 - "GET /temp_audio/8265060e9bbf477ea229aa2c8a532a09.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53449 - "GET /temp_audio/8265060e9bbf477ea229aa2c8a532a09.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: That is not the password.
+INFO:     127.0.0.1:53453 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53455 - "GET /temp_audio/a9dae8dcfc8b489fb852f1af4a1e37b4.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53456 - "GET /temp_audio/a9dae8dcfc8b489fb852f1af4a1e37b4.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: You are not my boss. Unauthorized access attempt detected.
+INFO:     127.0.0.1:53470 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53472 - "GET /temp_audio/5e4e12f6b0674d92af3116f0f3a7eaaf.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53473 - "GET /temp_audio/5e4e12f6b0674d92af3116f0f3a7eaaf.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: That is not the password.
+INFO:     127.0.0.1:53488 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53490 - "GET /temp_audio/6898e9bb27774616b47ac67810f8c5cb.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53491 - "GET /temp_audio/6898e9bb27774616b47ac67810f8c5cb.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: System online.
+INFO:     127.0.0.1:53789 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54375 - "GET /docs HTTP/1.1" 200 OK
+REQUEST: Yes boss? I am listening.
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:54816 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54821 - "GET /temp_audio/08ccf600f6344e4ba5cba60f736fb08a.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54822 - "GET /temp_audio/08ccf600f6344e4ba5cba60f736fb08a.mp3 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54819 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54821 - "GET /temp_audio/cc16a93463db4da7abfeaa20e864c171.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54822 - "GET /temp_audio/cc16a93463db4da7abfeaa20e864c171.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:54826 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54828 - "GET /temp_audio/2938009b9a5f46ce9b88f2f0c823f588.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54829 - "GET /temp_audio/2938009b9a5f46ce9b88f2f0c823f588.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:54863 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54865 - "GET /temp_audio/55154d416a194619bdf739cceefcaee6.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54866 - "GET /temp_audio/55154d416a194619bdf739cceefcaee6.mp3 HTTP/1.1" 304 Not Modified
+REQUEST: That is not the password.
+INFO:     127.0.0.1:54876 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54878 - "GET /temp_audio/aea953d350b044f3b9caebd5eb0a71ea.mp3 HTTP/1.1" 206 Partial Content
+REQUEST: That is not the password.
+INFO:     127.0.0.1:54880 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: You are not my boss. Unauthorized access attempt detected.
+INFO:     127.0.0.1:54892 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: That is not the password.
+INFO:     127.0.0.1:54895 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: That is not the password.
+INFO:     127.0.0.1:54992 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54996 - "GET /temp_audio/5825fd2e0c4e4fb59972d381b25892e3.mp3 HTTP/1.1" 206 Partial Content
+REQUEST: That is not the password.
+INFO:     127.0.0.1:55000 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: You are not my boss. Unauthorized access attempt detected.
+INFO:     127.0.0.1:55003 - "POST /api/speak HTTP/1.1" 200 OK
+REQUEST: Yes boss? I am listening.
+REQUEST: Yes boss? I am listening.
+INFO:     127.0.0.1:55094 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55103 - "GET /temp_audio/757e0d780d1d4650a7e32ca232afd76a.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55104 - "GET /temp_audio/757e0d780d1d4650a7e32ca232afd76a.mp3 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55101 - "POST /api/speak HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55103 - "GET /temp_audio/2c8262f61a2e45abb771628970484479.mp3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55104 - "GET /temp_audio/2c8262f61a2e45abb771628970484479.mp3 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55218 - "GET /api/market/klines?symbol=RELIANCE.NS&interval=5m HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55219 - "GET /api/market/quote?symbols=RELIANCE.NS,INFY.NS,USDINR=X HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55220 - "GET /api/market/search?q=reli HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6089]

@@ -1,0 +1,252 @@
+.ai-core{
+
+position:absolute;
+
+left:50%;
+top:58%;
+
+transform:translate(-50%,-50%);
+
+width:420px;
+height:420px;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+pointer-events:none;
+
+}
+
+
+.energy-shell{
+
+position:absolute;
+
+width:120px;
+height:120px;
+
+border-radius:50%;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+background:
+
+radial-gradient(circle,
+
+rgba(95,245,255,.12),
+
+rgba(0,200,255,.05),
+
+transparent 75%);
+
+backdrop-filter:blur(10px);
+
+animation:
+
+breathe 4s ease-in-out infinite;
+
+}
+
+
+.plasma{
+
+width:74px;
+height:74px;
+
+border-radius:50%;
+
+background:
+
+radial-gradient(circle at 30% 30%,
+
+#ffffff,
+
+#82f5ff 18%,
+
+#39dfff 45%,
+
+#0076ff 75%,
+
+#02111f);
+
+box-shadow:
+
+0 0 15px #52efff,
+
+0 0 40px #23dfff,
+
+0 0 80px rgba(0,220,255,.6),
+
+0 0 160px rgba(0,220,255,.25);
+
+animation:
+
+pulse 2.8s ease-in-out infinite;
+}
+
+.plasma-glow{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95), rgba(0,208,255,0.22) 40%, transparent 70%);
+  filter:blur(10px);
+  animation: plasmaFlow 14s linear infinite;
+}
+
+.inner-halo{
+  position:absolute;
+  width:104px;
+  height:104px;
+  border-radius:50%;
+  border:1px solid rgba(0,220,255,0.25);
+  box-shadow:0 0 20px rgba(0,190,255,0.16);
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(0.98);
+}
+
+.pulse-wave{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:220px;
+  height:220px;
+  border-radius:50%;
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle, rgba(0,255,255,0.07), transparent 50%);
+  animation: pulseWave 5s ease-in-out infinite;
+}
+
+.spark-layer{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+.spark{
+  position:absolute;
+  width:2px;
+  height:2px;
+  border-radius:50%;
+  background:rgba(0,255,240,0.75);
+  box-shadow:0 0 10px rgba(0,255,240,0.5);
+  opacity:0;
+  animation: sparkPop 6s ease-in-out infinite;
+}
+
+.spark-1{top:18%;left:50%;animation-delay:0s;}
+.spark-2{top:25%;left:72%;animation-delay:0.5s;}
+.spark-3{top:40%;left:18%;animation-delay:1s;}
+.spark-4{top:58%;left:78%;animation-delay:1.7s;}
+.spark-5{top:68%;left:40%;animation-delay:2.5s;}
+.spark-6{top:34%;left:86%;animation-delay:3.3s;}
+.spark-7{top:80%;left:62%;animation-delay:4.1s;}
+.spark-8{top:14%;left:28%;animation-delay:4.8s;}
+
+@keyframes sparkPop{
+  0%, 80% { opacity:0; transform: scale(0.5); }
+  85% { opacity:0.8; transform: scale(1.05); }
+  100% { opacity:0; transform: scale(0.2); }
+}
+
+@keyframes plasmaFlow{
+  0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  50% { transform: translate(-50%, -50%) scale(1.05) rotate(24deg); }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+}
+
+@keyframes pulseWave{
+  0% { box-shadow: 0 0 0 0 rgba(0,255,255,0.08); }
+  25% { box-shadow: 0 0 0 8px rgba(0,255,255,0.08); }
+  50% { box-shadow: 0 0 0 44px rgba(0,255,255,0.04); }
+  75% { box-shadow: 0 0 0 90px rgba(0,255,255,0.02); }
+  100% { box-shadow: 0 0 0 0 rgba(0,255,255,0); }
+}
+
+/* Glow */
+.main-glow{position:absolute;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(0,220,255,.22),transparent 72%);filter:blur(45px);animation:breathe 6s infinite;}
+
+/* Reactive glow states */
+.main-glow{transition:box-shadow 220ms ease, opacity 220ms ease, transform 220ms ease}
+.glow-idle{opacity:0.55;filter:blur(40px);box-shadow:0 0 30px rgba(0,200,255,0.18)}
+.glow-listening{animation:glowBrighten 1.2s ease-in-out infinite alternate;}
+.glow-thinking{animation:glowFlicker 1.1s steps(4, end) infinite}
+.glow-speaking{animation:glowSpeak 0.9s ease-in-out infinite}
+.glow-verified{animation:glowVerify 0.6s ease-in-out 1}
+
+@keyframes glowBrighten{
+	from{opacity:0.7;box-shadow:0 0 30px rgba(0,220,255,0.28);transform:scale(1)}
+	to{opacity:1;box-shadow:0 0 80px rgba(0,220,255,0.6);transform:scale(1.02)}
+}
+
+@keyframes glowFlicker{
+	0%{opacity:0.6;box-shadow:0 0 22px rgba(0,200,255,0.18)}
+	25%{opacity:0.95;box-shadow:0 0 60px rgba(0,220,255,0.4)}
+	50%{opacity:0.7;box-shadow:0 0 28px rgba(0,210,255,0.24)}
+	75%{opacity:0.98;box-shadow:0 0 72px rgba(0,230,255,0.48)}
+	100%{opacity:0.65;box-shadow:0 0 20px rgba(0,190,255,0.16)}
+}
+
+@keyframes glowSpeak{
+	0%{transform:scale(1);opacity:0.75;box-shadow:0 0 30px rgba(0,200,255,0.2)}
+	40%{transform:scale(1.12);opacity:1;box-shadow:0 0 120px rgba(0,220,255,0.6)}
+	100%{transform:scale(1);opacity:0.78;box-shadow:0 0 28px rgba(0,200,255,0.2)}
+}
+
+@keyframes glowVerify{
+	0%{transform:scale(1);opacity:0.9;box-shadow:0 0 30px rgba(255,255,255,0.9)}
+	50%{transform:scale(1.18);opacity:1;box-shadow:0 0 140px rgba(255,255,255,0.95)}
+	100%{transform:scale(1);opacity:0.6;box-shadow:0 0 20px rgba(0,200,255,0.15)}
+}
+
+@keyframes pulse{0%{transform:scale(.97);}50%{transform:scale(1.05);}100%{transform:scale(.97);}}
+
+@keyframes breathe{0%{opacity:.55;transform:scale(1);}50%{opacity:.9;transform:scale(1.08);}100%{opacity:.55;transform:scale(1);}}
+
+.ai-core .dot{position:absolute;width:8px;height:8px;border-radius:50%;background:#5fffff;box-shadow:0 0 10px cyan}
+.ai-core .dot1{ left: calc(50% + 160px); top: 50%; transform: translate(-50%,-50%);} 
+.ai-core .dot2{ left: calc(50% - 160px); top: 50%; transform: translate(-50%,-50%);} 
+
+/* layered flows inside core */
+.energy-shell .flow{position:absolute;border-radius:50%;pointer-events:none}
+.energy-shell .flow-outer{width:120px;height:120px;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 30% 30%,rgba(255,255,255,0.06),rgba(34,220,255,0.06) 30%,transparent 70%);filter:blur(14px);animation:flow1 6s linear infinite}
+.energy-shell .flow-mid{width:96px;height:96px;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.12),rgba(125,245,255,0.12) 28%,transparent 65%);filter:blur(8px);animation:flow2 4.2s linear infinite}
+.plasma .white-core{width:18px;height:18px}
+.plasma .tiny-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#ffffff;box-shadow:0 0 8px #fff,0 0 20px #9ff}
+
+@keyframes flow1{0%{transform:translate(-50%,-50%) rotate(0deg)}50%{transform:translate(-50%,-50%) rotate(20deg)}100%{transform:translate(-50%,-50%) rotate(0deg)}}
+@keyframes flow2{0%{transform:translate(-50%,-50%) rotate(0deg)}50%{transform:translate(-50%,-50%) rotate(-18deg)}100%{transform:translate(-50%,-50%) rotate(0deg)}}
+
+/* white energy pulse */
+.energy-pulse{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,0.95);box-shadow:0 0 20px rgba(255,255,255,0.9);opacity:0;pointer-events:none;animation:energyPulse 4.5s ease-in-out infinite}
+@keyframes energyPulse{0%{opacity:0;transform:translate(-50%,-50%) scale(0.6)}10%{opacity:0.9;transform:translate(-50%,-50%) scale(1)}40%{opacity:0.28;transform:translate(-50%,-50%) scale(2.8)}80%{opacity:0;transform:translate(-50%,-50%) scale(4)}100%{opacity:0}}
+
+/* satellite base style and orbit keyframes */
+.satellite{position:absolute;border-radius:50%;background:#bff;box-shadow:0 0 8px #6ff;width:8px;height:8px}
+@keyframes satCW{from{transform:rotate(0deg) translateX(var(--radius)) rotate(0deg);}to{transform:rotate(360deg) translateX(var(--radius)) rotate(-360deg);}}
+@keyframes satCCW{from{transform:rotate(0deg) translateX(var(--radius)) rotate(0deg);}to{transform:rotate(-360deg) translateX(var(--radius)) rotate(360deg);}}
+
+/* State-driven overrides (scoped under .ai-core.state-*) */
+.ai-core.state-listening .ring{opacity:0.8;filter:drop-shadow(0 0 12px rgba(0,230,255,0.35))}
+.ai-core.state-listening .ring1{stroke-width:1.8}
+.ai-core.state-listening .energy-pulse{animation-duration:3s;opacity:0.9}
+
+.ai-core.state-thinking .plasma{animation:pulse 1.6s ease-in-out infinite}
+.ai-core.state-thinking .white-core{transform:translate(-50%,-50%) scale(1.1);transition:transform 180ms}
+.ai-core.state-thinking .satellite{box-shadow:0 0 12px #8ff}
+
+.ai-core.state-speaking .energy-pulse{animation-duration:1.8s;box-shadow:0 0 60px rgba(255,255,255,0.95);opacity:1}
+.ai-core.state-speaking .main-glow{transform:scale(1.05)}
+
+.ai-core.state-verified .main-glow{animation:none;opacity:1;box-shadow:0 0 120px rgba(0,255,180,0.6)}
+
+.ai-core.state-alert .main-glow{animation:glowBrighten 0.6s ease-in-out infinite;box-shadow:0 0 140px rgba(255,80,80,0.85)}
+
