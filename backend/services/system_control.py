@@ -117,55 +117,26 @@ def _paste_text_via_clipboard(text: str) -> str:
 
 
 def search_and_play_spotify(song_or_playlist: str) -> bool:
-    """Search for a specific song on Spotify and immediately play the top result.
-
-    Strategy:
-    1. Navigate to Spotify full search results page via open location URL scheme.
-    2. After 2s load delay, Tab 4× to focus the "Top result" card.
-    3. Press Space to play the focused card.
-    Works for ASCII and non-ASCII (Hindi/Devanagari) via clipboard paste.
-    """
+    """Search for a specific song on Spotify and immediately play it."""
     if not IS_MAC or not song_or_playlist:
         return False
 
-    q_clean = song_or_playlist.strip().replace("'", "")
-    q_encoded = urllib.parse.quote(q_clean)
-
-    # Paste song name via clipboard to handle Unicode/Hindi characters
-    paste_snippet = _paste_text_via_clipboard(q_clean)
-
-    script = f'''
-    tell application "Spotify" to activate
-    delay 0.3
-    -- Navigate to full Spotify search results page
-    open location "spotify:search:{q_encoded}"
-    delay 2.0
-    tell application "System Events"
-        tell process "Spotify"
-            try
-                -- Tab to reach first interactive result (Top Result card)
-                key code 48
-                delay 0.15
-                key code 48
-                delay 0.15
-                key code 48
-                delay 0.15
-                key code 48
-                delay 0.15
-                -- Space plays the focused Top Result card
-                keystroke " "
-            on error errMsg
-                log "Spotify search-play error: " & errMsg
-            end try
-        end tell
-    end tell
-    '''
+    q_clean = song_or_playlist.strip().replace('"', '').replace("'", "")
     try:
-        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=8)
-        if result.returncode != 0:
-            print(f"[Automation] Spotify search AppleScript error: {result.stderr.strip()}")
-        else:
-            print(f"[Automation] Spotify search+play dispatched for: {q_clean}")
+        script = f'''
+        tell application "Spotify" to activate
+        delay 0.4
+        tell application "System Events"
+            tell process "Spotify"
+                keystroke "k" using {{command down}}
+                delay 0.4
+                keystroke "{q_clean}"
+                delay 0.8
+                key code 36
+            end tell
+        end tell
+        '''
+        subprocess.Popen(["osascript", "-e", script])
         return True
     except Exception as err:
         print(f"[Automation] Spotify search play error: {err}")
