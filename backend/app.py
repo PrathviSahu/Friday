@@ -12,7 +12,7 @@ from pydantic import BaseModel
 import uvicorn
 import os
 
-from services.brain import respond
+from services.brain import respond, get_proactive_suggestion
 from services.tts import generate_speech
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import get_all_memories, save_fact
@@ -112,6 +112,12 @@ def set_permission_endpoint(req: PermissionRequest):
 def get_spotify_track_endpoint():
     """Retrieve details of currently playing track on Spotify"""
     return get_spotify_current_track()
+
+
+@app.get("/api/proactive")
+def proactive_endpoint():
+    """Return a time-aware proactive suggestion FRIDAY can speak spontaneously."""
+    return get_proactive_suggestion()
 
 
 # ── Todo endpoints ──────────────────────────────────────────
