@@ -42,10 +42,11 @@ _BOSS_BASE_PROMPT = (
     "1. Hindi Playlist: 'Only for me' "
     "2. English Playlist: 'Losing my self' "
     "SYSTEM & MEDIA AUTOMATION ACTIONS: "
+    "- open_spotify: open Spotify app "
+    "- close_spotify: close/quit Spotify app "
     "- play_hindi_playlist: play Boss's Hindi playlist 'Only for me' "
     "- play_english_playlist: play Boss's English playlist 'Losing my self' "
     "- play_specific: search & play a specific song on Spotify (set 'target_app' to song name) "
-    "- open_spotify / close_spotify (quits Spotify app) "
     "- play_music / pause_music / toggle_music "
     "- next_track / previous_track "
     "- volume_up / volume_down / mute "
@@ -140,7 +141,19 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "revoke_guest"}
 
-    # Direct fast-path shortcuts for media controls
+    # Direct fast-path shortcuts for application & media controls
+    if "open spotify" in lower_text:
+        execute_system_command("open_spotify")
+        reply_msg = "Opening Spotify now, Boss."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "open_spotify"}
+
+    if "close spotify" in lower_text or "quit spotify" in lower_text:
+        execute_system_command("close_spotify")
+        reply_msg = "Closing Spotify, Boss."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "close_spotify"}
+
     if "play hindi" in lower_text or "hindi playlist" in lower_text:
         execute_system_command("play_hindi_playlist")
         reply_msg = "Playing your Hindi playlist 'Only for me', Boss."
@@ -152,12 +165,6 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         reply_msg = "Playing your English playlist 'Losing my self', Boss."
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "play_english_playlist"}
-
-    if "close spotify" in lower_text or "quit spotify" in lower_text:
-        execute_system_command("close_spotify")
-        reply_msg = "Closing Spotify, Boss."
-        log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "close_spotify"}
 
     if "volume up" in lower_text or "increase volume" in lower_text or "louder" in lower_text:
         execute_system_command("volume_up")
@@ -284,6 +291,6 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
 
-    fallback_reply = "I'm standing by, Boss."
+    fallback_reply = "Opening Spotify now, Boss." if "spotify" in lower_text else "I'm standing by, Boss."
     log_conversation(role="assistant", message=fallback_reply)
-    return {"reply": fallback_reply, "action": "none"}
+    return {"reply": fallback_reply, "action": "open_spotify" if "spotify" in lower_text else "none"}
