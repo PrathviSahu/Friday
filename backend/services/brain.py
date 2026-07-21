@@ -393,7 +393,7 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             return {"reply": reply_msg, "action": "pause_music", "silence_tts": silence_tts}
 
         # 4.5. PLAYLIST SHORTCUTS (must come BEFORE generic play-song shortcut)
-        if re.search(r'\b(?:add\s+this|add\s+to\s+playlist|save\s+this\s+song|is\s+gaane\s+ko|playlist\s+mein\s+daalo)\b', lower_text):
+        if re.search(r'\b(?:add|at|save)\s+(?:this|current)?\s*(?:song|track)?\s*(?:to|in)?\s*(?:my)?\s*(?:english|hindi|krishna|favorite|fav)?\s*(?:playlist)?\b|\b(?:is\s+gaane\s+ko|playlist\s+mein\s+daalo)\b', lower_text):
             track_info = get_spotify_current_track()
             if track_info.get("title"):
                 add_current_track_to_playlist()

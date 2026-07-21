@@ -186,7 +186,13 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         let query = rawTranscript.trim()
           .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno)\s+(?:friday|फ्राइडे|fraide|frida)\b\s*/i, '')
           .replace(/^(?:friday|फ्राइडे|fraide|frida)\b\s*/i, '')
+          .replace(/\s+(?:friday|फ्राइडे|fraide|frida)\b$/i, '')
           .trim();
+
+        // Fix speech recognition phonetic misrecognitions
+        if (/^at\s+this\s+song/i.test(query)) {
+          query = query.replace(/^at\s+this\s+song/i, 'add this song');
+        }
 
         const normalized = query.toLowerCase();
         console.log('[Voice] Transcript:', rawTranscript.trim(), '-> normalized:', normalized);
