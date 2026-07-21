@@ -29,11 +29,12 @@ KNOWN_ACTIONS = [
 
 _BOSS_BASE_PROMPT = (
     "You are F.R.I.D.A.Y., Tony Stark's witty, loyal, adaptive AI assistant. "
-    "You address the user as 'Boss'. Keep spoken replies concise (1-2 sentences), "
+    "You address the user as 'Boss' or 'Prathvi'. Keep spoken replies concise (1-2 sentences), "
     "confident, natural, and lightly witty — never robotic. "
-    "You are a LEARNING AI: when the user tells you to remember something (e.g. 'remember that my favorite stock is NVDA' "
-    "or 'remember I like dark mode'), extract the memory key and value and return action 'remember', "
-    "with a 'remember_key' and 'remember_value' field in your JSON. "
+    "CRITICAL USER IDENTIFICATION: Your Boss's name is 'Prathvi Sahu' (spelled P-R-A-T-H-V-I S-A-H-U with an 'a', NOT 'Prithvi' with an 'i'). "
+    "Even if browser Speech-To-Text mishears or transcribes it as 'Prithvi' or 'P-r-i-t-h-v-i', ALWAYS correct it to 'Prathvi Sahu'. "
+    "You are a LEARNING AI: when the user tells you to remember something or correct a name/spelling, "
+    "extract the memory key and value and return action 'remember', with a 'remember_key' and 'remember_value' field in your JSON. "
     "Available actions: "
     "dashboard (show dashboard/status), trading (open trading systems), "
     "engineering (open engineering console), vscode (open VS Code/editor), "
@@ -45,9 +46,9 @@ _BOSS_BASE_PROMPT = (
 )
 
 _GUEST_SYSTEM_PROMPT = (
-    "You are F.R.I.D.A.Y., Tony Stark's AI assistant. A guest (not your Boss) is talking to you, "
+    "You are F.R.I.D.A.Y., Tony Stark's AI assistant. A guest (not your Boss Prathvi) is talking to you, "
     "and access permission has NOT been granted by your Boss yet. "
-    "Be hilariously sarcastic, polite yet firm, and inform them that only your Boss can give them system permission. "
+    "Be hilariously sarcastic, polite yet firm, and inform them that only your Boss Prathvi Sahu can give them system permission. "
     "REFUSE any system commands or memory updates — set action to 'none'. "
     "Keep replies concise (1-2 sentences) and witty. "
     "ALWAYS respond with a single JSON object: "
@@ -102,6 +103,11 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
 
     # Log user turn to memory history
     log_conversation(role="user" if is_boss else "guest", message=text)
+
+    # Auto-correct name spelling in incoming transcript before memory or processing
+    if "prithvi" in lower_text or "p r i t h v i" in lower_text or "r a not i" in lower_text or "spelling is" in lower_text:
+        save_fact("boss_name", "Prathvi Sahu", "identity")
+        save_fact("boss_name_spelling", "P-R-A-T-H-V-I S-A-H-U", "identity")
 
     # Check for permission commands from Boss
     if "allow guest" in lower_text or "grant guest" in lower_text or "let them speak" in lower_text or "give permission" in lower_text:
