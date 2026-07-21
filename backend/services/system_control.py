@@ -190,7 +190,7 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
             if cmd == "play_hindi_playlist":
                 play_spotify_uri(PLAYLIST_HINDI)
             elif cmd == "play_english_playlist":
-                search_and_play_spotify("Losing my self")
+                play_spotify_uri(PLAYLIST_ENGLISH)
             else:
                 search_and_play_spotify(query)
             return True

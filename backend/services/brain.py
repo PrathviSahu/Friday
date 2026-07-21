@@ -216,6 +216,13 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "play_english_playlist"}
 
+        # 4.6. SHUFFLE SHORTCUT (e.g. "shuffle", "play on shuffle", "turn on shuffle", "play it on shuffel")
+        if re.search(r'\b(?:shuffle|shuffel)\b', lower_text):
+            execute_system_command("shuffle", "")
+            reply_msg = "Enabling Spotify shuffle mode, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "shuffle"}
+
         # 5. PHONETIC SONG SHORTCUT
         if any(kw in lower_text for kw in ["tempo city", "help away", "temper city", "temple city"]):
             target_song = "Self Aware by Temper City"
