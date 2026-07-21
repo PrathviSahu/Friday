@@ -169,23 +169,23 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
         pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
         if extracted_vol >= 0 and not re.search(r'\bplay\b', lower_text):
-            execute_system_command("set_volume", "", volume_percent=extracted_vol)
-            reply_msg = f"Setting volume to {extracted_vol}%, Boss."
+            result = execute_system_command("set_volume", "", volume_percent=extracted_vol)
+            reply_msg = result or f"Setting volume to {extracted_vol}%, Boss."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "set_volume"}
 
         # FIX #3: Use regex patterns for volume to avoid 'turn down for what', 'play louder song' triggering volume commands
         # 1. VOLUME DOWN SHORTCUT
         if re.search(r'(?:turn|lower|decrease|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:down)?|volume\s*down|quieter', lower_text):
-            execute_system_command("volume_down", "")
-            reply_msg = "Decreasing volume, Boss."
+            result = execute_system_command("volume_down", "")
+            reply_msg = result or "Decreasing volume, Boss."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "volume_down"}
 
         # 2. VOLUME UP SHORTCUT
         if re.search(r'(?:turn|raise|increase|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:up)?|volume\s*up|louder', lower_text):
-            execute_system_command("volume_up", "")
-            reply_msg = "Increasing volume, Boss."
+            result = execute_system_command("volume_up", "")
+            reply_msg = result or "Increasing volume, Boss."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "volume_up"}
 

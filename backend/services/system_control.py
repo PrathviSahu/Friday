@@ -14,6 +14,67 @@ import time
 IS_MAC = platform.system() == "Darwin"
 
 
+def is_spotify_running() -> bool:
+    """Check if Spotify is currently running via AppleScript."""
+    if not IS_MAC:
+        return False
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", 'tell application "System Events" to (name of processes) contains "Spotify"'],
+            capture_output=True, text=True, timeout=2
+        )
+        return result.stdout.strip().lower() == "true"
+    except Exception:
+        return False
+
+
+def system_set_volume(percent: int) -> bool:
+    """Set macOS system output volume (0-100)."""
+    if not IS_MAC:
+        return False
+    clamped = max(0, min(100, percent))
+    try:
+        subprocess.Popen(["osascript", "-e", f"set volume output volume {clamped}"])
+        return True
+    except Exception as err:
+        print(f"[Automation] System volume set error: {err}")
+        return False
+
+
+def system_volume_up() -> bool:
+    """Raise macOS system output volume by 10 points."""
+    if not IS_MAC:
+        return False
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", "output volume of (get volume settings)"],
+            capture_output=True, text=True, timeout=2
+        )
+        current = int(result.stdout.strip())
+        system_set_volume(min(100, current + 10))
+        return True
+    except Exception as err:
+        print(f"[Automation] System volume up error: {err}")
+        return False
+
+
+def system_volume_down() -> bool:
+    """Lower macOS system output volume by 10 points."""
+    if not IS_MAC:
+        return False
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", "output volume of (get volume settings)"],
+            capture_output=True, text=True, timeout=2
+        )
+        current = int(result.stdout.strip())
+        system_set_volume(max(0, current - 10))
+        return True
+    except Exception as err:
+        print(f"[Automation] System volume down error: {err}")
+        return False
+
+
 def open_app(app_name: str) -> bool:
     """Launch an application on macOS."""
     clean_name = app_name.strip()
@@ -173,8 +234,8 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
 
     print(f"[Automation] Executing action='{action}' target='{target_clean}' vol={volume_percent}")
 
-    if volume_percent >= 0:
-        control_spotify("set_volume", volume_percent=volume_percent)
+    spotify_running = is_spotify_running()
+    print(f"[Automation] Spotify running: {spotify_running}")
 
     if action == "open_spotify":
         open_app("Spotify")
@@ -223,20 +284,36 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
         return "Playing previous track, Boss."
 
     elif action == "volume_up":
-        control_spotify("volume_up")
-        return "Increasing Spotify volume, Boss."
+        if spotify_running:
+            control_spotify("volume_up")
+            return "Increasing Spotify volume, Boss."
+        else:
+            system_volume_up()
+            return "Increasing system volume, Boss."
 
     elif action == "volume_down":
-        control_spotify("volume_down")
-        return "Decreasing Spotify volume, Boss."
+        if spotify_running:
+            control_spotify("volume_down")
+            return "Decreasing Spotify volume, Boss."
+        else:
+            system_volume_down()
+            return "Decreasing system volume, Boss."
 
     elif action == "set_volume":
-        control_spotify("set_volume", volume_percent=volume_percent)
-        return f"Setting Spotify volume to {volume_percent}%, Boss."
+        if spotify_running:
+            control_spotify("set_volume", volume_percent=volume_percent)
+            return f"Setting Spotify volume to {volume_percent}%, Boss."
+        else:
+            system_set_volume(volume_percent)
+            return f"Setting system volume to {volume_percent}%, Boss."
 
     elif action == "mute":
-        control_spotify("mute")
-        return "Muting Spotify, Boss."
+        if spotify_running:
+            control_spotify("mute")
+            return "Muting Spotify, Boss."
+        else:
+            subprocess.Popen(["osascript", "-e", "set volume output muted true"])
+            return "Muting system audio, Boss."
 
     elif action == "repeat":
         control_spotify("repeat")
