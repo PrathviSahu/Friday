@@ -12,7 +12,7 @@ export default function AIAssistantPanel({ symbol, currentPrice }) {
             <div className="p-3 border-b border-cyan-500/15 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-cyan-300">
                     <Brain size={14} className="text-cyan-400 animate-pulse" />
-                    <span>F.R.I.D.A.Y. QUANT BRAIN</span>
+                    <span>F.R.I.D.A.Y. AI ASSISTANT</span>
                 </div>
                 <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
                     LIVE NEURAL
