@@ -42,11 +42,10 @@ _BOSS_BASE_PROMPT = (
     "1. Hindi Playlist: 'Only for me' "
     "2. English Playlist: 'Losing my self' "
     "SYSTEM & MEDIA AUTOMATION ACTIONS: "
-    "- open_spotify: open Spotify app "
-    "- close_spotify: close/quit Spotify app "
     "- play_hindi_playlist: play Boss's Hindi playlist 'Only for me' "
     "- play_english_playlist: play Boss's English playlist 'Losing my self' "
-    "- play_specific: search & play a specific song on Spotify (set 'target_app' to song name) "
+    "- play_specific: search & play any specific song on Spotify (set 'target_app' to song name e.g. 'Kesariya', 'Starboy', 'Blinding Lights') "
+    "- open_spotify / close_spotify (quits Spotify app) "
     "- play_music / pause_music / toggle_music "
     "- next_track / previous_track "
     "- volume_up / volume_down / mute "
@@ -142,7 +141,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         return {"reply": reply_msg, "action": "revoke_guest"}
 
     # Direct fast-path shortcuts for application & media controls
-    if "open spotify" in lower_text:
+    if lower_text == "open spotify" or lower_text == "launch spotify":
         execute_system_command("open_spotify")
         reply_msg = "Opening Spotify now, Boss."
         log_conversation(role="assistant", message=reply_msg)
@@ -190,9 +189,10 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "shuffle"}
 
-    if "play song" in lower_text or "play track" in lower_text or "search song" in lower_text:
+    # Catch ANY "play [song]" command directly
+    if lower_text.startswith("play ") or "play song" in lower_text or "play track" in lower_text:
         target = lower_text.replace("play song", "").replace("play track", "").replace("search song", "").replace("play", "").replace("on spotify", "").strip()
-        if target:
+        if target and target not in ["music", "spotify", "playlist"]:
             execute_system_command("play_specific", target)
             reply_msg = f"Playing '{target}' on Spotify, Boss."
             log_conversation(role="assistant", message=reply_msg)
@@ -291,6 +291,6 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
 
-    fallback_reply = "Opening Spotify now, Boss." if "spotify" in lower_text else "I'm standing by, Boss."
+    fallback_reply = "I'm standing by, Boss."
     log_conversation(role="assistant", message=fallback_reply)
-    return {"reply": fallback_reply, "action": "open_spotify" if "spotify" in lower_text else "none"}
+    return {"reply": fallback_reply, "action": "none"}
