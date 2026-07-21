@@ -1,25 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Settings, X, Palette, Sliders } from 'lucide-react';
+import { Sliders, X } from 'lucide-react';
 
-const FREE_REALTIME_WATCHLIST = [
-    'OANDA:XAUUSD',
-    'CAPITALCOM:DXY',
-    'TVC:US10Y',
-    'BINANCE:BTCUSDT',
-    'BINANCE:ETHUSDT',
-    'BINANCE:SOLUSDT',
-    'FX:EURUSD',
-    'FX:GBPUSD',
-    'FX:USDJPY',
-    'FOREXCOM:SPXUSD',
-    'FOREXCOM:NSXUSD',
-    'NSE:NIFTY',
-    'NSE:BANKNIFTY',
-    'NSE:RELIANCE',
+// Free real-time streamable symbols (US NASDAQ, Indian NSE, Gold, Forex, Crypto)
+const FULL_REALTIME_WATCHLIST = [
+    'OANDA:XAUUSD',     // Gold Spot (Free live real-time)
+    'NASDAQ:NDX',       // NASDAQ 100 Index
+    'NASDAQ:NVDA',      // NVIDIA
+    'NASDAQ:AAPL',      // Apple
+    'NASDAQ:TSLA',      // Tesla
+    'CAPITALCOM:DXY',   // US Dollar Index
+    'BINANCE:BTCUSDT',  // Bitcoin
+    'BINANCE:ETHUSDT',  // Ethereum
+    'BINANCE:SOLUSDT',  // Solana
+    'FX:EURUSD',        // EUR/USD
+    'FX:GBPUSD',        // GBP/USD
+    'NSE:NIFTY',        // NIFTY 50
+    'NSE:BANKNIFTY',   // BANK NIFTY
+    'NSE:RELIANCE',    // Reliance
+    'NSE:TCS',         // TCS
+    'NSE:INFY',        // Infosys
+    'NSE:HDFCBANK',    // HDFC Bank
 ];
 
 export default function ProfessionalChart() {
     const containerRef = useRef(null);
+    const [contextMenu, setContextMenu] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
 
     // Customizable Candle & Drawing Settings
@@ -49,7 +54,7 @@ export default function ProfessionalChart() {
                     enable_publishing: false,
                     hide_side_toolbar: false, // Left drawing tools (Trendlines, Fibs, Position tools)
                     allow_symbol_change: true,
-                    watchlist: FREE_REALTIME_WATCHLIST,
+                    watchlist: FULL_REALTIME_WATCHLIST,
                     details: true,
                     hotlist: true,
                     calendar: true,
@@ -97,22 +102,43 @@ export default function ProfessionalChart() {
         loadChart();
     }, [upColor, downColor, fibColor, fibExtend]);
 
-    return (
-        <div className="flex-1 w-full h-full bg-[#0a0f1d] relative overflow-hidden">
-            {/* Customization Settings Button */}
-            <div className="absolute top-2.5 right-48 z-40">
-                <button
-                    onClick={() => setShowSettings((s) => !s)}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-cyan-500/40 bg-[#0a0f1d]/90 text-cyan-300 hover:bg-cyan-500/20 text-xs font-mono tracking-wider transition-all cursor-pointer shadow-lg backdrop-blur-md"
-                >
-                    <Settings size={13} className="text-cyan-400" />
-                    <span>Chart Settings</span>
-                </button>
-            </div>
+    // Handle Right-Click Context Menu on Chart
+    const handleContextMenu = (e) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY });
+    };
 
-            {/* Customization Modal */}
+    return (
+        <div 
+            onContextMenu={handleContextMenu}
+            onClick={() => setContextMenu(null)}
+            className="flex-1 w-full h-full bg-[#0a0f1d] relative overflow-hidden"
+        >
+            {/* Right-Click Context Menu */}
+            {contextMenu && (
+                <div
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                    className="fixed z-50 w-48 rounded-xl bg-[#080d1a]/95 border border-cyan-500/30 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-xl text-slate-200 text-xs font-sans select-none"
+                >
+                    <button
+                        onClick={() => { setShowSettings(true); setContextMenu(null); }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-cyan-500/20 text-cyan-300 font-mono font-medium flex items-center justify-between cursor-pointer"
+                    >
+                        <span>⚙️ Settings & Color Customizer</span>
+                    </button>
+                    <div className="h-[1px] bg-cyan-500/15 my-1" />
+                    <button
+                        onClick={() => setContextMenu(null)}
+                        className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-800 text-slate-400 text-[11px]"
+                    >
+                        Close Menu
+                    </button>
+                </div>
+            )}
+
+            {/* Customization Settings Modal (Triggered by Right Click) */}
             {showSettings && (
-                <div className="absolute top-12 right-48 z-50 w-72 rounded-2xl bg-[#080d1a]/95 border border-cyan-500/30 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-2xl text-slate-100 font-sans text-xs flex flex-col gap-4 select-none">
+                <div className="absolute top-12 right-20 z-50 w-72 rounded-2xl bg-[#080d1a]/95 border border-cyan-500/30 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-2xl text-slate-100 font-sans text-xs flex flex-col gap-4 select-none">
                     <div className="flex items-center justify-between pb-2 border-b border-cyan-500/20">
                         <div className="flex items-center gap-1.5 font-mono text-cyan-300 font-bold">
                             <Sliders size={14} className="text-cyan-400" />
