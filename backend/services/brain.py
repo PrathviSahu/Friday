@@ -1,15 +1,18 @@
-"""FRIDAY's Adaptive Learning & Conversational Brain.
+"""FRIDAY's Adaptive Learning & Dual-Engine Hybrid Brain.
 
-Takes a user's transcribed utterance and asks Gemini for a reply, in the
-F.R.I.D.A.Y. persona. Injects persistent memory facts and multi-turn context.
+Uses:
+1. Groq (Llama 3.3 70B) for ultra-fast (~150ms) real-time voice conversation & UI control.
+2. Gemini (Gemini 2.5) for complex multimodal/document processing & fallbacks.
 """
 import os
 import json
 import re
 import time
 
+from groq import Groq
 from google import genai
 from google.genai import types
+
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import (
     save_fact,
@@ -37,8 +40,8 @@ _BOSS_BASE_PROMPT = (
     "browser (open a web browser), lock (secure/lock the system), "
     "allow_guest (grant guest access), revoke_guest (revoke guest access), "
     "remember (save a fact to permanent memory), none (general response). "
-    "ALWAYS respond with ONLY a single JSON object in the form: "
-    '{"reply": "<spoken output>", "action": "<action>", "remember_key": "<optional>", "remember_value": "<optional>"}'
+    "ALWAYS respond with ONLY a single valid JSON object in the form: "
+    '{"reply": "<spoken output>", "action": "<action>", "remember_key": null, "remember_value": null}'
 )
 
 _GUEST_SYSTEM_PROMPT = (
@@ -51,17 +54,26 @@ _GUEST_SYSTEM_PROMPT = (
     '{"reply": "<sarcastic response to guest>", "action": "none"}'
 )
 
-_client = None
+_groq_client = None
+_gemini_client = None
 
 
-def _get_client():
-    global _client
-    if _client is None:
+def _get_groq_client():
+    global _groq_client
+    if _groq_client is None:
+        api_key = os.getenv("GROQ_API_KEY")
+        if api_key:
+            _groq_client = Groq(api_key=api_key)
+    return _groq_client
+
+
+def _get_gemini_client():
+    global _gemini_client
+    if _gemini_client is None:
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key or api_key == "your_key_here":
-            raise RuntimeError("GEMINI_API_KEY is not set in backend/.env")
-        _client = genai.Client(api_key=api_key)
-    return _client
+        if api_key and api_key != "your_key_here":
+            _gemini_client = genai.Client(api_key=api_key)
+    return _gemini_client
 
 
 def _extract_json(text: str) -> dict:
@@ -81,7 +93,7 @@ def _extract_json(text: str) -> dict:
 
 
 def respond(transcript: str, is_boss: bool = True) -> dict:
-    """Return {'reply': str, 'action': str} for a user utterance using live Gemini LLM + Memory."""
+    """Return {'reply': str, 'action': str} for a user utterance using ultra-fast Groq LLM + Gemini failover."""
     text = (transcript or "").strip()
     if not text:
         return {"reply": "", "action": "none"}
@@ -119,27 +131,23 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     else:
         full_system_prompt = _GUEST_SYSTEM_PROMPT
 
-    client = _get_client()
-
-    models_to_try = [
-        os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite-001",
-        "gemini-flash-latest"
-    ]
-
-    last_error = None
-    for model_name in models_to_try:
+    # ⚡ STEP 1: Try Groq API for lightning fast ~150ms response
+    groq_client = _get_groq_client()
+    if groq_client:
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[full_system_prompt, f"User said: {text}"],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.7,
-                ),
+            start_time = time.time()
+            completion = groq_client.chat.completions.create(
+                model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                messages=[
+                    {"role": "system", "content": full_system_prompt},
+                    {"role": "user", "content": f"User said: {text}"}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7,
+                max_tokens=250,
             )
-            raw = (getattr(response, "text", "") or "").strip()
+            elapsed = (time.time() - start_time) * 1000
+            raw = completion.choices[0].message.content or ""
             data = _extract_json(raw)
 
             reply = str(data.get("reply") or "").strip()
@@ -148,32 +156,50 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             if action not in KNOWN_ACTIONS:
                 action = "none"
 
-            # Check if LLM extracted a new memory fact to store
+            # Memory extraction
             rem_key = data.get("remember_key")
             rem_val = data.get("remember_value")
             if (action == "remember" or rem_key) and rem_key and rem_val:
                 save_fact(key=str(rem_key), value=str(rem_val))
-                print(f"[Memory] Saved fact: {rem_key} -> {rem_val}")
-
-            # Also support direct explicit 'remember' phrase handling
-            if "remember that" in lower_text or "remember my" in lower_text:
-                parts = text.lower().replace("remember that", "").replace("remember my", "").replace("remember", "").strip()
-                if parts:
-                    save_fact(key=parts, value=parts)
-                    print(f"[Memory] Saved direct fact: {parts}")
 
             if reply:
+                print(f"[Brain/Groq] Responded in {elapsed:.1f}ms ⚡")
                 log_conversation(role="assistant", message=reply)
                 return {"reply": reply, "action": action}
         except Exception as err:
-            last_error = err
-            print(f"[Brain] Model {model_name} failed ({err}), trying next model...")
-            time.sleep(0.3)
+            print(f"[Brain] Groq call failed ({err}), failing over to Gemini...")
 
-    print(f"[Error] All Gemini models failed: {last_error}")
-    fallback_reply = "I apologize, Boss. Neural cloud connections are rate-limited right now. Please try again in a moment."
+    # 🧠 STEP 2: Gemini API Failover Pool
+    gemini_client = _get_gemini_client()
+    if gemini_client:
+        models_to_try = [
+            os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite-001"
+        ]
+        for model_name in models_to_try:
+            try:
+                response = gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=[full_system_prompt, f"User said: {text}"],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.7,
+                    ),
+                )
+                raw = (getattr(response, "text", "") or "").strip()
+                data = _extract_json(raw)
+
+                reply = str(data.get("reply") or "").strip()
+                action = str(data.get("action") or "none").strip().lower()
+                if action not in KNOWN_ACTIONS: action = "none"
+
+                if reply:
+                    log_conversation(role="assistant", message=reply)
+                    return {"reply": reply, "action": action}
+            except Exception as err:
+                print(f"[Brain] Gemini {model_name} failed: {err}")
+
+    fallback_reply = "I'm standing by, Boss."
     log_conversation(role="assistant", message=fallback_reply)
-    return {
-        "reply": fallback_reply,
-        "action": "none"
-    }
+    return {"reply": fallback_reply, "action": "none"}
