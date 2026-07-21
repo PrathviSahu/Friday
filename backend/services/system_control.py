@@ -104,42 +104,32 @@ def close_app(app_name: str) -> bool:
 
 
 def search_and_play_spotify(song_or_playlist: str) -> bool:
-    """Search for a specific song or playlist on Spotify and immediately play it."""
+    """Search for a specific song or playlist on Spotify and immediately play top result."""
     if not IS_MAC or not song_or_playlist:
         return False
     try:
         q_clean = song_or_playlist.strip()
+        q_encoded = urllib.parse.quote(q_clean)
         
-        # 1. Direct AppleScript Spotify track URI play attempt
-        direct_script = f'''
-        tell application "Spotify"
-            activate
-            play track "spotify:search:{q_clean}"
-        end tell
-        '''
-        subprocess.Popen(["osascript", "-e", direct_script])
-
-        # 2. Automated UI keystroke fallback (Cmd+K search -> type song -> Press Enter -> Play)
-        keystroke_script = f'''
+        # 1. Open Spotify search view directly via URL scheme
+        # 2. Press Return (key code 36) to auto-select and start playing top result track!
+        script = f'''
+        open location "spotify:search:{q_encoded}"
         delay 0.8
-        tell application "Spotify" to activate
         tell application "System Events"
             tell process "Spotify"
-                keystroke "k" using {{command down}}
-                delay 0.4
-                keystroke "{q_clean}"
-                delay 0.6
                 key code 36
                 delay 0.4
                 key code 36
             end tell
         end tell
         '''
-        subprocess.Popen(["osascript", "-e", keystroke_script])
+        subprocess.Popen(["osascript", "-e", script])
         return True
     except Exception as err:
         print(f"[Automation] Spotify search play error: {err}")
         return False
+
 
 # Spotify playlists — direct URIs for instant reliable playback (loads from env or default)
 PLAYLIST_HINDI   = os.getenv("SPOTIFY_PLAYLIST_HINDI", "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap")
