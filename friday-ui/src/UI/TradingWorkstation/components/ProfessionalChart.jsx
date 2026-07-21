@@ -1,32 +1,33 @@
 import React, { useEffect, useRef } from 'react';
 
-// Maps user symbols to official TradingView widget symbols (e.g., Gold -> OANDA:XAUUSD)
+// Maps user symbols to official TradingView widget symbols with focus on Indian Stock Market (NSE / BSE / NIFTY / BANKNIFTY)
 const SYMBOL_MAP = {
+    'NIFTY': 'NSE:NIFTY',
+    'NIFTY50': 'NSE:NIFTY',
+    'BANKNIFTY': 'NSE:BANKNIFTY',
+    'FINNIFTY': 'NSE:FINNIFTY',
+    'RELIANCE': 'NSE:RELIANCE',
+    'TCS': 'NSE:TCS',
+    'INFY': 'NSE:INFY',
+    'HDFCBANK': 'NSE:HDFCBANK',
+    'ICICIBANK': 'NSE:ICICIBANK',
+    'SBIN': 'NSE:SBIN',
+    'TATAMOTORS': 'NSE:TATAMOTORS',
+    'TATASTEEL': 'NSE:TATASTEEL',
+    'BHARTIARTL': 'NSE:BHARTIARTL',
+    'ITC': 'NSE:ITC',
+    'LIKHITH': 'NSE:LIKHITH',
+    'DBOL': 'NSE:DBOL',
+    'TITAGARH': 'NSE:TITAGARH',
     'XAUUSD': 'OANDA:XAUUSD',
-    'GC=F': 'OANDA:XAUUSD',
     'GOLD': 'OANDA:XAUUSD',
-    'BTC-USD': 'BINANCE:BTCUSDT',
     'BTCUSD': 'BINANCE:BTCUSDT',
-    'ETH-USD': 'BINANCE:ETHUSDT',
-    'SOL-USD': 'BINANCE:SOLUSDT',
-    'EURUSD=X': 'FX:EURUSD',
-    'GBPUSD=X': 'FX:GBPUSD',
-    'USDJPY=X': 'FX:USDJPY',
-    'DXY': 'CAPITALCOM:DXY',
-    'NVDA': 'NASDAQ:NVDA',
-    'AAPL': 'NASDAQ:AAPL',
-    'TSLA': 'NASDAQ:TSLA',
-    '^GSPC': 'FOREXCOM:SPXUSD',
-    'NASDAQ': 'NASDAQ:NDX',
-    '^IXIC': 'NASDAQ:NDX',
-    '^NSEI': 'NSE:NIFTY',
-    'RELIANCE.NS': 'NSE:RELIANCE',
 };
 
-export default function ProfessionalChart({ symbol = 'OANDA:XAUUSD' }) {
+export default function ProfessionalChart({ symbol = 'NSE:NIFTY' }) {
     const containerRef = useRef(null);
 
-    const tvSymbol = SYMBOL_MAP[symbol] || (symbol.includes(':') ? symbol : `OANDA:${symbol.replace(/[^a-zA-Z0-9]/g, '')}`);
+    const tvSymbol = SYMBOL_MAP[symbol] || (symbol.includes(':') ? symbol : `NSE:${symbol.replace(/[^a-zA-Z0-9]/g, '')}`);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -40,14 +41,14 @@ export default function ProfessionalChart({ symbol = 'OANDA:XAUUSD' }) {
                 new window.TradingView.widget({
                     autosize: true,
                     symbol: tvSymbol,
-                    interval: '1',
+                    interval: '5',
                     timezone: 'Asia/Kolkata',
                     theme: 'dark',
                     style: '1',
                     locale: 'in',
                     toolbar_bg: '#080d1a',
                     enable_publishing: false,
-                    hide_side_toolbar: false, // Show professional left drawing sidebar
+                    hide_side_toolbar: false, // Show professional drawing tools
                     allow_symbol_change: true,
                     details: true,
                     hotlist: true,

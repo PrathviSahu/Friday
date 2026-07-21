@@ -31,9 +31,9 @@ export default function QuantumTradingWorkstation({ onClose }) {
                 </button>
             </header>
 
-            {/* Real-time TradingView Chart Container */}
+            {/* Real-time TradingView Chart Container (Indian Stock Market NSE:NIFTY default) */}
             <div className="flex-1 w-full h-full relative">
-                <ProfessionalChart symbol="OANDA:XAUUSD" />
+                <ProfessionalChart symbol="NSE:NIFTY" />
             </div>
         </motion.div>
     );
