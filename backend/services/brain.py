@@ -168,6 +168,13 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
 
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
+        # 0.0 TIME QUERY SHORTCUT (English & Hinglish: "what is the time", "samay kya ho raha hai", "time kya hua hai")
+        if re.search(r'\b(?:time|samay|waqt)\b.*\b(?:kya|what|tell|show|is|hua)\b|\b(?:kya|what)\b.*\b(?:time|samay|waqt)\b', lower_text):
+            current_time_str = time.strftime("%I:%M %p")
+            reply_msg = f"Prem, abhi samay {current_time_str} ho raha hai." if re.search(r'\b(?:samay|waqt|kya|hua)\b', lower_text) else f"Prem, the current time is {current_time_str}."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
         # 0. SET VOLUME TO SPECIFIC PERCENTAGE (e.g. "volume 30%", "set volume to 100", "70 percent")
         # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
         pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
