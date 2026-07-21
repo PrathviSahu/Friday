@@ -1,103 +1,106 @@
 # Friday Project Architecture Overview
 
 **Document purpose**  
-This file describes the high‑level architecture of the *Friday* desktop assistant project, covering its major components, data flows, and technology choices. It is intended for developers, architects, and stakeholders who need a clear mental model of how the system works and where future work should be focused.
+This file describes the high-level architecture of the *Friday* desktop assistant project, covering its major components, data flows, technology choices, and active Spotify automation integrations.
 
----  
+---
 
 ## 1. Project Vision
-Friday is a personal AI‑assistant for desktop environments that:
-- Listens for voice wake‑words (e.g., “Friday”, “wake up”) and fingerprint authentication.
-- Executes commands (open apps, send messages, run scripts) after a successful wake‑up.
-- Provides a conversational UI for LLM‑driven responses.
-- Integrates with system‑level security (fingerprint, lock‑screen state).
+Friday is a personal AI assistant built for **Prem** (Prathvi Sahu) that:
+- Listens continuously for voice wake-words (e.g., "Friday", "Hey Friday", "If Friday") and WebAuthn fingerprint authentication.
+- Executes system automation on macOS (app control, smart volume routing, Spotify track/playlist control, YouTube & web search).
+- Uses a dual-engine hybrid AI (Groq Llama 3.3 70B primary for ~150ms responses + Gemini 2.5 failover).
+- Integrates Edge-TTS neural speech output with self-echo mic suppression and exponential backoff restart safety.
 
----  
+---
 
-## 2. High‑Level Diagram  
+## 2. High-Level Diagram  
 
 ```
-+-------------------+          +----------------------+          +-------------------+
-|  Front‑end (React|  HTTP/WS |  Backend API (Node)  |  RPC/HTTP|  Backend Services |
-|  + Vite)          | <----->  |  (Express / Fastify)| <----->  |  (LLM inference, |
-|  - UI Components  |          |  - Auth (Fingerprint)|          |   Text‑to‑Text)   |
-|  - Voice Hook     |          |  - Voice‑command OK |          |  - Storage, Cache |
-|  - Fingerprint UI|          +----------------------+          +-------------------+
-+-------------------+                     ^                         |
-                                            |                         |
-                                            | HTTPS (REST/WS)          |
-                                            v                         |
-+-------------------+                 +-------------------+        |
-|  OS Integration   | <------------ |  Security Layer  | <------+
-|  (LockScreen, UI)|                |  (Biometric,    |
-|   - LockScreen.jsx|                |   Permission)   |
-+-------------------+                +-------------------+
++---------------------+          HTTP / JSON          +-------------------------+
+|  React 18 Frontend  | <---------------------------> |  FastAPI Python Backend |
+|  (friday-ui)        |  POST /api/chat/text          |  (backend/app.py :8000) |
+|  - useSpeech Hook   |  POST /api/tts                +-------------------------+
+|  - WebAuthn Gate    |                                      /     |     \
++---------------------+                      +--------------+      |      +----------------+
+                                             |                     |                       |
+                                             v                     v                       v
+                                  [ Fast-Path Shortcuts ]   [ Memory Engine ]    [ Dual-Engine LLM ]
+                                             |               (JSON/SQLite)       - Groq 70B (150ms)
+                                             v                                   - Gemini 2.5
+                                 [ system_control.py ]
+                                    (macOS AppleScript)
+                                    /                 \
+                          [ Spotify App ]        [ macOS System ]
+                          - Direct URIs          - Output Volume
+                          - Shuffle/Volume       - Open/Close Apps
 ```
 
----  
+---
 
 ## 3. Technology Stack  
 
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
-| **UI** | React 18 + Vite | Fast dev experience, hot‑module reload, easy bundling for desktop. |
-| **Voice** | Web Speech API (SpeechRecognition) | Native browser support, works offline after user gesture. |
-| **State / Hooks** | Custom React hooks (`useSpeech`, `useOrbState`) | Encapsulates voice‑recognition lifecycle, authentication state, and command handling. |
-| **Backend API** | Node.js + Express (or Fastify) | Lightweight HTTP server, easy to deploy alongside desktop assets. |
-| **LLM Integration** | Anthropic Claude / OpenAI‑compatible API | Provides text‑only chat endpoint (`/api/chat/text`). |
-| **Security** | WebAuthn / Platform Authenticator API | Handles fingerprint authentication on supported OS. |
-| **Desktop Packaging** | Electron / Tauri (currently Vite‑based) | Wraps the React UI into a native window, accesses OS features. |
-| **Package Management** | npm / Yarn | Standard JS ecosystem. |
-| **Testing / CI** | Jest + Playwright (optional) | Unit & integration tests for core flows. |
-| **Build / CI** | GitHub Actions | Lint, test, and package on push. |
+| **UI** | React 18 + Vite + Tailwind CSS | Fast dev experience, modular UI, futuristic HUD styling. |
+| **Voice STT** | Web Speech API (`en-US`) | Browser-native STT with exponential backoff on `no-speech` errors. |
+| **Hooks** | `useSpeech.js`, `useOrbState.jsx` | Encapsulates speech lifecycle, mic mute state, and TTS echo guards. |
+| **Backend API** | Python 3.11 + FastAPI + Uvicorn | High-performance asynchronous API server running at `http://localhost:8000`. |
+| **Primary LLM** | Groq (`llama-3.3-70b-versatile`) | Ultra-fast (~150ms) intent extraction and natural conversational replies. |
+| **Failover LLM** | Google Gemini 2.5 | Heavy reasoning and fallback handling if primary LLM fails. |
+| **TTS Engine** | Edge-TTS (Microsoft Neural Voices) | Natural British female voice output with Web Speech API browser fallback. |
+| **OS Automation** | Python `subprocess` + macOS AppleScript (`osascript`) | Native macOS control over Spotify, apps, browser URLs, and system volume. |
+| **Security** | WebAuthn Platform Authenticator | Biometric fingerprint gate for LockScreen unlock. |
 
----  
+---
 
 ## 4. Directory Structure  
 
 ```
 /FRIDAY
 │
-├─ /frontend (src)                  # React UI
-│   ├─ /components                 # UI components (LockScreen, Buttons)
-│   ├─ /hooks                      # Custom hooks (useSpeech, useOrbState)
-│   ├─ /services                   # API clients (fetchChatText, fetchAuth)
-│   ├─ /pages / routes             # Page routing (if any)
-│   └─ index.jsx
+├── Friday-ui/                         # React Frontend (Vite)
+│   ├── src/
+│   │   ├── api/                      # fetchChatText.js API client
+│   │   ├── components/               # LockScreen, BottomBar, Panels, Debug
+│   │   ├── context/                  # FridayContext, FridaySync
+│   │   ├── hooks/                    # useSpeech.js, useOrbState.jsx, voiceCommands.js
+│   │   └── services/                 # ttsService.js
+│   └── package.json
 │
-├─ /backend                         # Node server (optional)
-│   ├─ server.js / app.js
-│   ├─ routes/
-│   │   └─ auth.js
-│   ├─ services/
-│   │   └─ llm.js                  # Wrapper around /api/chat/text
-│   └─ config/
+├── backend/                           # Python FastAPI Backend
+│   ├── app.py                        # Main FastAPI server (:8000)
+│   ├── services/
+│   │   ├── brain.py                  # Groq/Gemini LLM engine + Fast-path shortcuts
+│   │   ├── system_control.py         # macOS AppleScript system & Spotify automation
+│   │   ├── memory.py                 # Permanent memory & preference storage
+│   │   └── voice_auth.py             # Boss / Guest permission gating
+│   └── requirements.txt
 │
-├─ /scripts                         # Dev / build scripts
-│   └─ start.sh / dev.sh
-│
-├─ /tests                           # Unit / integration tests
-│
-├─ .gitignore
-├─ package.json
-├─ vite.config.js
-└─ architecture.md                  # <-- <--- This file
+└── architecture.md                    # <--- This file (Updated Project Overview)
 ```
 
----  
+---
 
-## 5. Core Components  
+## 5. Active Spotify Automation & URIs
 
-### 5.1 Front‑end – `useSpeech` Hook  
-- **Responsibilities:**  
-  - Request microphone permission.  
-  - Initialise `SpeechRecognition`.  
-  - Continuously stream interim results.  
-  - Detect the **first** wake‑word from the `WAKE_WORDS` list (including multi‑word phrases like “wake up”).  
-  - Execute `handleCmd(cmd)` once a wake‑word is found.  
+| Command | Action / URI | Trigger Phrases |
+|---------|--------------|-----------------|
+| **Hindi Playlist** | `spotify:playlist:4SuEAsJ6ulS62RYJk88Sap` | `"play my hindi playlist"`, `"hindi songs"`, `"apni playlist"` |
+| **English Playlist** | `spotify:playlist:2CCKzQqgsc50gtJeYDonJh` | `"play my english playlist"`, `"english songs"` |
+| **Radha Krishna Playlist** | `spotify:playlist:3Fd9z849SrTBEtHDTgQvXo` | `"play radha krishna playlist"`, `"krishna playlist"`, `"bhajan"` |
+| **Shuffle Mode** | `set shuffling to true` | `"shuffle"`, `"play on shuffle"`, `"shuffel"` |
+| **Pause / Resume** | Atomic AppleScript `play` / `pause` | `"pause music"`, `"stop music"`, `"resume music"` |
+| **Smart Volume** | Spotify (if open) else macOS System Volume | `"volume 30%"`, `"set volume to 70"`, `"turn it down"` |
 
-- **Key logic:**  
-  - Phrase matching is case‑insensitive and trims leading punctuation.  
+---
+
+## 6. Security & Identity
+
+- **Owner / Boss**: **Prem** (addressed as Prem across all replies and UI status).
+- **Boss Gating**: System commands (app launch, volume, media control) are restricted to Prem.
+- **Guest Access**: Guests can speak only when Prem explicitly says `"allow guest"`. Refused via `"revoke guest"`.
+
   - Prioritises longer phrases (e.g., “wake up”) before single‑word matches.  
 
 ### 5.2 LockScreen UI  
