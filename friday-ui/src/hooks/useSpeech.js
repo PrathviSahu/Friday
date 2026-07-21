@@ -14,7 +14,6 @@ const withTimeout = (promise, ms) =>
 export function useSpeech({ isLocked, onCommand, onConversation }) {
   const activeRef = useRef(false);
   const processingRef = useRef(false);
-  const isSpeakingRef = useRef(false);
   const lockedRef = useRef(isLocked);
   const onCommandRef = useRef(onCommand);
   const onConversationRef = useRef(onConversation);
@@ -54,7 +53,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
     const start = () => {
       if (cancelled) return;
 
-      // FIX #1: Silence old instance handlers BEFORE aborting to eliminate restart storms!
       if (rec) {
         rec.onend = null;
         rec.onerror = null;
@@ -75,7 +73,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       rec.onerror = (e) => {
         console.warn('[Voice] Recognition error:', e.error);
         activeRef.current = false;
-        // Schedule single restart
         if (!cancelled && (e.error === 'no-speech' || e.error === 'network' || e.error === 'aborted')) {
           scheduleRestart(300);
         }
@@ -88,12 +85,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       };
 
       rec.onresult = (e) => {
-        // FIX #4: Drop any speech transcript that arrives while FRIDAY herself is speaking!
-        if (isSpeakingRef.current) {
-          console.log('[Voice] Suppressing self-talk echo while FRIDAY is speaking...');
-          return;
-        }
-
         const resultIndex = e.resultIndex;
         if (resultIndex === undefined || resultIndex < 0) return;
         
@@ -101,7 +92,8 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
         console.log('[Voice] Raw speech recognized:', rawTranscript);
 
         let query = rawTranscript.trim();
-        query = query.replace(/^(?:he|hey|hi|hello|ok|okay)\s+friday\b\s*/i, '')
+        // Enhanced Regex: strips wake-words including 'if friday', 'friday', 'hey friday'
+        query = query.replace(/^(?:if|he|hey|hi|hello|ok|okay)\s+friday\b\s*/i, '')
                      .replace(/^friday\b\s*/i, '')
                      .trim();
 
@@ -118,7 +110,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       }
     };
 
-    // Watchdog keep-alive loop (checks activeRef and forces restart if Chrome drops listener)
     keepAliveTimer = setInterval(() => {
       if (!cancelled && !activeRef.current && !processingRef.current) {
         console.log('[Voice Watchdog] Mic inactive, auto-restarting listener...');
@@ -127,7 +118,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
     }, 2500);
 
     const handleCmd = async (cmd) => {
-      // FIX #3: Re-instated duplicate-command guard to prevent concurrent execution loops
       if (processingRef.current) return;
 
       processingRef.current = true;
@@ -136,12 +126,9 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
           const lockedReply = "Access denied, Boss. Please authenticate with your fingerprint key first.";
           onConversationRef.current?.({ transcript: cmd, reply: lockedReply, action: 'none' });
           
-          isSpeakingRef.current = true;
           try {
             await withTimeout(speak(lockedReply), 8000);
-          } finally {
-            isSpeakingRef.current = false;
-          }
+          } catch (_) {}
           return;
         }
 
@@ -151,7 +138,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
           return;
         }
 
-        // FIX #2: Wrapped API network request in a 12s timeout so network hangs NEVER freeze processingRef!
         const data = await withTimeout(fetchChatText(cmd), 12000);
         const reply = data.reply?.trim() || 'At your service, Boss.';
         const action = data.action?.trim() || 'none';
@@ -166,16 +152,8 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
           action,
         });
 
-        // Mark speaking active while TTS audio plays to suppress mic self-echo
-        isSpeakingRef.current = true;
-        speak(reply)
-          .catch((e) => console.warn('[Voice] TTS speak error:', e))
-          .finally(() => {
-            // Short delay after speaking finishes to let audio reverberation clear
-            setTimeout(() => {
-              isSpeakingRef.current = false;
-            }, 400);
-          });
+        // Fire TTS non-blocking so speech recognition never misses user's subsequent commands
+        speak(reply).catch((e) => console.warn('[Voice] TTS speak error:', e));
       } catch (err) {
         console.warn('[Voice] Command error:', err);
       } finally {
