@@ -45,19 +45,16 @@ _BOSS_BASE_PROMPT = (
     "Examples of STT misinterpretations: "
     "- 'help away by Tempo city' OR 'temple city' OR 'temple city on my spotify' -> 'Self Aware by Temple City' "
     "- 'if friday please' -> 'Friday play' "
+    "- 'decrease the music' OR 'lower music' OR 'lower volume' -> set action to 'volume_down' "
     "- 'sound at 70' OR 'sound at 70%' -> set volume_percent to 70 "
-    "When you detect ANY mention of songs, music, artist names, sound/volume percentage, or application actions, "
-    "YOU MUST DETERMINE THE INTENDED ACTION AND NOT RETURN 'none'! "
-    "If a song, artist, or playlist is mentioned (even with typos like 'tempo city', 'temple city', 'help away'), set action to 'play_specific' "
-    "and 'target_app' to the corrected song title (e.g. 'Self Aware by Temple City', 'Kesariya'). "
-    "If volume is mentioned, set 'volume_percent' to the requested integer (0-100). "
-    "IMPORTANT: NEVER reply with generic 'I'm standing by, Boss' when the user asks a question or gives a command! "
-    "Always provide a witty, helpful answer or carry out the requested action. "
+    "IMPORTANT: ONLY set action to 'play_specific' if the user explicitly asks to play a specific song or artist name (e.g. 'play Kesariya', 'play Starboy'). "
+    "For general media commands ('decrease music', 'volume down', 'pause', 'next song'), use the respective media action! "
     "ACTIONS: "
-    "- play_specific: search and play a song on Spotify "
+    "- volume_down: decrease volume / lower the music "
+    "- volume_up: increase volume / raise the music "
+    "- play_specific: search & play a specific song on Spotify "
     "- play_hindi_playlist / play_english_playlist "
-    "- pause_music / play_music / set_volume / volume_up / volume_down / mute "
-    "- next_track / previous_track / repeat / shuffle / open_spotify / close_spotify "
+    "- pause_music / play_music / set_volume / mute / next_track / previous_track / repeat / shuffle / open_spotify / close_spotify "
     "ALWAYS respond with ONLY a single valid JSON object in the form: "
     '{"reply": "<spoken output>", "action": "<action>", "target_app": "<optional song/app>", "volume_percent": -1, "remember_key": null, "remember_value": null}'
 )
@@ -134,7 +131,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     if lower_text in ["please", "pls", "thank you", "thanks"]:
         return {"reply": "", "action": "none"}
 
-    # FIX #1: Security - ONLY Boss can grant/revoke guest permission
+    # SECURITY & PERMISSION MANAGEMENT (Boss only)
     if is_boss:
         if any(kw in lower_text for kw in ["allow guest", "grant guest", "let them speak", "give permission"]):
             set_guest_permission(True)
@@ -153,25 +150,41 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             save_fact("boss_name", "Prathvi Sahu", "identity")
             save_fact("boss_name_spelling", "P-R-A-T-H-V-I S-A-H-U", "identity")
 
-    # FIX #2 & #3: Gated Media Controls + Word-Boundary Regex to fix "unpause" -> "pause" bug
+    # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
-        # Check "unpause" / "resume" FIRST before "pause"
+        # 1. VOLUME DOWN / DECREASE MUSIC SHORTCUT
+        if any(kw in lower_text for kw in ["decrease volume", "volume down", "decrease music", "lower music", "lower volume", "quieter", "turn down", "decrease the music"]):
+            execute_system_command("volume_down")
+            reply_msg = "Decreasing volume, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "volume_down"}
+
+        # 2. VOLUME UP / INCREASE MUSIC SHORTCUT
+        if any(kw in lower_text for kw in ["increase volume", "volume up", "increase music", "raise music", "raise volume", "louder", "turn up"]):
+            execute_system_command("volume_up")
+            reply_msg = "Increasing volume, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "volume_up"}
+
+        # 3. UNPAUSE / RESUME SHORTCUT
         if re.search(r'\b(?:unpause|resume)\b', lower_text):
             execute_system_command("play_music")
             reply_msg = "Resuming Spotify music, Boss."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "play_music"}
 
+        # 4. PAUSE / STOP MUSIC SHORTCUT
         if re.search(r'\b(?:pause|stop music|hold on)\b', lower_text) or lower_text == "stop":
             execute_system_command("pause_music")
             reply_msg = "Pausing Spotify music, Boss."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "pause_music"}
 
-        # PRE-EXTRACT VOLUME AND PHONETIC SONG PATTERNS BEFORE AI CALL
+        # 5. PRE-EXTRACT VOLUME % PATTERNS
         vol_match = re.search(r'(?:sound|volume)\s*(?:at|to|is)?\s*(\d{1,3})%?', lower_text)
         extracted_vol = int(vol_match.group(1)) if vol_match else -1
 
+        # 6. PHONETIC SONG SHORTCUT
         if any(kw in lower_text for kw in ["tempo city", "help away", "temple city"]):
             target_song = "Self Aware by Temple City"
             execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
@@ -181,8 +194,8 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             log_conversation(role="assistant", message=msg)
             return {"reply": msg, "action": "play_specific"}
 
-        # PRE-EXTRACT "PLAY [SONG]" QUERIES FOR DIRECT SPOTIFY LAUNCH
-        if re.search(r'\bplay\b', lower_text):
+        # 7. EXPLICIT "PLAY [SONG]" SHORTCUT (Only if phrase contains explicit song/artist, NOT volume/playlist/decrease keywords)
+        if re.search(r'\bplay\b', lower_text) and not any(kw in lower_text for kw in ["decrease", "lower", "quieter", "volume"]):
             cleaned_song = (
                 lower_text.replace("open spotify and play", "")
                 .replace("open spotify and", "")
@@ -193,7 +206,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                 .replace("on spotify", "")
                 .strip()
             )
-            if cleaned_song and cleaned_song not in ["music", "spotify", "playlist", "hindi", "english"]:
+            if cleaned_song and cleaned_song not in ["music", "spotify", "playlist", "hindi", "english", "volume", "sound"]:
                 execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
                 msg = f"Opening Spotify and playing '{cleaned_song}', Boss."
                 log_conversation(role="assistant", message=msg)
@@ -226,7 +239,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.3,
-                max_tokens=400, # Bushed max_tokens to prevent JSON truncation
+                max_tokens=400,
             )
             elapsed = (time.time() - start_time) * 1000
             raw = completion.choices[0].message.content or ""
@@ -236,7 +249,6 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             action = str(data.get("action") or "none").strip().lower()
             target_app = str(data.get("target_app") or "").strip()
             
-            # FIX #5: Safe Volume Parsing (avoid ValueError)
             try:
                 vol_percent = int(data.get("volume_percent", -1))
             except (ValueError, TypeError):
@@ -247,11 +259,9 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             if action not in KNOWN_ACTIONS:
                 action = "none"
 
-            # FIX #4 & #2: Execute automation ONLY if authorized AND reply is non-empty (no double execution on failover)
             if reply and (is_boss or guest_active):
                 _handle_system_automation(action, target_app, volume_percent=vol_percent)
 
-                # Gate memory extraction for Boss only
                 rem_key = data.get("remember_key")
                 rem_val = data.get("remember_value")
                 if is_boss and (action == "remember" or rem_key) and rem_key and rem_val:
@@ -304,9 +314,9 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
 
-    # FIX #6: Strict Fallback - Only trigger Spotify search if user explicitly used a music keyword
-    music_keywords = ["play", "listen", "song", "track", "music", "spotify", "playlist"]
-    if authorized and any(kw in lower_text for kw in music_keywords) and len(text.split()) <= 4:
+    # Strict Fallback - Only trigger Spotify search if user explicitly used a song play request
+    song_explicit_keywords = ["play song", "play track", "search song", "play artist"]
+    if authorized and any(kw in lower_text for kw in song_explicit_keywords) and len(text.split()) <= 4:
         execute_system_command("play_specific", text, volume_percent=extracted_vol if 'extracted_vol' in locals() else -1)
         msg = f"Opening Spotify and playing '{text}', Boss."
         log_conversation(role="assistant", message=msg)
