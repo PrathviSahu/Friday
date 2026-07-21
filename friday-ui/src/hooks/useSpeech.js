@@ -215,10 +215,20 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       }
     }, 5000);
 
+    let lastProcessedCmd = '';
+    let lastProcessedTime = 0;
+
     // ── Command handler ───────────────────────────────────────────────────────
     const handleCmd = async (cmd) => {
-      if (processingRef.current) return;
+      const now = Date.now();
+      if (processingRef.current || (cmd === lastProcessedCmd && now - lastProcessedTime < 2500)) {
+        console.log('[Voice] Suppressing duplicate rapid command:', cmd);
+        if (!activeRef.current) start();
+        return;
+      }
       processingRef.current = true;
+      lastProcessedCmd = cmd;
+      lastProcessedTime = now;
 
       try {
         if (lockedRef.current) {
