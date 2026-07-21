@@ -39,8 +39,6 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
 export default function SystemMonitorCard() {
     const { workspace } = useOrbState();
     const [isVisible, setIsVisible] = useState(false);
-
-    if (workspace === 'trading') return null;
     const [stats, setStats] = useState({
         cpu_percent: 0,
         ram_percent: 0,
@@ -63,6 +61,8 @@ export default function SystemMonitorCard() {
         const iv = setInterval(fetchStats, 3000);
         return () => clearInterval(iv);
     }, []);
+
+    if (workspace === 'trading') return null;
 
     if (!isVisible) {
         return (

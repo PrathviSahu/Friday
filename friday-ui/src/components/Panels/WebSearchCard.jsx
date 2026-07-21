@@ -8,13 +8,13 @@ const API = 'http://localhost:8000/api/search';
 export default function WebSearchCard() {
     const { workspace } = useOrbState();
     const [isVisible, setIsVisible] = useState(false);
-
-    if (workspace === 'trading') return null;
     const [query, setQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [results, setResults] = useState([]);
     const [searchedQuery, setSearchedQuery] = useState('');
     const inputRef = useRef(null);
+
+    if (workspace === 'trading') return null;
 
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
