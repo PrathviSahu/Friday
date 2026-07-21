@@ -8,6 +8,12 @@ import os
 import json
 import re
 import time
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Ensure backend/.env environment variables are loaded
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 from groq import Groq
 from google import genai
@@ -44,7 +50,8 @@ _BOSS_BASE_PROMPT = (
     "SYSTEM & MEDIA AUTOMATION ACTIONS: "
     "- play_hindi_playlist: play Boss's Hindi playlist 'Only for me' "
     "- play_english_playlist: play Boss's English playlist 'Losing my self' "
-    "- play_specific: search & play any specific song on Spotify (set 'target_app' to song name e.g. 'Kesariya', 'Starboy', 'Blinding Lights') "
+    "- play_specific: search & play any specific song on Spotify (set 'target_app' to song name e.g. 'Kesariya', 'Self Aware by Temple City', 'Pagal Kare'). "
+    "IMPORTANT: If the user says a song name or asks to play something (e.g. 'pagal kare', 'self aware by temple city'), ALWAYS set action to 'play_specific' and target_app to the song name! "
     "- open_spotify / close_spotify (quits Spotify app) "
     "- play_music / pause_music / toggle_music "
     "- next_track / previous_track "
@@ -141,12 +148,6 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         return {"reply": reply_msg, "action": "revoke_guest"}
 
     # Direct fast-path shortcuts for application & media controls
-    if lower_text == "open spotify" or lower_text == "launch spotify":
-        execute_system_command("open_spotify")
-        reply_msg = "Opening Spotify now, Boss."
-        log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "open_spotify"}
-
     if "close spotify" in lower_text or "quit spotify" in lower_text:
         execute_system_command("close_spotify")
         reply_msg = "Closing Spotify, Boss."
@@ -189,14 +190,29 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "shuffle"}
 
-    # Catch ANY "play [song]" command directly
-    if lower_text.startswith("play ") or "play song" in lower_text or "play track" in lower_text:
-        target = lower_text.replace("play song", "").replace("play track", "").replace("search song", "").replace("play", "").replace("on spotify", "").strip()
-        if target and target not in ["music", "spotify", "playlist"]:
-            execute_system_command("play_specific", target)
-            reply_msg = f"Playing '{target}' on Spotify, Boss."
+    # Compound queries: "open spotify and play [song]" or "play [song]"
+    if "play" in lower_text:
+        cleaned_song = (
+            lower_text.replace("open spotify and play", "")
+            .replace("open spotify and", "")
+            .replace("play song", "")
+            .replace("play track", "")
+            .replace("search song", "")
+            .replace("play", "")
+            .replace("on spotify", "")
+            .strip()
+        )
+        if cleaned_song and cleaned_song not in ["music", "spotify", "playlist"]:
+            execute_system_command("play_specific", cleaned_song)
+            reply_msg = f"Opening Spotify and playing '{cleaned_song}', Boss."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "play_specific"}
+
+    if lower_text == "open spotify" or lower_text == "launch spotify":
+        execute_system_command("open_spotify")
+        reply_msg = "Opening Spotify now, Boss."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "open_spotify"}
 
     # Build dynamic prompt with stored memory context
     guest_active = is_guest_permitted()
@@ -290,6 +306,13 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                     return {"reply": reply, "action": action}
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
+
+    # Default fallback for short single-phrase song titles
+    if len(text.split()) <= 3 and not text.lower().startswith("what") and not text.lower().startswith("how"):
+        execute_system_command("play_specific", text)
+        reply_msg = f"Opening Spotify and playing '{text}', Boss."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "play_specific"}
 
     fallback_reply = "I'm standing by, Boss."
     log_conversation(role="assistant", message=fallback_reply)
