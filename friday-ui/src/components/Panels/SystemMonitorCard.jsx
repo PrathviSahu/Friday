@@ -36,7 +36,7 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
 }
 
 export default function SystemMonitorCard() {
-    const [isVisible, setIsVisible] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
     const [stats, setStats] = useState({
         cpu_percent: 0,
         ram_percent: 0,

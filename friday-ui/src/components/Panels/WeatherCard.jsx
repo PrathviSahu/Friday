@@ -5,7 +5,7 @@ import { Sun, CloudRain, Cloud, Wind, Droplets, MapPin, X, GripHorizontal } from
 const API = 'http://localhost:8000/api/weather';
 
 export default function WeatherCard() {
-    const [isVisible, setIsVisible] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
     const [weather, setWeather] = useState({
         city: 'Locating…',
         temperature: '--',

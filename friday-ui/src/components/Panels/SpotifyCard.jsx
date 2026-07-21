@@ -36,7 +36,7 @@ function IconBtn({ icon: Icon, size = 16, color = '#b3b3b3', activeColor = '#fff
 }
 
 export default function SpotifyCard() {
-    const [isVisible, setIsVisible] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
     const [spotifyTrack, setSpotifyTrack] = useState({ playing: false, title: '', artist: '', artwork_url: '' });
     const [volume, setVolume] = useState(65);
     const [muted, setMuted] = useState(false);

@@ -14,7 +14,7 @@ const PRIORITY_META = {
 };
 
 export default function TodoCard() {
-    const [isVisible, setIsVisible] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
     const [todos, setTodos] = useState([]);
     const [input, setInput] = useState('');
     const [priority, setPriority] = useState('normal');
