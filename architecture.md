@@ -131,8 +131,10 @@ Friday is a personal AI assistant built for **Prem** (Prathvi Sahu) that:
 - **Owner / Boss**: **Prem** (addressed as Prem across all replies and UI status).
 - **Boss Gating**: System commands (app launch, volume, media control, todo creation, weather, playlist additions) are restricted to Prem.
 - **Phonetic Speech Correction & Trailing Wake Words**:
-  - `useSpeech.js` automatically strips trailing wake-words (e.g. `"play Know Your Enemy Friday"`) and cleans phonetic misrecognitions (e.g. `"at this song to my English playlist"` -> `"add this song to my English playlist"`).
-  - Fast-path regex in `brain.py` dynamically handles playlist additions for English, Hindi, and custom playlists.
+  - `useSpeech.js` automatically strips trailing wake-words and cleans phonetic misrecognitions.
+  - Flexible voice shortcuts in `voiceCommands.js` match single keywords (e.g., `"trading"`, `"chart"`, `"vscode"`, `"dashboard"`).
+- **TradingView Embed Stability**:
+  - `ProfessionalChart.jsx` includes `'widget_bar'` in `disabled_features` to resolve `TypeError: Cannot read properties of undefined (reading 'list')`.
 - **Guest Access**: Guests can speak only when Prem explicitly says `"allow guest"`. Refused via `"revoke guest"`.
 
 ---
