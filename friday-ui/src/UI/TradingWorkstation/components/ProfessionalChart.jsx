@@ -1,26 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Sliders, X } from 'lucide-react';
 
-const FULL_REALTIME_WATCHLIST = [
-    'OANDA:XAUUSD',
-    'NASDAQ:NDX',
-    'NASDAQ:NVDA',
-    'NASDAQ:AAPL',
-    'NASDAQ:TSLA',
-    'CAPITALCOM:DXY',
-    'BINANCE:BTCUSDT',
-    'BINANCE:ETHUSDT',
-    'BINANCE:SOLUSDT',
-    'FX:EURUSD',
-    'FX:GBPUSD',
-    'NSE:NIFTY',
-    'NSE:BANKNIFTY',
-    'NSE:RELIANCE',
-    'NSE:TCS',
-    'NSE:INFY',
-    'NSE:HDFCBANK',
-];
-
 export default function ProfessionalChart({ symbol = 'OANDA:XAUUSD' }) {
     const containerRef = useRef(null);
     const [contextMenu, setContextMenu] = useState(null);
@@ -46,19 +26,21 @@ export default function ProfessionalChart({ symbol = 'OANDA:XAUUSD' }) {
             locale: 'en',
             toolbar_bg: '#131722',
             enable_publishing: false,
-            hide_side_toolbar: false,
+            hide_side_toolbar: false, // Show left drawing toolbar (Trendlines, Fibs, Position tools)
             allow_symbol_change: true,
-            watchlist: FULL_REALTIME_WATCHLIST,
-            details: true,
-            hotlist: true,
-            calendar: true,
+            details: false,           // DISABLE TradingView inner details sidebar
+            hotlist: false,           // DISABLE TradingView inner hotlist sidebar
+            calendar: false,          // DISABLE TradingView inner calendar sidebar
             show_popup_button: true,
             popup_width: '1000',
             popup_height: '650',
             container_id: 'tradingview_widget_element',
             backgroundColor: '#0a0f1d',
             gridColor: 'rgba(56, 189, 248, 0.15)',
-            disabled_features: [],
+            disabled_features: [
+                'header_widget_dom_node',
+                'trading_notifications'
+            ],
             enabled_features: [
                 'study_templates',
                 'use_localstorage_for_settings',
@@ -84,7 +66,6 @@ export default function ProfessionalChart({ symbol = 'OANDA:XAUUSD' }) {
     };
 
     useEffect(() => {
-        // If script is already in document
         if (window.TradingView) {
             initWidget();
             return;
