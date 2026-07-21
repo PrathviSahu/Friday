@@ -26,7 +26,7 @@ from services.memory import (
     log_conversation,
     get_recent_conversation
 )
-from services.system_control import execute_system_command
+from services.system_control import execute_system_command, get_spotify_current_track, add_current_track_to_playlist
 
 KNOWN_ACTIONS = [
     "dashboard", "trading", "engineering", "vscode", "browser",
@@ -117,7 +117,7 @@ def _handle_system_automation(action: str, target: str, volume_percent: int = -1
     return ""
 
 
-def respond(transcript: str, is_boss: bool = True) -> dict:
+def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) -> dict:
     """Return {'reply': str, 'action': str} for a user utterance using Groq Fuzzy Intent Corrector LLM + Gemini failover."""
     text = (transcript or "").strip()
     if not text:
@@ -168,7 +168,20 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
 
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
-        # 0.0 TIME QUERY SHORTCUT (English & Hinglish: "what is the time", "samay kya ho raha hai", "time kya hua hai")
+        # 0.0 TIME & HISTORY SHORTCUTS (English & Hinglish)
+        if re.search(r'\b(?:what\s+did\s+i\s+ask|previous\s+question|pehle\s+kya\s+pucha|pehle\s+kya\s+bola|last\s+question)\b', lower_text):
+            recent = get_recent_conversation(limit=3)
+            user_msgs = [h["message"] for h in recent if h["role"].lower() == "user"]
+            if len(user_msgs) > 1:
+                last_q = user_msgs[-2]  # previous user question
+                reply_msg = f"Prem, earlier you asked: '{last_q}'."
+            elif user_msgs:
+                reply_msg = f"Prem, your last question was: '{user_msgs[-1]}'."
+            else:
+                reply_msg = "You haven't asked any previous questions in this session yet, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
         if re.search(r'\b(?:time|samay|waqt)\b.*\b(?:kya|what|tell|show|is|hua)\b|\b(?:kya|what)\b.*\b(?:time|samay|waqt)\b', lower_text):
             current_time_str = time.strftime("%I:%M %p")
             reply_msg = f"Prem, abhi samay {current_time_str} ho raha hai." if re.search(r'\b(?:samay|waqt|kya|hua)\b', lower_text) else f"Prem, the current time is {current_time_str}."
@@ -179,53 +192,73 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
         pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
         if extracted_vol >= 0 and not re.search(r'\bplay\b', lower_text):
-            result = execute_system_command("set_volume", "", volume_percent=extracted_vol)
             reply_msg = result or f"Setting volume to {extracted_vol}%, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "set_volume"}
+            return {"reply": reply_msg, "action": "set_volume", "silence_tts": silence_tts}
 
         # 1. VOLUME DOWN SHORTCUT (English + Hinglish: awaaz kam, volume kam, dheere karo)
         if re.search(r'(?:turn|lower|decrease|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:down)?|volume\s*down|quieter|\b(?:awaaz\s+kam|volume\s+kam|dheere\s+karo|dheere)\b', lower_text):
             result = execute_system_command("volume_down", "")
             reply_msg = result or "Decreasing volume, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "volume_down"}
+            return {"reply": reply_msg, "action": "volume_down", "silence_tts": silence_tts}
 
         # 2. VOLUME UP SHORTCUT (English + Hinglish: awaaz badhao, volume badhao, tez karo)
         if re.search(r'(?:turn|raise|increase|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:up)?|volume\s*up|louder|\b(?:awaaz\s+badhao|volume\s+badhao|tez\s+karo|unche\s+karo)\b', lower_text):
             result = execute_system_command("volume_up", "")
             reply_msg = result or "Increasing volume, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "volume_up"}
+            return {"reply": reply_msg, "action": "volume_up", "silence_tts": silence_tts}
 
         # 2.5. NEXT TRACK / PREVIOUS TRACK SHORTCUTS (English + Hinglish: agla gaana, pichhla gaana)
         if re.search(r'\b(?:next|skip|play next|next song|next track)\b|\b(?:agla\s+gaana|agla\s+song|agla)\b', lower_text):
             execute_system_command("next_track", "")
             reply_msg = "Skipping to the next track, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "next_track"}
+            return {"reply": reply_msg, "action": "next_track", "silence_tts": silence_tts}
 
         if re.search(r'\b(?:previous|prev|previous song|previous track|play previous|go back)\b|\b(?:pichhla\s+gaana|purana\s+gaana|pichhla)\b', lower_text):
             execute_system_command("previous_track", "")
             reply_msg = "Playing the previous track, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "previous_track"}
+            return {"reply": reply_msg, "action": "previous_track", "silence_tts": silence_tts}
 
         # 3. UNPAUSE / RESUME SHORTCUT (English + Hinglish: play music, play the music, resume, chalao, bajao, shuru karo)
         if re.search(r'\b(?:unpause|resume|play\s+music|play\s+the\s+music|play\s+spotify|start\s+music|start\s+playing)\b|\b(?:gaana\s+chalao|music\s+chalao|gaana\s+bajao|shuru\s+karo)\b', lower_text):
             execute_system_command("play_music", "", volume_percent=extracted_vol)
             reply_msg = "Resuming Spotify music, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "play_music"}
+            return {"reply": reply_msg, "action": "play_music", "silence_tts": silence_tts}
 
         # 4. PAUSE / STOP MUSIC SHORTCUT (English + Hinglish: band karo, roko, ruk jao)
         if re.search(r'\b(?:pause|pause music|stop music|stop playing|stop the song|stop the music|hold on)\b|\b(?:band\s+karo|gaana\s+roko|roko|ruk\s+jao|gaana\s+band)\b', lower_text) or lower_text in ["stop", "band"]:
             execute_system_command("pause_music", "")
             reply_msg = "Pausing Spotify music, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "pause_music"}
+            return {"reply": reply_msg, "action": "pause_music", "silence_tts": silence_tts}
 
         # 4.5. PLAYLIST SHORTCUTS (must come BEFORE generic play-song shortcut)
+        if re.search(r'\b(?:add\s+this|add\s+to\s+playlist|save\s+this\s+song|is\s+gaane\s+ko|playlist\s+mein\s+daalo)\b', lower_text):
+            track_info = get_spotify_current_track()
+            if track_info.get("title"):
+                add_current_track_to_playlist()
+                reply_msg = f"Prem, adding '{track_info.get('title')}' to your playlist."
+            else:
+                reply_msg = "No song is currently playing on Spotify to add, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
+        if re.search(r'\b(?:what\s+song|what\s+is\s+playing|whats\s+playing|which\s+song|kaun\s+sa\s+gaana|kis\s+gaane)\b', lower_text):
+            track_info = get_spotify_current_track()
+            if track_info.get("playing") or track_info.get("title"):
+                t = track_info.get("title", "Unknown")
+                a = track_info.get("artist", "Unknown artist")
+                reply_msg = f"Prem, currently playing '{t}' by {a} on Spotify." if re.search(r'\b(?:what|which|song)\b', lower_text) else f"Prem, abhi '{t}' by {a} chal raha hai."
+            else:
+                reply_msg = "Nothing is currently playing on Spotify, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
         if re.search(r'\b(?:hindi|meri|apni|bollywood|desi)\b.*\b(?:playlist|songs|music|gaane)\b|\b(?:playlist|songs|music|gaane)\b.*\b(?:hindi|bollywood|desi)\b', lower_text):
             result = execute_system_command("play_hindi_playlist", "", volume_percent=extracted_vol)
             reply_msg = result or "Playing your Hindi playlist, Prem."
@@ -279,8 +312,18 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         recent_history = get_recent_conversation(limit=4)
         history_str = "\n".join([f"{h['role'].upper()}: {h['message']}" for h in recent_history])
         
+        # Inject live context (Smarter context: active track name and local time)
+        track = get_spotify_current_track()
+        track_context = f"Track: '{track.get('title')}' by {track.get('artist')} (State: {track.get('state')})" if track.get("title") else "No active track playing."
+        local_time_str = time.strftime("%I:%M %p")
+        
         full_system_prompt = (
             f"{_BOSS_BASE_PROMPT}\n\n"
+            f"[LIVE SYSTEM CONTEXT]\n"
+            f"- Current Local Time: {local_time_str}\n"
+            f"- Spotify Active playback: {track_context}\n"
+            f"- App State: Dashboard Console Level 4 Active\n"
+            f"PROACTIVE CONTEXT RULE: If the user says hello or is starting a conversation and it is late (e.g. around 9 PM or evening/night), proactively suggest playing their chill playlist or Radha Krishna playlist (e.g., 'Aapki Radha Krishna bhajan playlist chala du, Prem?').\n\n"
             f"[PERMANENT MEMORY & USER PREFERENCES]\n{memory_str}\n\n"
             f"[RECENT CONVERSATION HISTORY]\n{history_str}"
         )
@@ -339,7 +382,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
 
                 print(f"[Brain/Groq Intent Corrector] Responded in {elapsed:.1f}ms ⚡ (Action: {action}, Target: '{target_app}', Vol: {vol_percent})")
                 log_conversation(role="assistant", message=reply)
-                return {"reply": reply, "action": action}
+                return {"reply": reply, "action": action, "silence_tts": silence_tts}
         except Exception as err:
             print(f"[Brain] Groq call failed ({err}), failing over to Gemini...")
 
@@ -380,7 +423,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                 if reply and (is_boss or guest_active):
                     _handle_system_automation(action, target_app, volume_percent=vol_percent)
                     log_conversation(role="assistant", message=reply)
-                    return {"reply": reply, "action": action}
+                    return {"reply": reply, "action": action, "silence_tts": silence_tts}
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
 
@@ -392,8 +435,8 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             execute_system_command("play_specific", fallback_song, volume_percent=extracted_vol)
             msg = f"Opening Spotify and playing '{fallback_song}', Prem."
             log_conversation(role="assistant", message=msg)
-            return {"reply": msg, "action": "play_specific"}
+            return {"reply": msg, "action": "play_specific", "silence_tts": silence_tts}
 
     fallback_reply = f"At your service, Prem. I heard: '{text}'. How can I assist you?"
     log_conversation(role="assistant", message=fallback_reply)
-    return {"reply": fallback_reply, "action": "none"}
+    return {"reply": fallback_reply, "action": "none", "silence_tts": silence_tts}

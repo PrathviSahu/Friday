@@ -226,9 +226,11 @@ export function useSpeech({ locked, isLocked, enabled = true, onCommand, onConve
         onConvRef.current?.({ transcript: cmd, reply, action });
 
         // ── Speak response ───────────────────────────────────────────────────
-        speakingRef.current = true;
-        try { await withTimeout(speak(reply), 15000); } catch (_) {}
-        speakingRef.current = false;
+        if (!data.silence_tts) {
+          speakingRef.current = true;
+          try { await withTimeout(speak(reply), 15000); } catch (_) {}
+          speakingRef.current = false;
+        }
         noSpeechStreak = 0;
 
         // Brief buffer after speech finishes, restart mic

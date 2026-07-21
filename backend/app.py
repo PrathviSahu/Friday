@@ -16,6 +16,7 @@ from services.brain import respond
 from services.tts import generate_speech
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import get_all_memories, save_fact
+from services.system_control import get_spotify_current_track
 
 # Ensure temp_audio directory exists
 AUDIO_DIR = Path('temp_audio')
@@ -38,6 +39,7 @@ app.mount('/temp_audio', StaticFiles(directory='temp_audio'), name='temp_audio')
 class ChatTextRequest(BaseModel):
     text: str
     is_boss: bool = True
+    silence_tts: bool = False
 
 
 class TTSRequest(BaseModel):
@@ -66,7 +68,7 @@ def read_root():
 def chat_text_endpoint(req: ChatTextRequest):
     """Text-based chat endpoint for FRIDAY AI brain with memory learning"""
     try:
-        res = respond(req.text, is_boss=req.is_boss)
+        res = respond(req.text, is_boss=req.is_boss, silence_tts=req.silence_tts)
         return res
     except Exception as e:
         print(f"[Error] Chat endpoint error: {e}")
@@ -94,6 +96,12 @@ def set_permission_endpoint(req: PermissionRequest):
     """Grant or revoke guest voice permission"""
     set_guest_permission(req.allow)
     return {"status": "ok", "guest_permitted": is_guest_permitted()}
+
+
+@app.get("/api/spotify/current-track")
+def get_spotify_track_endpoint():
+    """Retrieve details of currently playing track on Spotify"""
+    return get_spotify_current_track()
 
 
 @app.post("/api/tts")

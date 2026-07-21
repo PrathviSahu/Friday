@@ -22,7 +22,7 @@ export default function StatusCard() {
 
     const handleMediaAction = async (cmd) => {
         try {
-            await fetchChatText(cmd);
+            await fetchChatText(cmd, true); // silenceTts = true
             setTimeout(async () => {
                 const res = await fetch('http://localhost:8000/api/spotify/current-track');
                 if (res.ok) setSpotifyTrack(await res.json());
