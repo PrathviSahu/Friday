@@ -14,18 +14,15 @@ const WAKE_WORDS = [
   'okay friday',
   'wake up friday',
   'wake up',
-  'friday',
-  'hey',
-  'hi',
-  'hello',
-  'ok',
-  'okay'
+  'friday'
 ];
 
 /**
- * Returns the command part after the wake-word found.
+ * Returns the command text.
+ * 1. If a wake-word is present (e.g. "hey Friday what is the time"), extracts the query after it.
+ * 2. If unlocked and system is in active conversation mode, allows direct speech input.
  */
-function extractCommand(transcript) {
+function extractCommand(transcript, locked) {
   if (!transcript) return null;
   const t = transcript.trim().toLowerCase();
 
@@ -37,6 +34,11 @@ function extractCommand(transcript) {
       const after = t.substring(index + wakeWord.length).replace(/^[\s,.\-?]+/, '').trim();
       return after || 'hello';
     }
+  }
+
+  // Once unlocked, allow direct questions/talking even without repeating "hey friday"
+  if (!locked && t.length > 2) {
+    return t;
   }
 
   return null;
@@ -55,7 +57,6 @@ export function useSpeech({ onCommand, onConversation, enabled = true, locked = 
   lockedRef.current = locked;
 
   useEffect(() => {
-    // ALWAYS listen whenever browser speech recognition is supported
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       console.warn('[Voice] SpeechRecognition not available in this browser.');
@@ -87,12 +88,12 @@ export function useSpeech({ onCommand, onConversation, enabled = true, locked = 
         if (!text) return;
 
         console.log('[Voice] Speech recognized:', text);
-        const cmd = extractCommand(text);
+        const cmd = extractCommand(text, lockedRef.current);
         if (cmd) {
-          console.log('[Voice] Wake-word matched! Processing command:', cmd);
+          console.log('[Voice] Processing query:', cmd);
           handleCmd(cmd);
         } else {
-          console.log('[Voice] No wake-word detected in:', text);
+          console.log('[Voice] Ignored input (system locked, say Hey Friday first):', text);
         }
       };
 
@@ -112,7 +113,7 @@ export function useSpeech({ onCommand, onConversation, enabled = true, locked = 
       try {
         rec.start();
         activeRef.current = true;
-        console.log('[Voice] Started listening for wake words...');
+        console.log('[Voice] Started listening...');
       } catch (e) {
         console.warn('[Voice] Could not start recognition:', e);
       }
@@ -138,7 +139,7 @@ export function useSpeech({ onCommand, onConversation, enabled = true, locked = 
           return;
         }
 
-        // UNLOCKED STATE: Execute full system features (Trading, Dashboard, etc.)
+        // UNLOCKED STATE: Execute full system features (Trading, Dashboard, Questions, etc.)
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
           console.log('[Voice] Local command matched:', localCommand);
