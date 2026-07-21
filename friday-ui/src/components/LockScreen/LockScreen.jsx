@@ -12,7 +12,7 @@ import { useFriday } from '../../context/FridayContext';
 
 export default function LockScreen() {
     const orb = useOrbState();
-    const { authStep, runAuthSequence, responseMessage, appState, stateLabel, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, setWorkspace } = orb;
+    const { authStep, runAuthSequence, responseMessage, appState, stateLabel, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, setWorkspace, lockNow } = orb;
     const { micEnabled } = useFriday();
 
     // FRIDAY's conversation loop: when the brain returns a reply for free-form speech,
@@ -24,9 +24,10 @@ export default function LockScreen() {
         if (action && action !== 'none' && !locked) {
             if (action === 'trading') setWorkspace?.('trading');
             else if (action === 'dashboard') setWorkspace?.('dashboard');
+            else if (action === 'lock') lockNow?.();
             else runAuthSequence?.(action);
         }
-    }, [runAuthSequence, setResponseMessage, setWorkspace, locked]);
+    }, [runAuthSequence, setResponseMessage, setWorkspace, locked, lockNow]);
 
     // Handle fingerprint unlock
     const [fingerprintState, setFingerprintState] = useState('idle');
@@ -51,7 +52,9 @@ export default function LockScreen() {
 
     useSpeech({
         onCommand: (cmd) => {
-            if (!locked) {
+            if (cmd === 'lock') {
+                lockNow?.();
+            } else if (!locked) {
                 if (cmd === 'trading') setWorkspace?.('trading');
                 else if (cmd === 'dashboard') setWorkspace?.('dashboard');
                 else runAuthSequence?.(cmd);
