@@ -117,7 +117,7 @@ def _paste_text_via_clipboard(text: str) -> str:
 
 
 def search_and_play_spotify(song_or_playlist: str) -> bool:
-    """Search for a specific song on Spotify and immediately play it."""
+    """Search for a specific song on Spotify, select top result, and click play."""
     if not IS_MAC or not song_or_playlist:
         return False
 
@@ -128,11 +128,16 @@ def search_and_play_spotify(song_or_playlist: str) -> bool:
         delay 0.4
         tell application "System Events"
             tell process "Spotify"
+                -- Search via Quick Search (Cmd+K)
                 keystroke "k" using {{command down}}
                 delay 0.4
                 keystroke "{q_clean}"
                 delay 0.8
+                -- Press Return to select top track result
                 key code 36
+                delay 0.5
+                -- Click play action on selected track using Space
+                keystroke " "
             end tell
         end tell
         '''
