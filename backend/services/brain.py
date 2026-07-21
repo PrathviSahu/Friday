@@ -1,11 +1,12 @@
 """FRIDAY's conversational brain.
 
 Takes a user's transcribed utterance and asks Gemini for a reply, in the
-F.R.I.D.A.Y. persona. Supports Boss vs Guest permission mode and instant offline knowledge fallback.
+F.R.I.D.A.Y. persona. Automatically retries across Gemini models if rate limits occur.
 """
 import os
 import json
 import re
+import time
 
 from google import genai
 from google.genai import types
@@ -69,32 +70,8 @@ def _extract_json(text: str) -> dict:
         return {}
 
 
-def _get_fallback_answer(text: str) -> str:
-    """Smart local knowledge base when API rate limit is reached."""
-    q = text.lower().strip()
-    if "capital of india" in q or "capital of Bharat" in q:
-        return "The capital of India is New Delhi, Boss."
-    if "capital of brazil" in q:
-        return "The capital of Brazil is Brasília, Boss."
-    if "time in india" in q or "indian standard time" in q or "time" in q:
-        import datetime
-        import zoneinfo
-        try:
-            now = datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Kolkata"))
-            return f"The current Indian Standard Time is {now.strftime('%I:%M %p')}, Boss."
-        except Exception:
-            return "Indian Standard Time is UTC +5:30, Boss."
-    if "who i am" in q or "recognise me" in q or "recognize me" in q:
-        return "You are my Boss, creator of STARK systems."
-    if "who are you" in q or "what can you do" in q:
-        return "I am F.R.I.D.A.Y., your personal AI assistant. I can monitor systems, manage trading panels, and assist you with tasks, Boss."
-    if "trading" in q:
-        return "Opening your trading panel now, Boss."
-    return "All STARK systems are operational and at your command, Boss."
-
-
 def respond(transcript: str, is_boss: bool = True) -> dict:
-    """Return {'reply': str, 'action': str} for a user utterance."""
+    """Return {'reply': str, 'action': str} for a user utterance using live Gemini LLM."""
     text = (transcript or "").strip()
     if not text:
         return {"reply": "", "action": "none"}
@@ -120,47 +97,45 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     guest_active = is_guest_permitted()
     prompt = _BOSS_SYSTEM_PROMPT if (is_boss or guest_active) else _GUEST_SYSTEM_PROMPT
 
-    try:
-        client = _get_client()
-        # Use fallback models if rate-limited
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[prompt, f"User said: {text}"],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.7,
-            ),
-        )
-        raw = (getattr(response, "text", "") or "").strip()
-        data = _extract_json(raw)
+    client = _get_client()
 
-        reply = str(data.get("reply") or "").strip()
-        action = str(data.get("action") or "none").strip().lower()
+    # Try live Gemini models in sequence to guarantee a live LLM response
+    models_to_try = [
+        os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        "gemini-2.0-flash-001",
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash-lite"
+    ]
 
-        if action not in KNOWN_ACTIONS:
-            action = "none"
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[prompt, f"User said: {text}"],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.7,
+                ),
+            )
+            raw = (getattr(response, "text", "") or "").strip()
+            data = _extract_json(raw)
 
-        if not reply:
-            reply = "I'm standing by, Boss." if is_boss else "Nice try, but you're not my Boss."
+            reply = str(data.get("reply") or "").strip()
+            action = str(data.get("action") or "none").strip().lower()
 
-        return {"reply": reply, "action": action}
-    except Exception as err:
-        print(f"[Error] Gemini API call failed ({err}). Using smart fallback.")
-        if not (is_boss or guest_active):
-            return {
-                "reply": "Nice try, but access is reserved exclusively for my Boss until authorization is granted.",
-                "action": "none"
-            }
-        
-        fallback_reply = _get_fallback_answer(text)
-        action_match = "none"
-        if "trading" in lower_text:
-            action_match = "trading"
-        elif "dashboard" in lower_text:
-            action_match = "dashboard"
+            if action not in KNOWN_ACTIONS:
+                action = "none"
 
-        return {
-            "reply": fallback_reply,
-            "action": action_match
-        }
+            if reply:
+                return {"reply": reply, "action": action}
+        except Exception as err:
+            last_error = err
+            print(f"[Brain] Model {model_name} failed ({err}), trying next model...")
+            time.sleep(0.5)
+
+    print(f"[Error] All Gemini models failed: {last_error}")
+    return {
+        "reply": "I apologize, Boss. Neural cloud connections are rate-limited right now. Please try again in a moment.",
+        "action": "none"
+    }
