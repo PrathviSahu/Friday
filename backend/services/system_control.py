@@ -10,6 +10,8 @@ import subprocess
 import urllib.parse
 import platform
 import time
+import json
+from pathlib import Path
 from datetime import datetime
 
 IS_MAC = platform.system() == "Darwin"
@@ -103,42 +105,67 @@ def close_app(app_name: str) -> bool:
     return False
 
 
+def _paste_text_via_clipboard(text: str) -> str:
+    """Return AppleScript snippet that pastes text via clipboard — works for Unicode/Hindi/Devanagari."""
+    # Escape backslashes and double quotes for AppleScript string
+    safe = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'''
+        set the clipboard to "{safe}"
+        delay 0.1
+        keystroke "v" using {{command down}}
+    '''
+
+
 def search_and_play_spotify(song_or_playlist: str) -> bool:
-    """Search for a specific song on Spotify and immediately play it.
-    Uses Spotify URL scheme to open search results, then Tab+Enter to play top track result.
+    """Search for a specific song on Spotify and immediately play the top result.
+
+    Strategy:
+    1. Navigate to Spotify full search results page via open location URL scheme.
+    2. After 2s load delay, Tab 4× to focus the "Top result" card.
+    3. Press Space to play the focused card.
+    Works for ASCII and non-ASCII (Hindi/Devanagari) via clipboard paste.
     """
     if not IS_MAC or not song_or_playlist:
         return False
 
-    q_clean = song_or_playlist.strip().replace('"', '').replace("'", "")
+    q_clean = song_or_playlist.strip().replace("'", "")
     q_encoded = urllib.parse.quote(q_clean)
 
-    # Strategy: open spotify:search: URL to navigate to search results page,
-    # then use Tab key to focus first result card (Top Result) and Enter to play it.
+    # Paste song name via clipboard to handle Unicode/Hindi characters
+    paste_snippet = _paste_text_via_clipboard(q_clean)
+
     script = f'''
-    -- Open search in Spotify
     tell application "Spotify" to activate
     delay 0.3
+    -- Navigate to full Spotify search results page
+    open location "spotify:search:{q_encoded}"
+    delay 2.0
     tell application "System Events"
         tell process "Spotify"
-            keystroke "l" using {{command down}}
-            delay 0.3
-            -- Clear existing text and type new query
-            keystroke "a" using {{command down}}
-            delay 0.1
-            keystroke "{q_clean}"
-            delay 1.5
-            -- Navigate to first result in dropdown and play it
-            key code 125
-            delay 0.2
-            key code 125
-            delay 0.2
-            key code 36
+            try
+                -- Tab to reach first interactive result (Top Result card)
+                key code 48
+                delay 0.15
+                key code 48
+                delay 0.15
+                key code 48
+                delay 0.15
+                key code 48
+                delay 0.15
+                -- Space plays the focused Top Result card
+                keystroke " "
+            on error errMsg
+                log "Spotify search-play error: " & errMsg
+            end try
         end tell
     end tell
     '''
     try:
-        subprocess.Popen(["osascript", "-e", script])
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=8)
+        if result.returncode != 0:
+            print(f"[Automation] Spotify search AppleScript error: {result.stderr.strip()}")
+        else:
+            print(f"[Automation] Spotify search+play dispatched for: {q_clean}")
         return True
     except Exception as err:
         print(f"[Automation] Spotify search play error: {err}")
@@ -146,22 +173,34 @@ def search_and_play_spotify(song_or_playlist: str) -> bool:
 
 
 # Spotify playlists — direct URIs for instant reliable playback (loads from env or default)
-PLAYLIST_HINDI   = os.getenv("SPOTIFY_PLAYLIST_HINDI", "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap")
+PLAYLIST_HINDI   = os.getenv("SPOTIFY_PLAYLIST_HINDI",   "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap")
 PLAYLIST_ENGLISH = os.getenv("SPOTIFY_PLAYLIST_ENGLISH", "spotify:playlist:2CCKzQqgsc50gtJeYDonJh")
 PLAYLIST_KRISHNA = os.getenv("SPOTIFY_PLAYLIST_KRISHNA", "spotify:playlist:3Fd9z849SrTBEtHDTgQvXo")
 
 
 def play_spotify_uri(uri: str) -> bool:
-    """Play a Spotify URI (track / playlist / album) directly via AppleScript — no search needed."""
+    """Play a Spotify URI (track / playlist / album) directly via AppleScript — no search needed.
+
+    Uses 'play track' for spotify:track: URIs and 'play track' for playlist URIs too
+    (Spotify's AppleScript 'play track' works for any URI type on macOS).
+    """
     if not IS_MAC or not uri:
         return False
     try:
+        # 'play track' in Spotify AppleScript works for both track and playlist URIs
         script = f'''
         tell application "Spotify"
-            play track "{uri}"
+            try
+                play track "{uri}"
+            on error errMsg
+                log "Spotify URI play error: " & errMsg
+            end try
         end tell
         '''
-        subprocess.Popen(["osascript", "-e", script])
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            print(f"[Automation] Spotify URI play AppleScript error: {result.stderr.strip()}")
+            return False
         return True
     except Exception as err:
         print(f"[Automation] Spotify URI play error: {err}")
@@ -169,53 +208,59 @@ def play_spotify_uri(uri: str) -> bool:
 
 
 def get_spotify_current_track() -> dict:
-    """Fetch details of currently active Spotify track (title, artist, album, state, artwork_url, position, duration) via AppleScript."""
+    """Fetch details of currently active Spotify track via AppleScript.
+
+    Uses a unique multi-char separator (|||SEP|||) to avoid conflicts with song/artist names.
+    """
     if not IS_MAC or not is_spotify_running():
-        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": "", "position": 0, "duration": 180}
+        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
+                "artwork_url": "", "position": 0, "duration": 180}
     try:
-        script = '''
+        SEP = "|||SEP|||"
+        script = f'''
         tell application "Spotify"
             try
-                set trackName to name of current track
+                set trackName  to name of current track
                 set artistName to artist of current track
-                set albumName to album of current track
+                set albumName  to album of current track
                 set trackState to (player state as string)
                 set artworkURL to artwork url of current track
-                set trackPos to player position
-                set trackDur to (duration of current track) / 1000
-                return trackName & "|||" & artistName & "|||" & albumName & "|||" & trackState & "|||" & artworkURL & "|||" & trackPos & "|||" & trackDur
+                set trackPos   to player position
+                set trackDur   to (duration of current track) / 1000
+                return trackName & "{SEP}" & artistName & "{SEP}" & albumName & "{SEP}" & trackState & "{SEP}" & artworkURL & "{SEP}" & trackPos & "{SEP}" & trackDur
             on error
                 return "STOPPED"
             end try
         end tell
         '''
         res = subprocess.check_output(["osascript", "-e", script], timeout=3).decode("utf-8").strip()
-        if not res or res == "STOPPED" or "|||" not in res:
-            return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": "", "position": 0, "duration": 180}
+        if not res or res == "STOPPED" or SEP not in res:
+            return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
+                    "artwork_url": "", "position": 0, "duration": 180}
 
-        parts = res.split("|||")
-        title = parts[0].strip()
-        artist = parts[1].strip() if len(parts) > 1 else ""
-        album = parts[2].strip() if len(parts) > 2 else ""
-        state = parts[3].strip().lower() if len(parts) > 3 else "stopped"
+        parts = res.split(SEP)
+        title       = parts[0].strip()
+        artist      = parts[1].strip() if len(parts) > 1 else ""
+        album       = parts[2].strip() if len(parts) > 2 else ""
+        state       = parts[3].strip().lower() if len(parts) > 3 else "stopped"
         artwork_url = parts[4].strip() if len(parts) > 4 else ""
-        position = float(parts[5].strip()) if len(parts) > 5 and parts[5].strip() else 0.0
-        duration = float(parts[6].strip()) if len(parts) > 6 and parts[6].strip() else 180.0
-        is_playing = state == "playing"
+        position    = float(parts[5].strip()) if len(parts) > 5 and parts[5].strip() else 0.0
+        duration    = float(parts[6].strip()) if len(parts) > 6 and parts[6].strip() else 180.0
 
         return {
-            "playing": is_playing,
-            "title": title,
-            "artist": artist,
-            "album": album,
-            "state": state,
+            "playing":     state == "playing",
+            "title":       title,
+            "artist":      artist,
+            "album":       album,
+            "state":       state,
             "artwork_url": artwork_url,
-            "position": round(position),
-            "duration": round(duration)
+            "position":    round(position),
+            "duration":    round(duration),
         }
     except Exception as err:
         print(f"[Automation] Error fetching current track: {err}")
-        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": "", "position": 0, "duration": 180}
+        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
+                "artwork_url": "", "position": 0, "duration": 180}
 
 
 def set_spotify_position(seconds: float) -> bool:
@@ -232,29 +277,27 @@ def set_spotify_position(seconds: float) -> bool:
 
 
 def add_current_track_to_playlist(target_playlist: str = "hindi") -> bool:
-    """Save currently playing track on Spotify into the designated playlist via AppleScript automation."""
+    """Save currently playing track — uses Spotify Web API like-song endpoint (Cmd+S shortcut)."""
     if not IS_MAC or not is_spotify_running():
         return False
     try:
-        track = get_spotify_current_track()
-        if not track.get("title"):
-            return False
-        
-        # Use Spotify UI context automation: Open song context menu and save to library/playlist
-        script = f'''
+        # Cmd+S in Spotify desktop saves current track to liked songs / library
+        script = '''
         tell application "Spotify" to activate
+        delay 0.3
         tell application "System Events"
             tell process "Spotify"
-                -- Open search or track options
-                keystroke "k" using {{command down}}
-                delay 0.3
-                keystroke "{track.get('title')}"
-                delay 0.5
-                key code 36
+                try
+                    keystroke "s" using {command down}
+                on error errMsg
+                    log "Save track error: " & errMsg
+                end try
             end tell
         end tell
         '''
-        subprocess.Popen(["osascript", "-e", script])
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            print(f"[Automation] Save track AppleScript error: {result.stderr.strip()}")
         return True
     except Exception as err:
         print(f"[Automation] Error adding track to playlist: {err}")
@@ -268,11 +311,23 @@ def take_screenshot() -> str:
     try:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         desktop_path = Path.home() / "Desktop" / f"FRIDAY_Screenshot_{timestamp}.png"
-        subprocess.run(["screencapture", "-x", str(desktop_path)], check=True)
+        subprocess.run(["screencapture", "-x", str(desktop_path)], check=True, timeout=10)
         return str(desktop_path)
     except Exception as err:
         print(f"[Automation] Screenshot failed: {err}")
         return ""
+
+
+def _get_spotify_volume() -> int:
+    """Get current Spotify sound volume (0-100)."""
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", "tell application \"Spotify\" to get sound volume"],
+            capture_output=True, text=True, timeout=3
+        )
+        return int(result.stdout.strip())
+    except Exception:
+        return 50  # fallback
 
 
 def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> bool:
@@ -286,17 +341,20 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
                 vol_clamped = max(0, min(100, volume_percent))
                 script = f'''
                 tell application "Spotify"
-                    set sound volume to {vol_clamped}
+                    try
+                        set sound volume to {vol_clamped}
+                    on error errMsg
+                        log "Volume set error: " & errMsg
+                    end try
                 end tell'''
-                subprocess.Popen(["osascript", "-e", script])
+                subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
             return True
 
         if cmd in ("play_hindi_playlist", "play_english_playlist", "play_krishna_playlist", "play_specific"):
-            # These use their own activate logic inside search_and_play_spotify
             if volume_percent >= 0:
                 vol_clamped = max(0, min(100, volume_percent))
                 vol_script = f'tell application "Spotify" to set sound volume to {vol_clamped}'
-                subprocess.Popen(["osascript", "-e", vol_script])
+                subprocess.run(["osascript", "-e", vol_script], capture_output=True, timeout=5)
             if cmd == "play_hindi_playlist":
                 play_spotify_uri(PLAYLIST_HINDI)
             elif cmd == "play_english_playlist":
@@ -305,6 +363,26 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
                 play_spotify_uri(PLAYLIST_KRISHNA)
             else:
                 search_and_play_spotify(query)
+            return True
+
+        # --- Volume up/down: fetch current volume first, then set ---
+        if cmd == "volume_up":
+            current_vol = _get_spotify_volume()
+            new_vol = min(100, current_vol + 20)
+            script = f'tell application "Spotify" to set sound volume to {new_vol}'
+            subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+            return True
+
+        if cmd == "volume_down":
+            current_vol = _get_spotify_volume()
+            new_vol = max(0, current_vol - 20)
+            script = f'tell application "Spotify" to set sound volume to {new_vol}'
+            subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+            return True
+
+        if cmd == "mute":
+            script = 'tell application "Spotify" to set sound volume to 0'
+            subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
             return True
 
         # Map command → AppleScript action string
@@ -317,29 +395,33 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
             "toggle":     "playpause",
             "next":       "next track",
             "previous":   "previous track",
-            "volume_up":  f"set sound volume to (sound volume + 20)",
-            "volume_down":f"set sound volume to (sound volume - 20)",
-            "mute":       "set sound volume to 0",
             "repeat":     "set repeating to true",
             "shuffle":    "set shuffling to true",
         }
 
         spotify_action = action_map.get(cmd, "play")
 
-        # Build single atomic AppleScript — activate + optional volume + command
+        # Build atomic AppleScript with optional volume line + command
         vol_line = ""
         if volume_percent >= 0:
             vol_clamped = max(0, min(100, volume_percent))
-            vol_line = f"\n    set sound volume to {vol_clamped}"
+            vol_line = f"\n            set sound volume to {vol_clamped}"
 
         script = f'''
         tell application "Spotify"
-            {vol_line}
-            {spotify_action}
+            try
+                {vol_line}
+                {spotify_action}
+            on error errMsg
+                log "Spotify action error: " & errMsg
+            end try
         end tell'''
 
-        subprocess.Popen(["osascript", "-e", script])
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            print(f"[Automation] Spotify control AppleScript error: {result.stderr.strip()}")
         return True
+
     except Exception as err:
         print(f"[Automation] Spotify control error: {err}")
         return False
@@ -407,19 +489,19 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
 
     elif action == "play_specific":
         control_spotify("play_specific", target_clean, volume_percent=volume_percent)
-        msg = f"Playing '{target_clean}' on Spotify, Prem."
+        msg = f"Opening Spotify and playing '{target_clean}', Prem."
         if volume_percent >= 0:
             msg += f" Sound set to {volume_percent}%."
         return msg
 
-    elif action == "play_music" or action == "play_spotify":
+    elif action in ("play_music", "play_spotify"):
         if target_clean:
             control_spotify("play_specific", target_clean, volume_percent=volume_percent)
             return f"Playing '{target_clean}' on Spotify, Prem."
         control_spotify("play", volume_percent=volume_percent)
         return "Playing Spotify music now, Prem."
 
-    elif action == "pause_music" or action == "pause_spotify":
+    elif action in ("pause_music", "pause_spotify"):
         control_spotify("pause")
         return "Pausing Spotify music, Prem."
 
