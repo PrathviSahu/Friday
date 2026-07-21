@@ -6,8 +6,8 @@ import edge_tts
 
 import re
 
-VOICE_ENGLISH = 'en-GB-SoniaNeural'
-VOICE_HINDI   = 'hi-IN-SwaraNeural'
+VOICE_ENGLISH = 'en-IN-NeerjaNeural'      # Indian English Neural (Neerja) — crystal clear Indian accent for English & Hinglish
+VOICE_HINDI   = 'hi-IN-SwaraNeural'       # Native Devanagari Hindi Neural Voice
 
 
 async def generate_speech(text: str, output_dir: Path, voice: str = None) -> Path:
