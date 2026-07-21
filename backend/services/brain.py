@@ -44,12 +44,12 @@ _BOSS_BASE_PROMPT = (
     "CRITICAL SPEECH-TO-TEXT FUZZY RECOVERY RULES: "
     "Browser STT often mishears words phonetically when the user speaks! "
     "Examples of STT misinterpretations: "
-    "- 'help away by Tempo city' OR 'help away by tempo city' -> 'Self Aware by Temple City' "
+    "- 'help away by Tempo city' OR 'temple city' OR 'temple city on my spotify' -> 'Self Aware by Temple City' "
     "- 'if friday please' -> 'Friday play' "
     "- 'sound at 70' OR 'sound at 70%' -> set volume_percent to 70 "
     "When you detect ANY mention of songs, music, artist names, sound/volume percentage, or application actions, "
     "YOU MUST DETERMINE THE INTENDED ACTION AND NOT RETURN 'none'! "
-    "If a song or artist is mentioned (even with typos like 'tempo city' or 'help away'), set action to 'play_specific' "
+    "If a song, artist, or playlist is mentioned (even with typos like 'tempo city', 'temple city', 'help away'), set action to 'play_specific' "
     "and 'target_app' to the corrected song title (e.g. 'Self Aware by Temple City'). "
     "If volume is mentioned, set 'volume_percent' to the requested integer (0-100). "
     "ACTIONS: "
@@ -127,6 +127,10 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     # Log user turn to memory history
     log_conversation(role="user" if is_boss else "guest", message=text)
 
+    # Ignore isolated single non-command filler words like "please"
+    if lower_text in ["please", "pls", "thank you", "thanks"]:
+        return {"reply": "", "action": "none"}
+
     # Auto-correct name spelling in incoming transcript before memory or processing
     if "prithvi" in lower_text or "p r i t h v i" in lower_text or "r a not i" in lower_text or "spelling is" in lower_text:
         save_fact("boss_name", "Prathvi Sahu", "identity")
@@ -162,7 +166,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     vol_match = re.search(r'(?:sound|volume)\s*(?:at|to|is)?\s*(\d{1,3})%?', lower_text)
     extracted_vol = int(vol_match.group(1)) if vol_match else -1
 
-    if "tempo city" in lower_text or "help away" in lower_text or "by temple city" in lower_text:
+    if "tempo city" in lower_text or "help away" in lower_text or "temple city" in lower_text:
         target_song = "Self Aware by Temple City"
         execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
         msg = f"Playing '{target_song}' on Spotify, Boss."
