@@ -125,8 +125,17 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     authorized = is_boss or guest_active
 
     # FIX: Define extracted_vol unconditionally here so all code paths can reference it cleanly
-    vol_match = re.search(r'(?:sound|volume)\s*(?:at|to|is)?\s*(\d{1,3})%?', lower_text)
-    extracted_vol = int(vol_match.group(1)) if vol_match else -1
+    # Matches: "volume 30%", "sound at 70", "set volume to 100", "30 percent", "100%"
+    vol_match = re.search(
+        r'(?:(?:sound|volume)\s*(?:at|to|is|=)?\s*(\d{1,3})(?:\s*%|\s*percent)?)'
+        r'|(?:(\d{1,3})\s*(?:%|percent)\b)',
+        lower_text
+    )
+    if vol_match:
+        raw_vol = vol_match.group(1) or vol_match.group(2)
+        extracted_vol = int(raw_vol)
+    else:
+        extracted_vol = -1
 
     # Log user turn to memory history
     log_conversation(role="user" if is_boss else "guest", message=text)
@@ -156,6 +165,15 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
 
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
+        # 0. SET VOLUME TO SPECIFIC PERCENTAGE (e.g. "volume 30%", "set volume to 100", "70 percent")
+        # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
+        pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
+        if extracted_vol >= 0 and not re.search(r'\bplay\b', lower_text):
+            execute_system_command("set_volume", "", volume_percent=extracted_vol)
+            reply_msg = f"Setting volume to {extracted_vol}%, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "set_volume"}
+
         # FIX #3: Use regex patterns for volume to avoid 'turn down for what', 'play louder song' triggering volume commands
         # 1. VOLUME DOWN SHORTCUT
         if re.search(r'(?:turn|lower|decrease|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:down)?|volume\s*down|quieter', lower_text):
