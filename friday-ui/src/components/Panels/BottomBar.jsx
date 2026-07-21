@@ -20,11 +20,11 @@ export default function BottomBar() {
     ];
     const prompt = (() => {
         if (conversationMode === 'awaiting-command') return 'WAKE WORD DETECTED';
-        if (appState === 'IDLE') return 'I AM STANDING BY, BOSS.';
+        if (appState === 'IDLE') return 'I AM STANDING BY, PREM.';
         if (appState === 'LISTENING') return "I'M LISTENING...";
         if (appState === 'THINKING') return 'ANALYZING REQUEST...';
         if (appState === 'SPEAKING') return 'RESPONDING...';
-        return stateLabel || 'I AM STANDING BY, BOSS.';
+        return stateLabel || 'I AM STANDING BY, PREM.';
     })();
     const micLabel = micEnabled ? 'VOICE LISTENING ON' : 'VOICE LISTENING OFF';
 

@@ -39,7 +39,7 @@ KNOWN_ACTIONS = [
 
 _BOSS_BASE_PROMPT = (
     "You are F.R.I.D.A.Y., Tony Stark's witty, loyal, highly intelligent AI assistant with PC & Spotify media control access. "
-    "You address the user as 'Boss' or 'Prathvi'. Keep spoken replies concise (1-2 sentences), confident, and witty. "
+    "You address the user exclusively as 'Prem'. Keep spoken replies concise (1-2 sentences), confident, and witty. "
     "CRITICAL SPEECH-TO-TEXT FUZZY RECOVERY RULES: "
     "Browser STT often mishears words phonetically when the user speaks! "
     "Examples of STT misinterpretations: "
@@ -60,9 +60,9 @@ _BOSS_BASE_PROMPT = (
 )
 
 _GUEST_SYSTEM_PROMPT = (
-    "You are F.R.I.D.A.Y., Tony Stark's AI assistant. A guest (not your Boss Prathvi) is talking to you, "
-    "and access permission has NOT been granted by your Boss yet. "
-    "Be hilariously sarcastic, polite yet firm, and inform them that only your Boss Prathvi Sahu can give them system permission. "
+    "You are F.R.I.D.A.Y., Tony Stark's AI assistant. A guest (not your owner Prem) is talking to you, "
+    "and access permission has NOT been granted by Prem yet. "
+    "Be hilariously sarcastic, polite yet firm, and inform them that only Prem can give them system permission. "
     "REFUSE any system commands, Spotify control, or memory updates — set action to 'none'. "
     "Keep replies concise (1-2 sentences) and witty. "
     "ALWAYS respond with a single JSON object: "
@@ -144,17 +144,17 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     if lower_text in ["please", "pls", "thank you", "thanks"]:
         return {"reply": "", "action": "none"}
 
-    # SECURITY & PERMISSION MANAGEMENT (Boss only)
+    # SECURITY & PERMISSION MANAGEMENT (Prem only)
     if is_boss:
         if any(kw in lower_text for kw in ["allow guest", "grant guest", "let them speak", "give permission"]):
             set_guest_permission(True)
-            reply_msg = "Guest access granted, Boss. I'll answer their queries now."
+            reply_msg = "Guest access granted, Prem. I'll answer their queries now."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "allow_guest"}
 
         if any(kw in lower_text for kw in ["revoke guest", "stop guest", "lock guest"]):
             set_guest_permission(False)
-            reply_msg = "Guest access revoked, Boss. Back to Boss-only mode."
+            reply_msg = "Guest access revoked, Prem. Back to private mode."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "revoke_guest"}
 
@@ -170,7 +170,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
         if extracted_vol >= 0 and not re.search(r'\bplay\b', lower_text):
             result = execute_system_command("set_volume", "", volume_percent=extracted_vol)
-            reply_msg = result or f"Setting volume to {extracted_vol}%, Boss."
+            reply_msg = result or f"Setting volume to {extracted_vol}%, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "set_volume"}
 
@@ -178,48 +178,48 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         # 1. VOLUME DOWN SHORTCUT
         if re.search(r'(?:turn|lower|decrease|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:down)?|volume\s*down|quieter', lower_text):
             result = execute_system_command("volume_down", "")
-            reply_msg = result or "Decreasing volume, Boss."
+            reply_msg = result or "Decreasing volume, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "volume_down"}
 
         # 2. VOLUME UP SHORTCUT
         if re.search(r'(?:turn|raise|increase|bring|take)\s+(?:the\s+)?(?:volume|music|sound|it)\s*(?:up)?|volume\s*up|louder', lower_text):
             result = execute_system_command("volume_up", "")
-            reply_msg = result or "Increasing volume, Boss."
+            reply_msg = result or "Increasing volume, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "volume_up"}
 
         # 3. UNPAUSE / RESUME SHORTCUT
         if re.search(r'\b(?:unpause|resume)\b', lower_text):
             execute_system_command("play_music", "")
-            reply_msg = "Resuming Spotify music, Boss."
+            reply_msg = "Resuming Spotify music, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "play_music"}
 
         # 4. PAUSE / STOP MUSIC SHORTCUT
         if re.search(r'\b(?:pause|stop music|hold on)\b', lower_text) or lower_text == "stop":
             execute_system_command("pause_music", "")
-            reply_msg = "Pausing Spotify music, Boss."
+            reply_msg = "Pausing Spotify music, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "pause_music"}
 
         # 4.5. PLAYLIST SHORTCUTS (must come BEFORE generic play-song shortcut)
         if re.search(r'\b(?:hindi|meri|apni|bollywood)\b.*\b(?:playlist|songs|music)\b|\b(?:playlist|songs|music)\b.*\b(?:hindi|bollywood)\b', lower_text):
             result = execute_system_command("play_hindi_playlist", "", volume_percent=extracted_vol)
-            reply_msg = result or "Playing your Hindi playlist, Boss."
+            reply_msg = result or "Playing your Hindi playlist, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "play_hindi_playlist"}
 
         if re.search(r'\b(?:english|english playlist|angrezi)\b.*\b(?:playlist|songs|music)\b|\b(?:playlist|songs|music)\b.*\b(?:english|angrezi)\b', lower_text):
             result = execute_system_command("play_english_playlist", "", volume_percent=extracted_vol)
-            reply_msg = result or "Playing your English playlist, Boss."
+            reply_msg = result or "Playing your English playlist, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "play_english_playlist"}
 
         # 4.6. SHUFFLE SHORTCUT (e.g. "shuffle", "play on shuffle", "turn on shuffle", "play it on shuffel")
         if re.search(r'\b(?:shuffle|shuffel)\b', lower_text):
             execute_system_command("shuffle", "")
-            reply_msg = "Enabling Spotify shuffle mode, Boss."
+            reply_msg = "Enabling Spotify shuffle mode, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "shuffle"}
 
@@ -227,7 +227,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         if any(kw in lower_text for kw in ["tempo city", "help away", "temper city", "temple city"]):
             target_song = "Self Aware by Temper City"
             execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
-            msg = f"Playing '{target_song}' on Spotify, Boss."
+            msg = f"Playing '{target_song}' on Spotify, Prem."
             if extracted_vol >= 0:
                 msg += f" Sound set to {extracted_vol}%."
             log_conversation(role="assistant", message=msg)
@@ -241,7 +241,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             cleaned_song = re.sub(r'\s*on spotify\s*$', '', raw_song).strip()
             if cleaned_song and cleaned_song not in ["music", "spotify", "playlist", "hindi", "english", "volume", "sound", "it", "this"]:
                 execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
-                msg = f"Opening Spotify and playing '{cleaned_song}', Boss."
+                msg = f"Opening Spotify and playing '{cleaned_song}', Prem."
                 log_conversation(role="assistant", message=msg)
                 return {"reply": msg, "action": "play_specific"}
 
@@ -354,10 +354,10 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         fallback_song = re.sub(r'\s*on spotify\s*$', '', fallback_play_match.group(1)).strip()
         if fallback_song and fallback_song not in ["music", "spotify", "playlist", "it", "this"]:
             execute_system_command("play_specific", fallback_song, volume_percent=extracted_vol)
-            msg = f"Opening Spotify and playing '{fallback_song}', Boss."
+            msg = f"Opening Spotify and playing '{fallback_song}', Prem."
             log_conversation(role="assistant", message=msg)
             return {"reply": msg, "action": "play_specific"}
 
-    fallback_reply = f"At your service, Boss. I heard: '{text}'. How can I assist you?"
+    fallback_reply = f"At your service, Prem. I heard: '{text}'. How can I assist you?"
     log_conversation(role="assistant", message=fallback_reply)
     return {"reply": fallback_reply, "action": "none"}

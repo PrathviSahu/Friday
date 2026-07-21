@@ -275,23 +275,23 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
 
     if action == "open_spotify":
         open_app("Spotify")
-        return "Opening Spotify now, Boss."
+        return "Opening Spotify now, Prem."
 
     elif action == "close_spotify":
         close_app("Spotify")
-        return "Closing Spotify, Boss."
+        return "Closing Spotify, Prem."
 
     elif action == "play_hindi_playlist":
         control_spotify("play_hindi_playlist", volume_percent=volume_percent)
-        return "Playing your Hindi playlist, Boss."
+        return "Playing your Hindi playlist, Prem."
 
     elif action == "play_english_playlist":
         control_spotify("play_english_playlist", volume_percent=volume_percent)
-        return "Playing your English playlist 'Losing my self', Boss."
+        return "Playing your English playlist, Prem."
 
     elif action == "play_specific":
         control_spotify("play_specific", target_clean, volume_percent=volume_percent)
-        msg = f"Playing '{target_clean}' on Spotify, Boss."
+        msg = f"Playing '{target_clean}' on Spotify, Prem."
         if volume_percent >= 0:
             msg += f" Sound set to {volume_percent}%."
         return msg
@@ -299,87 +299,87 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
     elif action == "play_music" or action == "play_spotify":
         if target_clean:
             control_spotify("play_specific", target_clean, volume_percent=volume_percent)
-            return f"Playing '{target_clean}' on Spotify, Boss."
+            return f"Playing '{target_clean}' on Spotify, Prem."
         control_spotify("play", volume_percent=volume_percent)
-        return "Playing Spotify music now, Boss."
+        return "Playing Spotify music now, Prem."
 
     elif action == "pause_music" or action == "pause_spotify":
         control_spotify("pause")
-        return "Pausing Spotify music, Boss."
+        return "Pausing Spotify music, Prem."
 
     elif action == "toggle_music":
         control_spotify("play_pause")
-        return "Toggling Spotify playback, Boss."
+        return "Toggling Spotify playback, Prem."
 
     elif action == "next_track":
         control_spotify("next")
-        return "Skipping to the next track, Boss."
+        return "Skipping to the next track, Prem."
 
     elif action == "previous_track":
         control_spotify("previous")
-        return "Playing previous track, Boss."
+        return "Playing previous track, Prem."
 
     elif action == "volume_up":
         if spotify_running:
             control_spotify("volume_up")
-            return "Increasing Spotify volume, Boss."
+            return "Increasing Spotify volume, Prem."
         else:
             system_volume_up()
-            return "Increasing system volume, Boss."
+            return "Increasing system volume, Prem."
 
     elif action == "volume_down":
         if spotify_running:
             control_spotify("volume_down")
-            return "Decreasing Spotify volume, Boss."
+            return "Decreasing Spotify volume, Prem."
         else:
             system_volume_down()
-            return "Decreasing system volume, Boss."
+            return "Decreasing system volume, Prem."
 
     elif action == "set_volume":
         if spotify_running:
             control_spotify("set_volume", volume_percent=volume_percent)
-            return f"Setting Spotify volume to {volume_percent}%, Boss."
+            return f"Setting Spotify volume to {volume_percent}%, Prem."
         else:
             system_set_volume(volume_percent)
-            return f"Setting system volume to {volume_percent}%, Boss."
+            return f"Setting system volume to {volume_percent}%, Prem."
 
     elif action == "mute":
         if spotify_running:
             control_spotify("mute")
-            return "Muting Spotify, Boss."
+            return "Muting Spotify, Prem."
         else:
             subprocess.Popen(["osascript", "-e", "set volume output muted true"])
-            return "Muting system audio, Boss."
+            return "Muting system audio, Prem."
 
     elif action == "repeat":
         control_spotify("repeat")
-        return "Setting Spotify to repeat mode, Boss."
+        return "Setting Spotify to repeat mode, Prem."
 
     elif action == "shuffle":
         control_spotify("shuffle")
-        return "Setting Spotify to shuffle mode, Boss."
+        return "Setting Spotify to shuffle mode, Prem."
 
     elif action == "open_brave":
         if target_clean:
             open_url_in_brave(target_clean)
-            return f"Opening {target_clean} in Brave, Boss."
+            return f"Opening {target_clean} in Brave, Prem."
         open_app("Brave Browser")
-        return "Opening Brave browser, Boss."
+        return "Opening Brave browser, Prem."
 
     elif action == "open_youtube":
         open_youtube_search(target_clean)
-        return f"Opening YouTube search for '{target_clean}', Boss." if target_clean else "Opening YouTube in Brave, Boss."
+        return f"Opening YouTube search for '{target_clean}', Prem." if target_clean else "Opening YouTube in Brave, Prem."
 
     elif action == "open_app":
         open_app(target_clean)
-        return f"Opening {target_clean}, Boss."
+        return f"Opening {target_clean}, Prem."
 
     elif action == "close_app":
         close_app(target_clean)
-        return f"Closing {target_clean}, Boss."
+        return f"Closing {target_clean}, Prem."
 
     elif action == "search_web":
         open_google_search(target_clean)
-        return f"Searching '{target_clean}' in Brave, Boss."
+        return f"Searching '{target_clean}' in Brave, Prem."
 
     return ""
