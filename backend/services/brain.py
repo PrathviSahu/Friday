@@ -265,7 +265,17 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
 
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
-        # 0.0 TIME, SCREENSHOT & REMINDER SHORTCUTS (English & Hinglish)
+        # 0.0 TIME, SCREENSHOT, REMINDER & TRADING SHORTCUTS (English & Hinglish)
+        if re.search(r'\b(?:open|show|launch|start|enter)\s+(?:the\s+)?(?:trading|trading\s+panel|trading\s+dashboard|trading\s+workstation|charts)\b|\b(?:trading\s+mode|trading\s+workstation|open\s+charts)\b|\btrading\b', lower_text):
+            reply_msg = "Opening Quantum Trading Workstation, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "trading"}
+
+        if re.search(r'\b(?:exit\s+trading\s+mode|close\s+trading\s+panel|return\s+to\s+friday|go\s+back)\b', lower_text):
+            reply_msg = "Exiting trading mode, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "dashboard"}
+
         if re.search(r'\b(?:screenshot|screen\s+shot|capture\s+screen)\b', lower_text):
             path = take_screenshot()
             reply_msg = f"Screenshot saved to your Desktop, Prem." if path else "Unable to take screenshot on this OS, Prem."
