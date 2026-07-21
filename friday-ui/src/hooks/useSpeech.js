@@ -11,7 +11,7 @@ const withTimeout = (promise, ms) =>
     ),
   ]);
 
-export function useSpeech({ locked, isLocked, enabled = true, onCommand, onConversation }) {
+export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, onCommand, onConversation }) {
   // Support both prop name variants: locked (LockScreen) and isLocked (legacy)
   const _locked = locked ?? isLocked ?? false;
   const activeRef     = useRef(false);  // true while SpeechRecognition is running
@@ -19,11 +19,13 @@ export function useSpeech({ locked, isLocked, enabled = true, onCommand, onConve
   const speakingRef   = useRef(false);  // true while FRIDAY's TTS is playing
   const enabledRef    = useRef(enabled); // mirrors the enabled prop reactively
   const lockedRef     = useRef(_locked);
+  const workspaceRef  = useRef(workspace);
   const onCommandRef  = useRef(onCommand);
   const onConvRef     = useRef(onConversation);
 
   // Keep refs in sync with props every render — no re-mount needed
   useEffect(() => { lockedRef.current = _locked; }, [_locked]);
+  useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
   useEffect(() => { onConvRef.current = onConversation; }, [onConversation]);
 
@@ -149,6 +151,22 @@ export function useSpeech({ locked, isLocked, enabled = true, onCommand, onConve
             console.log('[Voice] Suppressing self-echo while FRIDAY is speaking.');
             return;
           }
+        }
+
+        // ⚡ TRADING MODE SLEEP RULE: When in trading mode, FRIDAY MUST hear an explicit wake word ("Friday")!
+        // Ignore all background speech or casual chatter until "Friday" is spoken.
+        if (workspaceRef.current === 'trading' && !isWakeWordPresent) {
+          console.log('[Voice Trading Sleep] FRIDAY is sleeping in trading mode. Ignoring transcript (no wake-word):', rawTranscript);
+          if (rec) {
+            rec.onend    = null;
+            rec.onerror  = null;
+            rec.onresult = null;
+            try { rec.abort(); } catch (_) {}
+            rec = null;
+            activeRef.current = false;
+          }
+          start();
+          return;
         }
 
         // STOP Speech Recognition immediately so it doesn't listen while processing or repeat commands

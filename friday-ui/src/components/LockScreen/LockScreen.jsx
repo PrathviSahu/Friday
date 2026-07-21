@@ -13,7 +13,7 @@ import { useFriday } from '../../context/FridayContext';
 
 export default function LockScreen() {
     const orb = useOrbState();
-    const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, setWorkspace, lockNow } = orb;
+    const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled } = useFriday();
 
     // FRIDAY's conversation loop: show text on screen when speech is returned.
@@ -50,6 +50,9 @@ export default function LockScreen() {
     };
 
     useSpeech({
+        locked,
+        workspace,
+        enabled: micEnabled,
         onCommand: (cmd) => {
             if (cmd === 'lock') {
                 lockNow?.();
