@@ -140,6 +140,29 @@ def search_and_play_spotify(song_or_playlist: str) -> bool:
         print(f"[Automation] Spotify search play error: {err}")
         return False
 
+# Boss's actual Spotify playlists — direct URIs for instant reliable playback
+PLAYLIST_HINDI  = "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap"
+PLAYLIST_ENGLISH = "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap"  # update when English playlist URL given
+
+
+def play_spotify_uri(uri: str) -> bool:
+    """Play a Spotify URI (track / playlist / album) directly via AppleScript — no search needed."""
+    if not IS_MAC or not uri:
+        return False
+    try:
+        script = f'''
+        tell application "Spotify"
+            activate
+            play track "{uri}"
+        end tell
+        '''
+        subprocess.Popen(["osascript", "-e", script])
+        return True
+    except Exception as err:
+        print(f"[Automation] Spotify URI play error: {err}")
+        return False
+
+
 
 def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> bool:
     """Control Spotify playback, volume %, playlists, and repeat mode via macOS AppleScript."""
@@ -165,7 +188,7 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
                 vol_script = f'tell application "Spotify" to set sound volume to {vol_clamped}'
                 subprocess.Popen(["osascript", "-e", vol_script])
             if cmd == "play_hindi_playlist":
-                search_and_play_spotify("Only for me")
+                play_spotify_uri(PLAYLIST_HINDI)
             elif cmd == "play_english_playlist":
                 search_and_play_spotify("Losing my self")
             else:
@@ -260,7 +283,7 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
 
     elif action == "play_hindi_playlist":
         control_spotify("play_hindi_playlist", volume_percent=volume_percent)
-        return "Playing your Hindi playlist 'Only for me', Boss."
+        return "Playing your Hindi playlist, Boss."
 
     elif action == "play_english_playlist":
         control_spotify("play_english_playlist", volume_percent=volume_percent)

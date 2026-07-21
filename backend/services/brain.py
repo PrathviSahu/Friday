@@ -43,7 +43,7 @@ _BOSS_BASE_PROMPT = (
     "CRITICAL SPEECH-TO-TEXT FUZZY RECOVERY RULES: "
     "Browser STT often mishears words phonetically when the user speaks! "
     "Examples of STT misinterpretations: "
-    "- 'help away by Tempo city' OR 'temple city' OR 'temple city on my spotify' -> 'Self Aware by Temple City' "
+    "- 'help away by Tempo city' OR 'temper city' OR 'temper city on my spotify' -> 'Self Aware by Temper City' "
     "- 'if friday please' -> 'Friday play' "
     "- 'decrease the music' OR 'lower music' OR 'lower volume' -> set action to 'volume_down' "
     "- 'sound at 70' OR 'sound at 70%' -> set volume_percent to 70 "
@@ -203,9 +203,22 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "pause_music"}
 
+        # 4.5. PLAYLIST SHORTCUTS (must come BEFORE generic play-song shortcut)
+        if re.search(r'\b(?:hindi|meri|apni|bollywood)\b.*\b(?:playlist|songs|music)\b|\b(?:playlist|songs|music)\b.*\b(?:hindi|bollywood)\b', lower_text):
+            result = execute_system_command("play_hindi_playlist", "", volume_percent=extracted_vol)
+            reply_msg = result or "Playing your Hindi playlist, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "play_hindi_playlist"}
+
+        if re.search(r'\b(?:english|english playlist|angrezi)\b.*\b(?:playlist|songs|music)\b|\b(?:playlist|songs|music)\b.*\b(?:english|angrezi)\b', lower_text):
+            result = execute_system_command("play_english_playlist", "", volume_percent=extracted_vol)
+            reply_msg = result or "Playing your English playlist, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "play_english_playlist"}
+
         # 5. PHONETIC SONG SHORTCUT
-        if any(kw in lower_text for kw in ["tempo city", "help away", "temple city"]):
-            target_song = "Self Aware by Temple City"
+        if any(kw in lower_text for kw in ["tempo city", "help away", "temper city", "temple city"]):
+            target_song = "Self Aware by Temper City"
             execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
             msg = f"Playing '{target_song}' on Spotify, Boss."
             if extracted_vol >= 0:
