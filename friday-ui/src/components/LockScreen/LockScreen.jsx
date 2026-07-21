@@ -12,11 +12,10 @@ import { useFriday } from '../../context/FridayContext';
 
 export default function LockScreen() {
     const orb = useOrbState();
-    const { authStep, runAuthSequence, responseMessage, appState, stateLabel, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, setWorkspace, lockNow } = orb;
+    const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, setWorkspace, lockNow } = orb;
     const { micEnabled } = useFriday();
 
-    // FRIDAY's conversation loop: when the brain returns a reply for free-form speech,
-    // show it and let useSpeech handle playing the voice.
+    // FRIDAY's conversation loop: show text on screen when speech is returned.
     const handleConversation = React.useCallback(({ reply, action }) => {
         if (reply) {
             setResponseMessage?.(reply);
@@ -25,9 +24,8 @@ export default function LockScreen() {
             if (action === 'trading') setWorkspace?.('trading');
             else if (action === 'dashboard') setWorkspace?.('dashboard');
             else if (action === 'lock') lockNow?.();
-            else runAuthSequence?.(action);
         }
-    }, [runAuthSequence, setResponseMessage, setWorkspace, locked, lockNow]);
+    }, [setResponseMessage, setWorkspace, locked, lockNow]);
 
     // Handle fingerprint unlock
     const [fingerprintState, setFingerprintState] = useState('idle');
@@ -57,7 +55,6 @@ export default function LockScreen() {
             } else if (!locked) {
                 if (cmd === 'trading') setWorkspace?.('trading');
                 else if (cmd === 'dashboard') setWorkspace?.('dashboard');
-                else runAuthSequence?.(cmd);
             }
         },
         onConversation: handleConversation,
@@ -140,7 +137,7 @@ export default function LockScreen() {
                                     className="flex flex-col items-center gap-2"
                                 >
                                     <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#00D9FF] font-light" style={{ textShadow: '0 0 16px rgba(0,217,255,0.35)' }}>
-                                        {stateLabel || 'MONITORING SYSTEMS'}
+                                        MONITORING SYSTEMS
                                     </h2>
                                     <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
                                         AMBIENT MODE · SAY “HEY FRIDAY”
