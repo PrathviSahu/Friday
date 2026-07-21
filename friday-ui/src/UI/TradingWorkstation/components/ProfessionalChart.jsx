@@ -1,29 +1,24 @@
 import React, { useEffect, useRef } from 'react';
 
-// Default Indian Stock Watchlist symbols matching user's exact TradingView layout
-const DEFAULT_INDIAN_WATCHLIST = [
-    'NSE:NIFTY',
-    'NSE:BANKNIFTY',
-    'NSE:RELIANCE',
-    'NSE:TCS',
-    'NSE:INFY',
-    'NSE:HDFCBANK',
-    'NSE:ICICIBANK',
-    'NSE:SBIN',
-    'NSE:TATAMOTORS',
-    'NSE:TATASTEEL',
-    'NSE:BHARTIARTL',
-    'NSE:ITC',
-    'NSE:LIKHITH',
-    'NSE:DBOL',
-    'NSE:TITAGARH',
-    'NSE:BLACKBOX',
-    'NSE:OMAXAUTO',
-    'NSE:HINDALCO',
-    'NSE:GEMAR',
-    'NSE:AEQUS',
-    'OANDA:XAUUSD',
-    'BINANCE:BTCUSDT',
+// Free real-time streamable symbols (Indices, Forex, Commodities, Crypto)
+const FREE_REALTIME_WATCHLIST = [
+    'OANDA:XAUUSD',     // Gold Spot (100% free live real-time)
+    'CAPITALCOM:DXY',   // US Dollar Index
+    'TVC:US10Y',        // US 10-Year Yield
+    'BINANCE:BTCUSDT',  // Bitcoin
+    'BINANCE:ETHUSDT',  // Ethereum
+    'BINANCE:SOLUSDT',  // Solana
+    'FX:EURUSD',        // EUR/USD
+    'FX:GBPUSD',        // GBP/USD
+    'FX:USDJPY',        // USD/JPY
+    'FOREXCOM:SPXUSD',  // S&P 500
+    'FOREXCOM:NSXUSD',  // NASDAQ 100
+    'NSE:NIFTY',        // NIFTY 50 (Delayed feed)
+    'NSE:BANKNIFTY',   // BANK NIFTY (Delayed feed)
+    'NSE:RELIANCE',    // Reliance
+    'NSE:TCS',         // TCS
+    'NSE:INFY',        // Infosys
+    'NSE:HDFCBANK',    // HDFC Bank
 ];
 
 export default function ProfessionalChart() {
@@ -40,18 +35,18 @@ export default function ProfessionalChart() {
             if (window.TradingView && containerRef.current) {
                 new window.TradingView.widget({
                     autosize: true,
-                    symbol: 'NSE:NIFTY',
+                    symbol: 'OANDA:XAUUSD',
                     interval: '5',
                     timezone: 'Asia/Kolkata',
                     theme: 'dark',
                     style: '1',
-                    locale: 'in',
+                    locale: 'en',
                     toolbar_bg: '#131722',
-                    enable_publishing: true,
-                    hide_side_toolbar: false, // Left drawing tools (Trendlines, Fibs, Position tools)
-                    allow_symbol_change: true, // Native symbol search & add to watchlist
-                    watchlist: DEFAULT_INDIAN_WATCHLIST, // Custom Indian stock market watchlist
-                    details: true, // Native detail panel (Bid/Ask, Spread, Volume)
+                    enable_publishing: false,
+                    hide_side_toolbar: false, // Show left drawing tools (Trendlines, Fibs, Position tools)
+                    allow_symbol_change: true,
+                    watchlist: FREE_REALTIME_WATCHLIST,
+                    details: true,
                     hotlist: true,
                     calendar: true,
                     show_popup_button: true,
