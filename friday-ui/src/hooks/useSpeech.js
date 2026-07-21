@@ -24,7 +24,6 @@ const WAKE_WORDS = [
 
 /**
  * Returns the command part after the wake-word found.
- * If user just says "hey friday" or "friday", returns "hello" so FRIDAY greets back!
  */
 function extractCommand(transcript) {
   if (!transcript) return null;
@@ -36,8 +35,6 @@ function extractCommand(transcript) {
     const index = t.indexOf(wakeWord);
     if (index !== -1) {
       const after = t.substring(index + wakeWord.length).replace(/^[\s,.\-?]+/, '').trim();
-      // If user just said the wake word without extra text (e.g. "hey Friday"),
-      // pass "hello" so FRIDAY responds to the greeting!
       return after || 'hello';
     }
   }
@@ -45,14 +42,17 @@ function extractCommand(transcript) {
   return null;
 }
 
-export function useSpeech({ onCommand, onConversation, enabled = false }) {
+export function useSpeech({ onCommand, onConversation, enabled = false, locked = true }) {
   const activeRef = useRef(false);
   const processingRef = useRef(false);
 
   const onCommandRef = useRef(onCommand);
   const onConversationRef = useRef(onConversation);
+  const lockedRef = useRef(locked);
+
   onCommandRef.current = onCommand;
   onConversationRef.current = onConversation;
+  lockedRef.current = locked;
 
   useEffect(() => {
     if (!enabled) return;
@@ -113,7 +113,7 @@ export function useSpeech({ onCommand, onConversation, enabled = false }) {
       try {
         rec.start();
         activeRef.current = true;
-        console.log('[Voice] Started listening for wake words (hey friday / friday)...');
+        console.log('[Voice] Started listening for wake words...');
       } catch (e) {
         console.warn('[Voice] Could not start recognition:', e);
       }
@@ -124,6 +124,22 @@ export function useSpeech({ onCommand, onConversation, enabled = false }) {
 
       processingRef.current = true;
       try {
+        // SECURITY CHECK: If system is LOCKED, FRIDAY only responds with security greeting/warning
+        if (lockedRef.current) {
+          const lockedReply = "Access denied, Boss. Please authenticate with your fingerprint or biometric key first to access system functions.";
+          console.log('[Voice] System is locked. Refusing main commands.');
+          
+          onConversationRef.current?.({
+            transcript: cmd,
+            reply: lockedReply,
+            action: 'none',
+          });
+
+          await speak(lockedReply);
+          return;
+        }
+
+        // UNLOCKED STATE: Process main functions (Trading, Dashboard, Job Search, etc.)
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
           console.log('[Voice] Local command matched:', localCommand);

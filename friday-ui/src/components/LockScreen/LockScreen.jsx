@@ -16,17 +16,17 @@ export default function LockScreen() {
     const { micEnabled } = useFriday();
 
     // FRIDAY's conversation loop: when the brain returns a reply for free-form speech,
-    // show it and let useSpeech handle playing the voice (so voice is never duplicated).
+    // show it and let useSpeech handle playing the voice.
     const handleConversation = React.useCallback(({ reply, action }) => {
         if (reply) {
             setResponseMessage?.(reply);
         }
-        if (action && action !== 'none') {
+        if (action && action !== 'none' && !locked) {
             if (action === 'trading') setWorkspace?.('trading');
             else if (action === 'dashboard') setWorkspace?.('dashboard');
             else runAuthSequence?.(action);
         }
-    }, [runAuthSequence, setResponseMessage, setWorkspace]);
+    }, [runAuthSequence, setResponseMessage, setWorkspace, locked]);
 
     // Handle fingerprint unlock
     const [fingerprintState, setFingerprintState] = useState('idle');
@@ -51,12 +51,15 @@ export default function LockScreen() {
 
     useSpeech({
         onCommand: (cmd) => {
-            if (cmd === 'trading') setWorkspace?.('trading');
-            else if (cmd === 'dashboard') setWorkspace?.('dashboard');
-            else runAuthSequence?.(cmd);
+            if (!locked) {
+                if (cmd === 'trading') setWorkspace?.('trading');
+                else if (cmd === 'dashboard') setWorkspace?.('dashboard');
+                else runAuthSequence?.(cmd);
+            }
         },
         onConversation: handleConversation,
         enabled: micEnabled,
+        locked: locked,
     });
 
     return (
@@ -123,7 +126,7 @@ export default function LockScreen() {
                                         LOCKED
                                     </h2>
                                     <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
-                                        AWAITING VOICE OR FACE VERIFICATION
+                                        AWAITING FINGERPRINT VERIFICATION
                                     </p>
                                 </motion.div>
                             ) : (
