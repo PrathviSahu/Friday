@@ -52,13 +52,15 @@ _BOSS_BASE_PROMPT = (
     "If a song, artist, or playlist is mentioned (even with typos like 'tempo city', 'temple city', 'help away'), set action to 'play_specific' "
     "and 'target_app' to the corrected song title (e.g. 'Self Aware by Temple City'). "
     "If volume is mentioned, set 'volume_percent' to the requested integer (0-100). "
+    "IMPORTANT: NEVER reply with generic 'I'm standing by, Boss' when the user asks a question or gives a command! "
+    "Always provide a witty, helpful answer or carry out the requested action. "
     "ACTIONS: "
     "- play_specific: search and play a song on Spotify "
     "- play_hindi_playlist / play_english_playlist "
     "- pause_music / play_music / set_volume / volume_up / volume_down / mute "
     "- next_track / previous_track / repeat / shuffle / open_spotify / close_spotify "
     "ALWAYS respond with ONLY a single valid JSON object in the form: "
-    '{"reply": "<spoken confirmation>", "action": "<action>", "target_app": "<corrected song/app>", "volume_percent": -1, "remember_key": null, "remember_value": null}'
+    '{"reply": "<spoken output>", "action": "<action>", "target_app": "<optional song/app>", "volume_percent": -1, "remember_key": null, "remember_value": null}'
 )
 
 _GUEST_SYSTEM_PROMPT = (
@@ -274,6 +276,13 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
 
-    fallback_reply = "I'm standing by, Boss."
+    # Direct fallback: For any unrecognized short query, search Spotify & play it
+    if len(text.split()) <= 4 and not text.lower().startswith("what") and not text.lower().startswith("how"):
+        execute_system_command("play_specific", text, volume_percent=extracted_vol)
+        msg = f"Opening Spotify and playing '{text}', Boss."
+        log_conversation(role="assistant", message=msg)
+        return {"reply": msg, "action": "play_specific"}
+
+    fallback_reply = f"At your service, Boss. I heard: '{text}'. How can I assist you?"
     log_conversation(role="assistant", message=fallback_reply)
     return {"reply": fallback_reply, "action": "none"}
