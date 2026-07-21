@@ -33,17 +33,21 @@ export default function WeatherCard() {
 
     if (!isVisible) {
         return (
-            <motion.button
+            <motion.div
+                drag
+                dragConstraints={{ left: -100, right: 1000, top: -100, bottom: 800 }}
+                dragElastic={0.1}
+                whileDrag={{ scale: 1.05 }}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsVisible(true)}
-                className="fixed top-8 left-10 z-50 flex items-center gap-2 px-3.5 py-2 rounded-full cursor-pointer pointer-events-auto bg-[#0a101d]/90 border border-sky-500/30 text-sky-400 shadow-[0_4px_20px_rgba(56,189,248,0.2)] text-[11px] font-mono"
+                className="fixed top-8 left-10 z-50 flex items-center gap-2 px-3.5 py-2 rounded-full cursor-grab active:cursor-grabbing pointer-events-auto select-none bg-[#0a101d]/90 border border-sky-500/30 text-sky-400 shadow-[0_4px_20px_rgba(56,189,248,0.2)] text-[11px] font-mono"
             >
                 <Sun size={14} className="text-amber-400 animate-spin-slow" />
                 <span>{weather.city} {weather.temperature}°C</span>
-            </motion.button>
+            </motion.div>
         );
     }
 

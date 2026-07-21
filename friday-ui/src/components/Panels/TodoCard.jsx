@@ -100,18 +100,22 @@ export default function TodoCard() {
 
     if (!isVisible) {
         return (
-            <motion.button
+            <motion.div
+                drag
+                dragConstraints={{ left: -200, right: 1000, top: -800, bottom: 200 }}
+                dragElastic={0.1}
+                whileDrag={{ scale: 1.05 }}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsVisible(true)}
-                className="fixed bottom-8 left-10 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full cursor-pointer pointer-events-auto"
+                className="fixed bottom-8 left-10 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full cursor-grab active:cursor-grabbing pointer-events-auto select-none"
                 style={{ background: '#1a1a2e', border: '1px solid #312e81', color: '#a5b4fc', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
             >
                 <ClipboardList size={15} />
                 <span style={{ fontSize: 12, fontWeight: 600 }}>Tasks{totalCount > 0 ? ` (${totalCount})` : ''}</span>
-            </motion.button>
+            </motion.div>
         );
     }
 

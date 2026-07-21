@@ -108,7 +108,11 @@ export default function SpotifyCard() {
 
     if (!isVisible) {
         return (
-            <motion.button
+            <motion.div
+                drag
+                dragConstraints={{ left: -1000, right: 200, top: -800, bottom: 200 }}
+                dragElastic={0.1}
+                whileDrag={{ scale: 1.05 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.04 }}
@@ -119,13 +123,14 @@ export default function SpotifyCard() {
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 16px', borderRadius: 24,
                     background: '#121212', border: '1px solid #282828',
-                    cursor: 'pointer', pointerEvents: 'auto',
+                    cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
                 }}
+                className="active:cursor-grabbing"
             >
                 <SpotifyIcon size={16} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#b3b3b3', letterSpacing: '0.04em' }}>Now Playing</span>
-            </motion.button>
+            </motion.div>
         );
     }
 
