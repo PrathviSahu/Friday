@@ -72,9 +72,11 @@ def _extract_json(text: str) -> dict:
 def _get_fallback_answer(text: str) -> str:
     """Smart local knowledge base when API rate limit is reached."""
     q = text.lower().strip()
+    if "capital of india" in q or "capital of Bharat" in q:
+        return "The capital of India is New Delhi, Boss."
     if "capital of brazil" in q:
         return "The capital of Brazil is Brasília, Boss."
-    if "time in india" in q or "indian standard time" in q:
+    if "time in india" in q or "indian standard time" in q or "time" in q:
         import datetime
         import zoneinfo
         try:
@@ -84,11 +86,11 @@ def _get_fallback_answer(text: str) -> str:
             return "Indian Standard Time is UTC +5:30, Boss."
     if "who i am" in q or "recognise me" in q or "recognize me" in q:
         return "You are my Boss, creator of STARK systems."
-    if "who are you" in q:
-        return "I am F.R.I.D.A.Y., your personal AI assistant, Boss."
+    if "who are you" in q or "what can you do" in q:
+        return "I am F.R.I.D.A.Y., your personal AI assistant. I can monitor systems, manage trading panels, and assist you with tasks, Boss."
     if "trading" in q:
         return "Opening your trading panel now, Boss."
-    return "I am online and monitoring systems, Boss."
+    return "All STARK systems are operational and at your command, Boss."
 
 
 def respond(transcript: str, is_boss: bool = True) -> dict:
@@ -120,6 +122,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
 
     try:
         client = _get_client()
+        # Use fallback models if rate-limited
         model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         response = client.models.generate_content(
             model=model_name,
