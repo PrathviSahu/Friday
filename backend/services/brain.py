@@ -264,8 +264,8 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                 log_conversation(role="assistant", message=msg)
                 return {"reply": msg, "action": "play_specific"}
 
-    # Build dynamic prompt with stored memory context
-    if is_boss or guest_active:
+    # Build dynamic prompt (Boss gets full permanent memory context; permitted guests get basic context)
+    if is_boss:
         memory_str = get_memory_context_string()
         recent_history = get_recent_conversation(limit=4)
         history_str = "\n".join([f"{h['role'].upper()}: {h['message']}" for h in recent_history])
@@ -273,6 +273,14 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         full_system_prompt = (
             f"{_BOSS_BASE_PROMPT}\n\n"
             f"[PERMANENT MEMORY & USER PREFERENCES]\n{memory_str}\n\n"
+            f"[RECENT CONVERSATION HISTORY]\n{history_str}"
+        )
+    elif guest_active:
+        recent_history = get_recent_conversation(limit=4)
+        history_str = "\n".join([f"{h['role'].upper()}: {h['message']}" for h in recent_history])
+        full_system_prompt = (
+            f"{_BOSS_BASE_PROMPT}\n\n"
+            f"[NOTE: Permitted guest speaking — execute allowed media/app requests, but DO NOT reveal or save personal memories.]\n\n"
             f"[RECENT CONVERSATION HISTORY]\n{history_str}"
         )
     else:

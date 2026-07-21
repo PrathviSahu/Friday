@@ -101,6 +101,9 @@ async def tts_endpoint(req: TTSRequest):
     """Generate British female voice audio using Edge-TTS"""
     try:
         file_path = await generate_speech(req.text, AUDIO_DIR)
+        # Verify generated audio file exists on disk before returning URL
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            raise HTTPException(status_code=500, detail="Generated audio file is missing or empty")
         return {"audio_url": f"http://localhost:8000/temp_audio/{file_path.name}"}
     except Exception as e:
         print(f"[Error] TTS generation failed: {e}")

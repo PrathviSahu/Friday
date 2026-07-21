@@ -140,10 +140,10 @@ def search_and_play_spotify(song_or_playlist: str) -> bool:
         print(f"[Automation] Spotify search play error: {err}")
         return False
 
-# Boss's actual Spotify playlists — direct URIs for instant reliable playback
-PLAYLIST_HINDI   = "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap"
-PLAYLIST_ENGLISH = "spotify:playlist:2CCKzQqgsc50gtJeYDonJh"
-PLAYLIST_KRISHNA = "spotify:playlist:3Fd9z849SrTBEtHDTgQvXo"
+# Spotify playlists — direct URIs for instant reliable playback (loads from env or default)
+PLAYLIST_HINDI   = os.getenv("SPOTIFY_PLAYLIST_HINDI", "spotify:playlist:4SuEAsJ6ulS62RYJk88Sap")
+PLAYLIST_ENGLISH = os.getenv("SPOTIFY_PLAYLIST_ENGLISH", "spotify:playlist:2CCKzQqgsc50gtJeYDonJh")
+PLAYLIST_KRISHNA = os.getenv("SPOTIFY_PLAYLIST_KRISHNA", "spotify:playlist:3Fd9z849SrTBEtHDTgQvXo")
 
 
 def play_spotify_uri(uri: str) -> bool:
