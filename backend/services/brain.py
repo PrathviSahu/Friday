@@ -1,10 +1,7 @@
 """FRIDAY's conversational brain.
 
 Takes a user's transcribed utterance and asks Gemini for a reply, in the
-F.R.I.D.A.Y. persona. Returns both a spoken reply and an optional structured
-action so the frontend can still open panels / lock / etc. for known intents.
-
-Requires GEMINI_API_KEY in backend/.env (same key used by stt.py).
+F.R.I.D.A.Y. persona. Supports Boss vs Guest permission mode.
 """
 import os
 import json
@@ -12,28 +9,35 @@ import re
 
 from google import genai
 from google.genai import types
+from services.voice_auth import is_guest_permitted, set_guest_permission
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+KNOWN_ACTIONS = ["dashboard", "trading", "engineering", "vscode", "browser", "lock", "allow_guest", "revoke_guest", "none"]
 
-# Actions the frontend already knows how to perform. Gemini is told to pick one
-# of these when the user's intent matches; otherwise action is "none" and we
-# just speak the reply.
-KNOWN_ACTIONS = ["dashboard", "trading", "engineering", "vscode", "browser", "lock", "none"]
-
-_SYSTEM_PROMPT = (
+_BOSS_SYSTEM_PROMPT = (
     "You are F.R.I.D.A.Y., Tony Stark's witty, loyal, highly capable AI assistant. "
     "You address the user as 'Boss'. Keep spoken replies concise (1-2 sentences), "
     "confident, and lightly witty — never robotic. "
     "You can perform these actions when the user asks: "
     "dashboard (show dashboard/status), trading (open trading systems), "
     "engineering (open engineering console), vscode (open VS Code/editor), "
-    "browser (open a web browser), lock (secure/lock the system). "
+    "browser (open a web browser), lock (secure/lock the system), "
+    "allow_guest (grant guest access/permission), revoke_guest (revoke guest access). "
     "For anything else — questions, chit-chat, general requests — just answer "
     "conversationally with action 'none'. "
     "ALWAYS respond with a single JSON object and nothing else, in the form: "
     '{"reply": "<what you say out loud>", "action": "<one of: '
     + ", ".join(KNOWN_ACTIONS)
     + '>"}'
+)
+
+_GUEST_SYSTEM_PROMPT = (
+    "You are F.R.I.D.A.Y., Tony Stark's AI assistant. A guest (not your Boss) is talking to you, "
+    "and access permission has NOT been granted by your Boss yet. "
+    "Be hilariously sarcastic, polite yet firm, and inform them that only your Boss can give them system permission. "
+    "REFUSE any system commands or actions — set action to 'none'. "
+    "Keep replies concise (1-2 sentences) and witty. "
+    "ALWAYS respond with a single JSON object: "
+    '{"reply": "<sarcastic response to guest>", "action": "none"}'
 )
 
 _client = None
@@ -50,10 +54,8 @@ def _get_client():
 
 
 def _extract_json(text: str) -> dict:
-    """Pull the first JSON object out of the model's text, tolerating fences."""
     if not text:
         return {}
-    # Strip ```json ... ``` fences if present.
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     candidate = fenced.group(1) if fenced else None
     if candidate is None:
@@ -67,64 +69,65 @@ def _extract_json(text: str) -> dict:
         return {}
 
 
-def respond(transcript: str) -> dict:
+def respond(transcript: str, is_boss: bool = True) -> dict:
     """Return {'reply': str, 'action': str} for a user utterance."""
     text = (transcript or "").strip()
     if not text:
         return {"reply": "", "action": "none"}
 
-    client = _get_client()
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[_SYSTEM_PROMPT, f"User said: {text}"],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.7,
-        ),
-    )
-    raw = (getattr(response, "text", "") or "").strip()
-    data = _extract_json(raw)
+    lower_text = text.lower()
 
-    reply = str(data.get("reply") or "").strip()
-    action = str(data.get("action") or "none").strip().lower()
-    if action not in KNOWN_ACTIONS:
-        action = "none"
-    if not reply:
-        # Fallback: speak whatever the model produced, or a safe default.
-        reply = raw or "I'm not sure how to help with that, Boss."
-    return {"reply": reply, "action": action}
+    # Check for permission commands from Boss
+    if "allow guest" in lower_text or "grant guest" in lower_text or "let them speak" in lower_text or "give permission" in lower_text:
+        set_guest_permission(True)
+        return {
+            "reply": "Guest access granted, Boss. I'll answer their queries now.",
+            "action": "allow_guest"
+        }
 
+    if "revoke guest" in lower_text or "stop guest" in lower_text or "lock guest" in lower_text:
+        set_guest_permission(False)
+        return {
+            "reply": "Guest access revoked, Boss. Back to Boss-only mode.",
+            "action": "revoke_guest"
+        }
 
-async def chat_with_audio(data: bytes, mime_type: str) -> dict:
-    """One-shot: transcribe audio with Gemini, then generate FRIDAY reply."""
-    if not data:
-        return {"reply": "", "action": "none", "transcript": ""}
+    # Select prompt based on whether speaker is Boss or guest with permission
+    guest_active = is_guest_permitted()
+    prompt = _BOSS_SYSTEM_PROMPT if (is_boss or guest_active) else _GUEST_SYSTEM_PROMPT
 
-    client = _get_client()
-    # Multimodal prompt: give the model the audio and ask for both transcript
-    # and response in one call. Gemini will handle STT+LLM internally.
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Part.from_bytes(data=data, mime_type=mime_type),
-            _SYSTEM_PROMPT,
-            "User is speaking to F.R.I.D.A.Y. Please transcribe their words, then "
-            "generate a concise witty response in the FRIDAY personality, and return ONLY JSON: "
-            '{"reply": "...", "action": "...", "transcript": "..."}',
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.5,
-        ),
-    )
-    raw = (getattr(response, "text", "") or "").strip()
-    data = _extract_json(raw)
+    try:
+        client = _get_client()
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[prompt, f"User said: {text}"],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.7,
+            ),
+        )
+        raw = (getattr(response, "text", "") or "").strip()
+        data = _extract_json(raw)
 
-    reply = str(data.get("reply") or "").strip()
-    action = str(data.get("action") or "none").strip().lower()
-    transcript = str(data.get("transcript") or "").strip()
-    if action not in KNOWN_ACTIONS:
-        action = "none"
-    if not reply:
-        reply = "I didn't catch that, Boss."
-    return {"reply": reply, "action": action, "transcript": transcript}
+        reply = str(data.get("reply") or "").strip()
+        action = str(data.get("action") or "none").strip().lower()
+
+        if action not in KNOWN_ACTIONS:
+            action = "none"
+
+        if not reply:
+            reply = "I'm standing by, Boss." if is_boss else "Nice try, but you're not my Boss."
+
+        return {"reply": reply, "action": action}
+    except Exception as err:
+        print(f"[Error] Gemini API call failed: {err}")
+        if not (is_boss or guest_active):
+            return {
+                "reply": "Nice try, but access is reserved exclusively for my Boss until authorization is granted.",
+                "action": "none"
+            }
+        return {
+            "reply": "I'm standing by, Boss.",
+            "action": "none"
+        }

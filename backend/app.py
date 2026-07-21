@@ -1,13 +1,20 @@
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables from backend/.env
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 import os
-from pathlib import Path
 
-from services.brain import respond, chat_with_audio
+from services.brain import respond
 from services.tts import generate_speech
+from services.voice_auth import is_guest_permitted, set_guest_permission
 
 # Ensure temp_audio directory exists
 AUDIO_DIR = Path('temp_audio')
@@ -29,30 +36,45 @@ app.mount('/temp_audio', StaticFiles(directory='temp_audio'), name='temp_audio')
 
 class ChatTextRequest(BaseModel):
     text: str
+    is_boss: bool = True
 
 
 class TTSRequest(BaseModel):
     text: str
 
 
+class PermissionRequest(BaseModel):
+    allow: bool
+
+
 @app.get("/")
 def read_root():
-    return {"status": "online", "system": "F.R.I.D.A.Y. AI Core v2.0"}
+    return {
+        "status": "online",
+        "system": "F.R.I.D.A.Y. AI Core v2.0",
+        "guest_permitted": is_guest_permitted()
+    }
 
 
 @app.post("/api/chat/text")
 def chat_text_endpoint(req: ChatTextRequest):
     """Text-based chat endpoint for FRIDAY AI brain"""
     try:
-        res = respond(req.text)
+        res = respond(req.text, is_boss=req.is_boss)
         return res
     except Exception as e:
         print(f"[Error] Chat endpoint error: {e}")
-        # Fallback response if API key is missing or model fails
         return {
             "reply": "I'm experiencing a temporary neural link issue, Boss. Please check the backend API configuration.",
             "action": "none"
         }
+
+
+@app.post("/api/permission")
+def set_permission_endpoint(req: PermissionRequest):
+    """Grant or revoke guest voice permission"""
+    set_guest_permission(req.allow)
+    return {"status": "ok", "guest_permitted": is_guest_permitted()}
 
 
 @app.post("/api/tts")
