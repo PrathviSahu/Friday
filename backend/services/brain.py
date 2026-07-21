@@ -26,9 +26,10 @@ from services.memory import (
     log_conversation,
     get_recent_conversation
 )
-from services.system_control import execute_system_command, get_spotify_current_track, add_current_track_to_playlist
+from services.system_control import execute_system_command, get_spotify_current_track, add_current_track_to_playlist, take_screenshot
 from services.todos import get_todos, add_todo
 from services.weather import get_weather
+from services.reminders import add_reminder, check_due_reminders
 
 KNOWN_ACTIONS = [
     "dashboard", "trading", "engineering", "vscode", "browser",
@@ -121,9 +122,17 @@ def _handle_system_automation(action: str, target: str, volume_percent: int = -1
 
 def get_proactive_suggestion() -> dict:
     """
-    Generate a time-aware proactive suggestion FRIDAY can announce spontaneously.
+    Generate a time-aware proactive suggestion or check due timers/reminders.
     Returns: { 'should_speak': bool, 'message': str, 'action': str }
     """
+    # 🚨 First Priority: Check if any timers/reminders are due
+    due = check_due_reminders()
+    if due:
+        rem = due[0]
+        msg = f"Prem, reminder: {rem['message']}!"
+        log_conversation(role="assistant", message=f"[REMINDER] {msg}")
+        return {"should_speak": True, "message": msg, "action": "none"}
+
     hour = int(time.strftime("%H"))
     local_time_str = time.strftime("%I:%M %p")
 
@@ -256,7 +265,32 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
 
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
-        # 0.0 TIME & HISTORY SHORTCUTS (English & Hinglish)
+        # 0.0 TIME, SCREENSHOT & REMINDER SHORTCUTS (English & Hinglish)
+        if re.search(r'\b(?:screenshot|screen\s+shot|capture\s+screen)\b', lower_text):
+            path = take_screenshot()
+            reply_msg = f"Screenshot saved to your Desktop, Prem." if path else "Unable to take screenshot on this OS, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
+        # Reminders shortcut: "remind me in 10 minutes to take a break" / "set timer for 5 minutes"
+        rem_match = re.search(r'\b(?:remind\s+me|set\s+timer|timer\s+set|alarm)\b.*\b(?:in|for|after)?\s*(\d{1,3})\s*(min|minute|minutes|sec|second|seconds|hr|hour|hours)\b', lower_text)
+        if rem_match:
+            num = int(rem_match.group(1))
+            unit = rem_match.group(2)
+            sec = num * 60 if 'min' in unit or 'hour' in unit and 'min' not in unit else num * 3600 if 'hour' in unit or 'hr' in unit else num
+            if 'hour' in unit or 'hr' in unit:
+                sec = num * 3600
+            elif 'min' in unit:
+                sec = num * 60
+            else:
+                sec = num
+            msg_part = re.sub(r'^.*?\b(?:to|that|about)\b\s*', '', lower_text).strip()
+            msg = msg_part if msg_part and not any(k in msg_part for k in ['minute', 'second', 'hour', 'timer', 'remind']) else "Timer up"
+            item = add_reminder(msg, sec)
+            reply_msg = f"Timer set for {num} {unit}, Prem. I'll remind you to '{msg}'."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
         if re.search(r'\b(?:weather|mausam|temperature|tapman)\b', lower_text):
             city_match = re.search(r'\b(?:in|of|at|for)\s+([a-zA-Z\s]+)', lower_text)
             city_query = city_match.group(1).strip() if city_match else None

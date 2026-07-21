@@ -20,6 +20,8 @@ from services.system_control import get_spotify_current_track
 from services.todos import get_todos, add_todo, toggle_todo, delete_todo, clear_done, update_todo_text
 from services.system_stats import get_system_stats
 from services.weather import get_weather
+from services.web_search import search_web_instant
+from services.reminders import add_reminder, get_active_reminders
 
 # Ensure temp_audio directory exists
 AUDIO_DIR = Path('temp_audio')
@@ -56,6 +58,15 @@ class PermissionRequest(BaseModel):
 class SaveMemoryRequest(BaseModel):
     key: str
     value: str
+
+
+class SearchRequest(BaseModel):
+    query: str
+
+
+class ReminderRequest(BaseModel):
+    message: str
+    seconds: int
 
 
 class TodoCreateRequest(BaseModel):
@@ -132,6 +143,25 @@ def system_stats_endpoint():
 def weather_endpoint():
     """Return live weather data."""
     return get_weather()
+
+
+@app.post("/api/search")
+def web_search_endpoint(req: SearchRequest):
+    """Search DuckDuckGo instant answer snippets."""
+    return search_web_instant(req.query)
+
+
+@app.get("/api/reminders")
+def get_reminders_endpoint():
+    """Get active timers and reminders."""
+    return {"reminders": get_active_reminders()}
+
+
+@app.post("/api/reminders")
+def add_reminder_endpoint(req: ReminderRequest):
+    """Set a timer/reminder."""
+    item = add_reminder(req.message, req.seconds)
+    return {"status": "ok", "reminder": item}
 
 
 # ── Todo endpoints ──────────────────────────────────────────

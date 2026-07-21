@@ -10,6 +10,7 @@ import subprocess
 import urllib.parse
 import platform
 import time
+from datetime import datetime
 
 IS_MAC = platform.system() == "Darwin"
 
@@ -235,6 +236,20 @@ def add_current_track_to_playlist(target_playlist: str = "hindi") -> bool:
     except Exception as err:
         print(f"[Automation] Error adding track to playlist: {err}")
         return False
+
+
+def take_screenshot() -> str:
+    """Take a full screen screenshot on macOS using screencapture and save to Desktop."""
+    if not IS_MAC:
+        return ""
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        desktop_path = Path.home() / "Desktop" / f"FRIDAY_Screenshot_{timestamp}.png"
+        subprocess.run(["screencapture", "-x", str(desktop_path)], check=True)
+        return str(desktop_path)
+    except Exception as err:
+        print(f"[Automation] Screenshot failed: {err}")
+        return ""
 
 
 def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> bool:
