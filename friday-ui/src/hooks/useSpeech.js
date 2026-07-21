@@ -42,7 +42,7 @@ function extractCommand(transcript) {
   return null;
 }
 
-export function useSpeech({ onCommand, onConversation, enabled = false, locked = true }) {
+export function useSpeech({ onCommand, onConversation, enabled = true, locked = false }) {
   const activeRef = useRef(false);
   const processingRef = useRef(false);
 
@@ -55,8 +55,7 @@ export function useSpeech({ onCommand, onConversation, enabled = false, locked =
   lockedRef.current = locked;
 
   useEffect(() => {
-    if (!enabled) return;
-
+    // ALWAYS listen whenever browser speech recognition is supported
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       console.warn('[Voice] SpeechRecognition not available in this browser.');
@@ -105,7 +104,7 @@ export function useSpeech({ onCommand, onConversation, enabled = false, locked =
       };
 
       rec.onend = () => {
-        if (!cancelled && activeRef.current && enabled) {
+        if (!cancelled && activeRef.current) {
           setTimeout(start, 100);
         }
       };
@@ -124,9 +123,9 @@ export function useSpeech({ onCommand, onConversation, enabled = false, locked =
 
       processingRef.current = true;
       try {
-        // SECURITY CHECK: If system is LOCKED, FRIDAY only responds with security greeting/warning
+        // SECURITY CHECK: If system is LOCKED, block main features
         if (lockedRef.current) {
-          const lockedReply = "Access denied, Boss. Please authenticate with your fingerprint or biometric key first to access system functions.";
+          const lockedReply = "Access denied, Boss. Please authenticate with your fingerprint key first.";
           console.log('[Voice] System is locked. Refusing main commands.');
           
           onConversationRef.current?.({
@@ -139,7 +138,7 @@ export function useSpeech({ onCommand, onConversation, enabled = false, locked =
           return;
         }
 
-        // UNLOCKED STATE: Process main functions (Trading, Dashboard, Job Search, etc.)
+        // UNLOCKED STATE: Execute full system features (Trading, Dashboard, etc.)
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
           console.log('[Voice] Local command matched:', localCommand);
@@ -181,5 +180,5 @@ export function useSpeech({ onCommand, onConversation, enabled = false, locked =
       try { rec?.stop(); } catch (_) {}
       clearTimeout(timer);
     };
-  }, [enabled]);
+  }, []);
 }
