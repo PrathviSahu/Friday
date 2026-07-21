@@ -27,7 +27,7 @@ from services.memory import (
     get_recent_conversation
 )
 from services.system_control import execute_system_command, get_spotify_current_track, add_current_track_to_playlist
-from services.todos import get_todos
+from services.todos import get_todos, add_todo
 
 KNOWN_ACTIONS = [
     "dashboard", "trading", "engineering", "vscode", "browser",
@@ -256,6 +256,14 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
         # 0.0 TIME & HISTORY SHORTCUTS (English & Hinglish)
+        if re.search(r'\b(?:add\s+task|add\s+todo|add\s+to\s+task|add\s+to\s+todo|remind\s+me\s+to|task\s+add\s+karo)\b', lower_text):
+            task_text = re.sub(r'^.*?\b(?:add\s+task|add\s+todo|add\s+to\s+task|add\s+to\s+todo|remind\s+me\s+to|task\s+add\s+karo)\b\s*', '', lower_text).strip()
+            if task_text:
+                item = add_todo(task_text, priority="normal")
+                reply_msg = f"Added '{item['text']}' to your tasks, Prem."
+                log_conversation(role="assistant", message=reply_msg)
+                return {"reply": reply_msg, "action": "none"}
+
         if re.search(r'\b(?:what\s+did\s+i\s+ask|previous\s+question|pehle\s+kya\s+pucha|pehle\s+kya\s+bola|last\s+question)\b', lower_text):
             recent = get_recent_conversation(limit=3)
             user_msgs = [h["message"] for h in recent if h["role"].lower() == "user"]

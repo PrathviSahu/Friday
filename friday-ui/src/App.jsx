@@ -7,6 +7,7 @@ import Workspace from './UI/Workspace';
 import DebugKeys from './components/Debug/DebugKeys';
 import SpotifyCard from './components/Panels/SpotifyCard';
 import TodoCard from './components/Panels/TodoCard';
+import SystemMonitorCard from './components/Panels/SystemMonitorCard';
 import { FridayProvider } from './context/FridayContext';
 import FridaySync from './context/FridaySync';
 import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
@@ -29,6 +30,7 @@ function FridayCore() {
             <Workspace />
             <SpotifyCard />
             <TodoCard />
+            <SystemMonitorCard />
             <DebugKeys />
 
             {/* ── Proactive Suggestion Toast ── */}

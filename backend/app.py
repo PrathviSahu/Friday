@@ -18,6 +18,7 @@ from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import get_all_memories, save_fact
 from services.system_control import get_spotify_current_track
 from services.todos import get_todos, add_todo, toggle_todo, delete_todo, clear_done, update_todo_text
+from services.system_stats import get_system_stats
 
 # Ensure temp_audio directory exists
 AUDIO_DIR = Path('temp_audio')
@@ -118,6 +119,12 @@ def get_spotify_track_endpoint():
 def proactive_endpoint():
     """Return a time-aware proactive suggestion FRIDAY can speak spontaneously."""
     return get_proactive_suggestion()
+
+
+@app.get("/api/system/stats")
+def system_stats_endpoint():
+    """Return live CPU, RAM, Disk, and Battery stats."""
+    return get_system_stats()
 
 
 # ── Todo endpoints ──────────────────────────────────────────
