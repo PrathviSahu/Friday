@@ -102,9 +102,9 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     # Try live Gemini models in sequence to guarantee a live LLM response
     models_to_try = [
         os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-        "gemini-2.0-flash-001",
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite"
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite-001",
+        "gemini-flash-latest"
     ]
 
     last_error = None
@@ -132,7 +132,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         except Exception as err:
             last_error = err
             print(f"[Brain] Model {model_name} failed ({err}), trying next model...")
-            time.sleep(0.5)
+            time.sleep(0.3)
 
     print(f"[Error] All Gemini models failed: {last_error}")
     return {
