@@ -265,7 +265,12 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
 
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
-        # 0.0 TIME, SCREENSHOT & REMINDER SHORTCUTS (English & Hinglish)
+        # 0.0 TIME, SCREENSHOT, REMINDER & TRADING SHORTCUTS (English & Hinglish)
+        if re.search(r'\b(?:trading|trading\s+dashboard|show\s+charts|stock\s+charts|crypto\s+charts)\b', lower_text):
+            reply_msg = "Opening Trading Dashboard, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "trading"}
+
         if re.search(r'\b(?:screenshot|screen\s+shot|capture\s+screen)\b', lower_text):
             path = take_screenshot()
             reply_msg = f"Screenshot saved to your Desktop, Prem." if path else "Unable to take screenshot on this OS, Prem."
