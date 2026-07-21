@@ -165,9 +165,9 @@ def play_spotify_uri(uri: str) -> bool:
 
 
 def get_spotify_current_track() -> dict:
-    """Fetch details of currently active Spotify track (title, artist, album, state, artwork_url) via AppleScript."""
+    """Fetch details of currently active Spotify track (title, artist, album, state, artwork_url, position, duration) via AppleScript."""
     if not IS_MAC or not is_spotify_running():
-        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": ""}
+        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": "", "position": 0, "duration": 180}
     try:
         script = '''
         tell application "Spotify"
@@ -177,7 +177,9 @@ def get_spotify_current_track() -> dict:
                 set albumName to album of current track
                 set trackState to (player state as string)
                 set artworkURL to artwork url of current track
-                return trackName & "|||" & artistName & "|||" & albumName & "|||" & trackState & "|||" & artworkURL
+                set trackPos to player position
+                set trackDur to (duration of current track) / 1000
+                return trackName & "|||" & artistName & "|||" & albumName & "|||" & trackState & "|||" & artworkURL & "|||" & trackPos & "|||" & trackDur
             on error
                 return "STOPPED"
             end try
@@ -185,7 +187,7 @@ def get_spotify_current_track() -> dict:
         '''
         res = subprocess.check_output(["osascript", "-e", script], timeout=3).decode("utf-8").strip()
         if not res or res == "STOPPED" or "|||" not in res:
-            return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": ""}
+            return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": "", "position": 0, "duration": 180}
 
         parts = res.split("|||")
         title = parts[0].strip()
@@ -193,6 +195,8 @@ def get_spotify_current_track() -> dict:
         album = parts[2].strip() if len(parts) > 2 else ""
         state = parts[3].strip().lower() if len(parts) > 3 else "stopped"
         artwork_url = parts[4].strip() if len(parts) > 4 else ""
+        position = float(parts[5].strip()) if len(parts) > 5 and parts[5].strip() else 0.0
+        duration = float(parts[6].strip()) if len(parts) > 6 and parts[6].strip() else 180.0
         is_playing = state == "playing"
 
         return {
@@ -201,11 +205,26 @@ def get_spotify_current_track() -> dict:
             "artist": artist,
             "album": album,
             "state": state,
-            "artwork_url": artwork_url
+            "artwork_url": artwork_url,
+            "position": round(position),
+            "duration": round(duration)
         }
     except Exception as err:
         print(f"[Automation] Error fetching current track: {err}")
-        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": ""}
+        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped", "artwork_url": "", "position": 0, "duration": 180}
+
+
+def set_spotify_position(seconds: float) -> bool:
+    """Set Spotify player playback position in seconds via AppleScript."""
+    if not IS_MAC or not is_spotify_running():
+        return False
+    try:
+        script = f'tell application "Spotify" to set player position to {seconds}'
+        subprocess.Popen(["osascript", "-e", script])
+        return True
+    except Exception as err:
+        print(f"[Automation] Error setting player position: {err}")
+        return False
 
 
 def add_current_track_to_playlist(target_playlist: str = "hindi") -> bool:

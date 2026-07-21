@@ -5,7 +5,7 @@ import {
     Volume2, VolumeX, X, Search,
     Shuffle, Repeat, Repeat1, Heart,
     GripHorizontal, Mic2, ListMusic,
-    Laptop2, Maximize2
+    Maximize2
 } from 'lucide-react';
 import { fetchChatText } from '../../api/chatText';
 
@@ -37,19 +37,22 @@ function IconBtn({ icon: Icon, size = 16, color = '#b3b3b3', activeColor = '#fff
 
 export default function SpotifyCard() {
     const [isVisible, setIsVisible] = useState(false);
-    const [spotifyTrack, setSpotifyTrack] = useState({ playing: false, title: '', artist: '', artwork_url: '' });
-    const [volume, setVolume] = useState(65);
+    const [spotifyTrack, setSpotifyTrack] = useState({
+        playing: false, title: '', artist: '', artwork_url: '', position: 0, duration: 180
+    });
+    const [volume, setVolume] = useState(70);
     const [muted, setMuted] = useState(false);
     const [liked, setLiked] = useState(false);
     const [shuffle, setShuffle] = useState(false);
     const [repeat, setRepeat] = useState(0); // 0=off, 1=all, 2=one
-    const [progress, setProgress] = useState(14); // seconds
-    const totalSecs = 171; // 2:51 mock
-    const progressPct = Math.min(100, (progress / totalSecs) * 100);
+    const [progress, setProgress] = useState(0); // real seconds
     const [songQuery, setSongQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const progressBarRef = useRef(null);
+
+    const totalSecs = spotifyTrack.duration || 180;
+    const progressPct = Math.min(100, (progress / totalSecs) * 100);
 
     const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -58,8 +61,12 @@ export default function SpotifyCard() {
             await fetchChatText(cmd, true);
             setTimeout(async () => {
                 const res = await fetch('http://localhost:8000/api/spotify/current-track');
-                if (res.ok) setSpotifyTrack(await res.json());
-            }, 600);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSpotifyTrack(data);
+                    if (typeof data.position === 'number') setProgress(data.position);
+                }
+            }, 500);
         } catch (_) {}
     };
 
@@ -74,36 +81,56 @@ export default function SpotifyCard() {
             await fetchChatText(`play ${q}`, true);
             setTimeout(async () => {
                 const res = await fetch('http://localhost:8000/api/spotify/current-track');
-                if (res.ok) setSpotifyTrack(await res.json());
-            }, 1200);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSpotifyTrack(data);
+                    if (typeof data.position === 'number') setProgress(data.position);
+                }
+            }, 1000);
         } catch (_) {}
         setTimeout(() => setSearching(false), 1500);
     };
 
-    // Mock progress tick
+    // Real-time track position tick + periodic synchronization
     useEffect(() => {
         if (!spotifyTrack.playing) return;
-        const iv = setInterval(() => setProgress(p => p >= totalSecs ? 0 : p + 1), 1000);
+        const iv = setInterval(() => {
+            setProgress(p => (p >= totalSecs ? 0 : p + 1));
+        }, 1000);
         return () => clearInterval(iv);
-    }, [spotifyTrack.playing]);
+    }, [spotifyTrack.playing, totalSecs]);
 
-    // Poll track
+    // Poll current track details from backend
     useEffect(() => {
         const fetchTrack = async () => {
             try {
                 const res = await fetch('http://localhost:8000/api/spotify/current-track');
-                if (res.ok) setSpotifyTrack(await res.json());
+                if (res.ok) {
+                    const data = await res.json();
+                    setSpotifyTrack(data);
+                    if (typeof data.position === 'number') setProgress(data.position);
+                }
             } catch (_) {}
         };
         fetchTrack();
-        const iv = setInterval(fetchTrack, 4000);
+        const iv = setInterval(fetchTrack, 2500);
         return () => clearInterval(iv);
     }, []);
 
-    const handleProgressClick = (e) => {
+    // Handle interactive progress bar click/seek
+    const handleProgressClick = async (e) => {
+        if (!progressBarRef.current) return;
         const rect = progressBarRef.current.getBoundingClientRect();
-        const pct = (e.clientX - rect.left) / rect.width;
-        setProgress(Math.round(pct * totalSecs));
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const newSecs = Math.round(pct * totalSecs);
+        setProgress(newSecs);
+        try {
+            await fetch('http://localhost:8000/api/spotify/seek', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seconds: newSecs })
+            });
+        } catch (_) {}
     };
 
     if (!isVisible) {
@@ -120,7 +147,7 @@ export default function SpotifyCard() {
                 onClick={() => setIsVisible(true)}
                 style={{
                     position: 'fixed', bottom: 32, right: 40, zIndex: 50,
-                    display: 'flex', alignItems: 'center', gap: 8,
+                    display: 'flex', itemsAlign: 'center', gap: 8,
                     padding: '8px 16px', borderRadius: 24,
                     background: '#121212', border: '1px solid #282828',
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
@@ -129,7 +156,9 @@ export default function SpotifyCard() {
                 className="active:cursor-grabbing"
             >
                 <SpotifyIcon size={16} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#b3b3b3', letterSpacing: '0.04em' }}>Now Playing</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#b3b3b3', letterSpacing: '0.04em' }}>
+                    {spotifyTrack.playing ? `${spotifyTrack.title} • ${spotifyTrack.artist}` : 'Now Playing'}
+                </span>
             </motion.div>
         );
     }
@@ -264,7 +293,7 @@ export default function SpotifyCard() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#b3b3b3', fontVariantNumeric: 'tabular-nums' }}>
                         <span>{fmt(progress)}</span>
-                        <span>-{fmt(totalSecs - progress)}</span>
+                        <span>-{fmt(Math.max(0, totalSecs - progress))}</span>
                     </div>
                 </div>
 
@@ -316,7 +345,7 @@ export default function SpotifyCard() {
                     </button>
                 </div>
 
-                {/* ── Volume + extra icons (like Spotify's bar) ── */}
+                {/* ── Volume + extra icons ── */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 14px', gap: 8 }}>
                     {/* Left extras */}
                     <div style={{ display: 'flex', gap: 2 }}>
@@ -337,7 +366,7 @@ export default function SpotifyCard() {
                     {/* Volume control */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
                         <button
-                            onClick={() => { setMuted(m => !m); handleMediaAction(muted ? `volume ${volume}%` : 'volume 0%'); }}
+                            onClick={() => { setMuted(m => !m); handleMediaAction(muted ? `set volume to ${volume}` : 'set volume to 0'); }}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#b3b3b3', display: 'flex' }}>
                             {(muted || volume === 0) ? <VolumeX size={16} /> : <Volume2 size={16} />}
                         </button>
@@ -345,7 +374,7 @@ export default function SpotifyCard() {
                             <div style={{ width: `${muted ? 0 : volume}%`, height: '100%', background: '#b3b3b3', borderRadius: 2 }} />
                             <input
                                 type="range" min="0" max="100" value={muted ? 0 : volume}
-                                onChange={e => { setVolume(Number(e.target.value)); setMuted(false); handleMediaAction(`volume ${e.target.value}%`); }}
+                                onChange={e => { setVolume(Number(e.target.value)); setMuted(false); handleMediaAction(`set volume to ${e.target.value}`); }}
                                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', margin: 0 }}
                             />
                         </div>

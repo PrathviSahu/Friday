@@ -16,7 +16,7 @@ from services.brain import respond, get_proactive_suggestion
 from services.tts import generate_speech
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import get_all_memories, save_fact
-from services.system_control import get_spotify_current_track
+from services.system_control import get_spotify_current_track, set_spotify_position
 from services.todos import get_todos, add_todo, toggle_todo, delete_todo, clear_done, update_todo_text
 from services.system_stats import get_system_stats
 from services.weather import get_weather
@@ -125,6 +125,16 @@ def set_permission_endpoint(req: PermissionRequest):
 def get_spotify_track_endpoint():
     """Retrieve details of currently playing track on Spotify"""
     return get_spotify_current_track()
+
+
+class SpotifySeekRequest(BaseModel):
+    seconds: float
+
+@app.post("/api/spotify/seek")
+def spotify_seek_endpoint(req: SpotifySeekRequest):
+    """Seek to specific position in currently playing Spotify track"""
+    ok = set_spotify_position(req.seconds)
+    return {"status": "ok" if ok else "error"}
 
 
 @app.get("/api/proactive")
