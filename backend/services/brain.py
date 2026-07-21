@@ -22,7 +22,6 @@ from google.genai import types
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import (
     save_fact,
-    get_all_memories,
     get_memory_context_string,
     log_conversation,
     get_recent_conversation
@@ -125,6 +124,8 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         return {"reply": "", "action": "none"}
 
     lower_text = text.lower()
+    guest_active = is_guest_permitted()
+    authorized = is_boss or guest_active
 
     # Log user turn to memory history
     log_conversation(role="user" if is_boss else "guest", message=text)
@@ -133,70 +134,72 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
     if lower_text in ["please", "pls", "thank you", "thanks"]:
         return {"reply": "", "action": "none"}
 
-    # Auto-correct name spelling in incoming transcript before memory or processing
-    if "prithvi" in lower_text or "p r i t h v i" in lower_text or "r a not i" in lower_text or "spelling is" in lower_text:
-        save_fact("boss_name", "Prathvi Sahu", "identity")
-        save_fact("boss_name_spelling", "P-R-A-T-H-V-I S-A-H-U", "identity")
+    # FIX #1: Security - ONLY Boss can grant/revoke guest permission
+    if is_boss:
+        if any(kw in lower_text for kw in ["allow guest", "grant guest", "let them speak", "give permission"]):
+            set_guest_permission(True)
+            reply_msg = "Guest access granted, Boss. I'll answer their queries now."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "allow_guest"}
 
-    # Check for permission commands from Boss
-    if "allow guest" in lower_text or "grant guest" in lower_text or "let them speak" in lower_text or "give permission" in lower_text:
-        set_guest_permission(True)
-        reply_msg = "Guest access granted, Boss. I'll answer their queries now."
-        log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "allow_guest"}
+        if any(kw in lower_text for kw in ["revoke guest", "stop guest", "lock guest"]):
+            set_guest_permission(False)
+            reply_msg = "Guest access revoked, Boss. Back to Boss-only mode."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "revoke_guest"}
 
-    if "revoke guest" in lower_text or "stop guest" in lower_text or "lock guest" in lower_text:
-        set_guest_permission(False)
-        reply_msg = "Guest access revoked, Boss. Back to Boss-only mode."
-        log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "revoke_guest"}
+        # Auto-correct name spelling in incoming transcript before memory or processing
+        if any(kw in lower_text for kw in ["prithvi", "p r i t h v i", "r a not i", "spelling is"]):
+            save_fact("boss_name", "Prathvi Sahu", "identity")
+            save_fact("boss_name_spelling", "P-R-A-T-H-V-I S-A-H-U", "identity")
 
-    # DIRECT FAST-PATH PAUSE/RESUME SHORTCUTS
-    if "pause" in lower_text or "stop music" in lower_text or "hold on" in lower_text or lower_text == "stop":
-        execute_system_command("pause_music")
-        reply_msg = "Pausing Spotify music, Boss."
-        log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "pause_music"}
+    # FIX #2 & #3: Gated Media Controls + Word-Boundary Regex to fix "unpause" -> "pause" bug
+    if authorized:
+        # Check "unpause" / "resume" FIRST before "pause"
+        if re.search(r'\b(?:unpause|resume)\b', lower_text):
+            execute_system_command("play_music")
+            reply_msg = "Resuming Spotify music, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "play_music"}
 
-    if "resume" in lower_text or "unpause" in lower_text:
-        execute_system_command("play_music")
-        reply_msg = "Resuming Spotify music, Boss."
-        log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "play_music"}
+        if re.search(r'\b(?:pause|stop music|hold on)\b', lower_text) or lower_text == "stop":
+            execute_system_command("pause_music")
+            reply_msg = "Pausing Spotify music, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "pause_music"}
 
-    # PRE-EXTRACT VOLUME AND PHONETIC SONG PATTERNS BEFORE AI CALL
-    vol_match = re.search(r'(?:sound|volume)\s*(?:at|to|is)?\s*(\d{1,3})%?', lower_text)
-    extracted_vol = int(vol_match.group(1)) if vol_match else -1
+        # PRE-EXTRACT VOLUME AND PHONETIC SONG PATTERNS BEFORE AI CALL
+        vol_match = re.search(r'(?:sound|volume)\s*(?:at|to|is)?\s*(\d{1,3})%?', lower_text)
+        extracted_vol = int(vol_match.group(1)) if vol_match else -1
 
-    if "tempo city" in lower_text or "help away" in lower_text or "temple city" in lower_text:
-        target_song = "Self Aware by Temple City"
-        execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
-        msg = f"Playing '{target_song}' on Spotify, Boss."
-        if extracted_vol >= 0:
-            msg += f" Sound set to {extracted_vol}%."
-        log_conversation(role="assistant", message=msg)
-        return {"reply": msg, "action": "play_specific"}
-
-    # PRE-EXTRACT "PLAY [SONG]" QUERIES FOR DIRECT SPOTIFY LAUNCH
-    if "play " in lower_text or lower_text.startswith("play"):
-        cleaned_song = (
-            lower_text.replace("open spotify and play", "")
-            .replace("open spotify and", "")
-            .replace("play song", "")
-            .replace("play track", "")
-            .replace("search song", "")
-            .replace("play", "")
-            .replace("on spotify", "")
-            .strip()
-        )
-        if cleaned_song and cleaned_song not in ["music", "spotify", "playlist"]:
-            execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
-            msg = f"Opening Spotify and playing '{cleaned_song}', Boss."
+        if any(kw in lower_text for kw in ["tempo city", "help away", "temple city"]):
+            target_song = "Self Aware by Temple City"
+            execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
+            msg = f"Playing '{target_song}' on Spotify, Boss."
+            if extracted_vol >= 0:
+                msg += f" Sound set to {extracted_vol}%."
             log_conversation(role="assistant", message=msg)
             return {"reply": msg, "action": "play_specific"}
 
+        # PRE-EXTRACT "PLAY [SONG]" QUERIES FOR DIRECT SPOTIFY LAUNCH
+        if re.search(r'\bplay\b', lower_text):
+            cleaned_song = (
+                lower_text.replace("open spotify and play", "")
+                .replace("open spotify and", "")
+                .replace("play song", "")
+                .replace("play track", "")
+                .replace("search song", "")
+                .replace("play", "")
+                .replace("on spotify", "")
+                .strip()
+            )
+            if cleaned_song and cleaned_song not in ["music", "spotify", "playlist", "hindi", "english"]:
+                execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
+                msg = f"Opening Spotify and playing '{cleaned_song}', Boss."
+                log_conversation(role="assistant", message=msg)
+                return {"reply": msg, "action": "play_specific"}
+
     # Build dynamic prompt with stored memory context
-    guest_active = is_guest_permitted()
     if is_boss or guest_active:
         memory_str = get_memory_context_string()
         recent_history = get_recent_conversation(limit=4)
@@ -223,7 +226,7 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.3,
-                max_tokens=250,
+                max_tokens=400, # Bushed max_tokens to prevent JSON truncation
             )
             elapsed = (time.time() - start_time) * 1000
             raw = completion.choices[0].message.content or ""
@@ -232,24 +235,28 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
             reply = str(data.get("reply") or "").strip()
             action = str(data.get("action") or "none").strip().lower()
             target_app = str(data.get("target_app") or "").strip()
-            vol_percent = int(data.get("volume_percent") if data.get("volume_percent") is not None else -1)
-            if extracted_vol >= 0:
+            
+            # FIX #5: Safe Volume Parsing (avoid ValueError)
+            try:
+                vol_percent = int(data.get("volume_percent", -1))
+            except (ValueError, TypeError):
+                vol_percent = -1
+            if extracted_vol >= 0 if 'extracted_vol' in locals() else False:
                 vol_percent = extracted_vol
 
             if action not in KNOWN_ACTIONS:
                 action = "none"
 
-            # Execute system automation if requested
-            if is_boss or guest_active:
+            # FIX #4 & #2: Execute automation ONLY if authorized AND reply is non-empty (no double execution on failover)
+            if reply and (is_boss or guest_active):
                 _handle_system_automation(action, target_app, volume_percent=vol_percent)
 
-            # Memory extraction
-            rem_key = data.get("remember_key")
-            rem_val = data.get("remember_value")
-            if (action == "remember" or rem_key) and rem_key and rem_val:
-                save_fact(key=str(rem_key), value=str(rem_val))
+                # Gate memory extraction for Boss only
+                rem_key = data.get("remember_key")
+                rem_val = data.get("remember_value")
+                if is_boss and (action == "remember" or rem_key) and rem_key and rem_val:
+                    save_fact(key=str(rem_key), value=str(rem_val))
 
-            if reply:
                 print(f"[Brain/Groq Intent Corrector] Responded in {elapsed:.1f}ms ⚡ (Action: {action}, Target: '{target_app}', Vol: {vol_percent})")
                 log_conversation(role="assistant", message=reply)
                 return {"reply": reply, "action": action}
@@ -280,19 +287,30 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
                 reply = str(data.get("reply") or "").strip()
                 action = str(data.get("action") or "none").strip().lower()
                 target_app = str(data.get("target_app") or "").strip()
-                vol_percent = int(data.get("volume_percent") if data.get("volume_percent") is not None else -1)
-                if extracted_vol >= 0:
+                
+                try:
+                    vol_percent = int(data.get("volume_percent", -1))
+                except (ValueError, TypeError):
+                    vol_percent = -1
+                if extracted_vol >= 0 if 'extracted_vol' in locals() else False:
                     vol_percent = extracted_vol
+
                 if action not in KNOWN_ACTIONS: action = "none"
 
-                if is_boss or guest_active:
+                if reply and (is_boss or guest_active):
                     _handle_system_automation(action, target_app, volume_percent=vol_percent)
-
-                if reply:
                     log_conversation(role="assistant", message=reply)
                     return {"reply": reply, "action": action}
             except Exception as err:
                 print(f"[Brain] Gemini {model_name} failed: {err}")
+
+    # FIX #6: Strict Fallback - Only trigger Spotify search if user explicitly used a music keyword
+    music_keywords = ["play", "listen", "song", "track", "music", "spotify", "playlist"]
+    if authorized and any(kw in lower_text for kw in music_keywords) and len(text.split()) <= 4:
+        execute_system_command("play_specific", text, volume_percent=extracted_vol if 'extracted_vol' in locals() else -1)
+        msg = f"Opening Spotify and playing '{text}', Boss."
+        log_conversation(role="assistant", message=msg)
+        return {"reply": msg, "action": "play_specific"}
 
     fallback_reply = f"At your service, Boss. I heard: '{text}'. How can I assist you?"
     log_conversation(role="assistant", message=fallback_reply)
