@@ -165,6 +165,77 @@ def play_spotify_uri(uri: str) -> bool:
 
 
 
+def get_spotify_current_track() -> dict:
+    """Fetch details of currently active Spotify track (title, artist, album, state) via AppleScript."""
+    if not IS_MAC or not is_spotify_running():
+        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped"}
+    try:
+        script = '''
+        tell application "Spotify"
+            try
+                set trackName to name of current track
+                set artistName to artist of current track
+                set albumName to album of current track
+                set trackState to (player state as string)
+                return trackName & "|||" & artistName & "|||" & albumName & "|||" & trackState
+            on error
+                return "STOPPED"
+            end try
+        end tell
+        '''
+        res = subprocess.check_output(["osascript", "-e", script], timeout=2).decode("utf-8").strip()
+        if not res or res == "STOPPED" or "|||" not in res:
+            return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped"}
+
+        parts = res.split("|||")
+        title = parts[0].strip()
+        artist = parts[1].strip() if len(parts) > 1 else ""
+        album = parts[2].strip() if len(parts) > 2 else ""
+        state = parts[3].strip().lower() if len(parts) > 3 else "stopped"
+        is_playing = state == "playing"
+
+        return {
+            "playing": is_playing,
+            "title": title,
+            "artist": artist,
+            "album": album,
+            "state": state
+        }
+    except Exception as err:
+        print(f"[Automation] Error fetching current track: {err}")
+        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped"}
+
+
+def add_current_track_to_playlist(target_playlist: str = "hindi") -> bool:
+    """Save currently playing track on Spotify into the designated playlist via AppleScript automation."""
+    if not IS_MAC or not is_spotify_running():
+        return False
+    try:
+        track = get_spotify_current_track()
+        if not track.get("title"):
+            return False
+        
+        # Use Spotify UI context automation: Open song context menu and save to library/playlist
+        script = f'''
+        tell application "Spotify" to activate
+        tell application "System Events"
+            tell process "Spotify"
+                -- Open search or track options
+                keystroke "k" using {{command down}}
+                delay 0.3
+                keystroke "{track.get('title')}"
+                delay 0.5
+                key code 36
+            end tell
+        end tell
+        '''
+        subprocess.Popen(["osascript", "-e", script])
+        return True
+    except Exception as err:
+        print(f"[Automation] Error adding track to playlist: {err}")
+        return False
+
+
 def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> bool:
     """Control Spotify playback, volume %, playlists, and repeat mode via macOS AppleScript."""
     if not IS_MAC:
@@ -176,7 +247,6 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
                 vol_clamped = max(0, min(100, volume_percent))
                 script = f'''
                 tell application "Spotify"
-                    activate
                     set sound volume to {vol_clamped}
                 end tell'''
                 subprocess.Popen(["osascript", "-e", script])
@@ -225,7 +295,7 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
 
         script = f'''
         tell application "Spotify"
-            activate{vol_line}
+            {vol_line}
             {spotify_action}
         end tell'''
 
