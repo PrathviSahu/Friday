@@ -25,6 +25,7 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
   useEffect(() => {
     let rec = null;
     let cancelled = false;
+    let keepAliveTimer = null;
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
@@ -34,21 +35,33 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
 
     const start = () => {
       if (cancelled) return;
+
+      // Clean up existing instance before recreating
+      if (rec) {
+        try { rec.abort(); } catch (_) {}
+      }
+
       rec = new SpeechRec();
       rec.continuous = true;
       rec.interimResults = false;
       rec.lang = 'en-US';
 
       rec.onstart = () => {
-        console.log('[Voice] Started listening...');
+        console.log('[Voice] Microphone actively listening...');
+        activeRef.current = true;
       };
 
       rec.onerror = (e) => {
         console.warn('[Voice] Recognition error:', e.error);
         activeRef.current = false;
+        // Auto-restart immediately on non-fatal errors
+        if (!cancelled && (e.error === 'no-speech' || e.error === 'network' || e.error === 'aborted')) {
+          setTimeout(start, 300);
+        }
       };
 
       rec.onend = () => {
+        console.log('[Voice] Recognition ended, auto-restarting...');
         activeRef.current = false;
         if (!cancelled) {
           setTimeout(start, 250);
@@ -61,7 +74,7 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
         console.log('[Voice] Raw speech recognized:', rawTranscript);
 
         let query = rawTranscript.trim();
-        // Comprehensive regex to strip variations like "he friday", "hey friday", "hi friday", "ok friday", "friday"
+        // Comprehensive regex to strip wake-word variations cleanly
         query = query.replace(/^(?:he|hey|hi|hello|ok|okay)\s+friday\b\s*/i, '')
                      .replace(/^friday\b\s*/i, '')
                      .trim();
@@ -74,11 +87,19 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
 
       try {
         rec.start();
-        activeRef.current = true;
       } catch (e) {
-        // ignore already started error
+        // Auto-restart if browser blocked re-activation
+        setTimeout(start, 500);
       }
     };
+
+    // Watchdog keep-alive loop to ensure the mic NEVER stays dead
+    keepAliveTimer = setInterval(() => {
+      if (!cancelled && !activeRef.current && !processingRef.current) {
+        console.log('[Voice Watchdog] Mic inactive, auto-restarting listener...');
+        start();
+      }
+    }, 3000);
 
     const handleCmd = async (cmd) => {
       if (processingRef.current) return;
@@ -108,7 +129,7 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
         }
 
         const data = await fetchChatText(cmd);
-        const reply = data.reply?.trim() || 'I am standing by, Boss.';
+        const reply = data.reply?.trim() || 'At your service, Boss.';
         const action = data.action?.trim() || 'none';
 
         if (action && action !== 'none') {
@@ -126,7 +147,10 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       } catch (err) {
         console.warn('[Voice] Command error:', err);
       } finally {
-        processingRef.current = false;
+        // Reset processing state after a short safety delay
+        setTimeout(() => {
+          processingRef.current = false;
+        }, 300);
       }
     };
 
@@ -135,7 +159,8 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
     return () => {
       cancelled = true;
       activeRef.current = false;
-      try { rec?.stop(); } catch (_) {}
+      if (keepAliveTimer) clearInterval(keepAliveTimer);
+      try { rec?.abort(); } catch (_) {}
       clearTimeout(timer);
     };
   }, []);
