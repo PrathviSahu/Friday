@@ -1,7 +1,7 @@
 """FRIDAY System Automation Controller (macOS / PC).
 
 Executes system-level commands requested by Boss:
-- Spotify Advanced Media Control (Play specific song, Play Hindi / English playlist, Volume Up/Down, Mute, Next/Prev, Repeat, Quit Spotify)
+- Spotify Advanced Media Automation (Play specific song, Play Hindi / English playlist, Volume Up/Down, Mute, Next/Prev, Repeat, Quit Spotify)
 - Open Applications (Spotify, Brave, VS Code, Terminal, Finder, etc.)
 - Control Web & Browser (YouTube, Google, GitHub, URL navigation in Brave)
 """
@@ -42,27 +42,38 @@ def close_app(app_name: str) -> bool:
 
 
 def search_and_play_spotify(song_or_playlist: str) -> bool:
-    """Search for a specific song or playlist on Spotify and auto-play it."""
+    """Search for a specific song or playlist on Spotify and immediately play it."""
     if not IS_MAC or not song_or_playlist:
         return False
     try:
-        open_app("Spotify")
         q_clean = song_or_playlist.strip()
-        q_encoded = urllib.parse.quote(q_clean)
         
-        # Open Spotify URI search format
-        subprocess.Popen(["open", f"spotify:search:{q_encoded}"])
-        
-        # AppleScript to auto-select and press Enter after search loads
-        script = '''
-        delay 1.2
+        # 1. Direct AppleScript Spotify track URI play attempt
+        direct_script = f'''
+        tell application "Spotify"
+            activate
+            play track "spotify:search:{q_clean}"
+        end tell
+        '''
+        subprocess.Popen(["osascript", "-e", direct_script])
+
+        # 2. Automated UI keystroke fallback (Cmd+K search -> type song -> Press Enter -> Play)
+        keystroke_script = f'''
+        delay 0.8
+        tell application "Spotify" to activate
         tell application "System Events"
             tell process "Spotify"
-                key code 36 -- Press Enter to play top result
+                keystroke "k" using {{command down}}
+                delay 0.4
+                keystroke "{q_clean}"
+                delay 0.6
+                key code 36
+                delay 0.4
+                key code 36
             end tell
         end tell
         '''
-        subprocess.Popen(["osascript", "-e", script])
+        subprocess.Popen(["osascript", "-e", keystroke_script])
         return True
     except Exception as err:
         print(f"[Automation] Spotify search play error: {err}")
@@ -172,7 +183,7 @@ def execute_system_command(action_type: str, target: str = "") -> str:
 
     elif action == "play_specific":
         control_spotify("play_specific", target_clean)
-        return f"Searching and playing '{target_clean}' on Spotify, Boss."
+        return f"Playing '{target_clean}' on Spotify, Boss."
 
     elif action == "play_music" or action == "play_spotify":
         if target_clean:
