@@ -13,8 +13,8 @@ const FREE_REALTIME_WATCHLIST = [
     'FX:USDJPY',        // USD/JPY
     'FOREXCOM:SPXUSD',  // S&P 500
     'FOREXCOM:NSXUSD',  // NASDAQ 100
-    'NSE:NIFTY',        // NIFTY 50 (Delayed feed)
-    'NSE:BANKNIFTY',   // BANK NIFTY (Delayed feed)
+    'NSE:NIFTY',        // NIFTY 50
+    'NSE:BANKNIFTY',   // BANK NIFTY
     'NSE:RELIANCE',    // Reliance
     'NSE:TCS',         // TCS
     'NSE:INFY',        // Infosys
@@ -43,7 +43,7 @@ export default function ProfessionalChart() {
                     locale: 'en',
                     toolbar_bg: '#131722',
                     enable_publishing: false,
-                    hide_side_toolbar: false, // Show left drawing tools (Trendlines, Fibs, Position tools)
+                    hide_side_toolbar: false,
                     allow_symbol_change: true,
                     watchlist: FREE_REALTIME_WATCHLIST,
                     details: true,
@@ -53,8 +53,15 @@ export default function ProfessionalChart() {
                     popup_width: '1000',
                     popup_height: '650',
                     container_id: 'tradingview_widget_container',
-                    backgroundColor: '#131722',
-                    gridColor: 'rgba(30, 41, 59, 0.3)',
+                    backgroundColor: '#0a0f1d',
+                    gridColor: 'rgba(56, 189, 248, 0.15)', // Visible Cyber-Grid
+                    overrides: {
+                        "paneProperties.vertGridProperties.color": "rgba(56, 189, 248, 0.15)",
+                        "paneProperties.vertGridProperties.style": 0,
+                        "paneProperties.horzGridProperties.color": "rgba(56, 189, 248, 0.15)",
+                        "paneProperties.horzGridProperties.style": 0,
+                        "mainSeriesProperties.style": 1,
+                    }
                 });
             }
         };
@@ -63,8 +70,20 @@ export default function ProfessionalChart() {
     }, []);
 
     return (
-        <div className="flex-1 w-full h-full bg-[#131722] relative overflow-hidden">
-            <div id="tradingview_widget_container" ref={containerRef} className="w-full h-full" />
+        <div className="flex-1 w-full h-full bg-[#0a0f1d] relative overflow-hidden">
+            {/* Cyber Grid Background Pattern */}
+            <div 
+                className="absolute inset-0 pointer-events-none opacity-20 z-0"
+                style={{
+                    backgroundImage: `
+                        linear-gradient(to right, rgba(0, 183, 255, 0.2) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(0, 183, 255, 0.2) 1px, transparent 1px)
+                    `,
+                    backgroundSize: '40px 40px'
+                }}
+            />
+
+            <div id="tradingview_widget_container" ref={containerRef} className="w-full h-full relative z-10" />
         </div>
     );
 }
