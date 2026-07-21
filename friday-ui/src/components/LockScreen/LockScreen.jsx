@@ -6,6 +6,7 @@ import StatusCard from '../StatusPanel/StatusCard';
 import BottomBar from '../Panels/BottomBar';
 import Corners from '../Animations/Corners';
 import HudOrb from '../AICore/HudOrb';
+import Clock from '../Clock/Clock';
 import { useOrbState } from '../../hooks/useOrbState';
 import { useSpeech } from '../../hooks/useSpeech';
 import { useFriday } from '../../context/FridayContext';
@@ -74,13 +75,7 @@ export default function LockScreen() {
                     </div>
 
                     <div className="text-right">
-                        <div className="flex items-center justify-end gap-3 text-[#DFFAFF]">
-                            <span className="font-orbitron text-[11px] tracking-[0.35em] uppercase">10:42 PM</span>
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-[#00B7FF]/30 text-[#00B7FF] text-[10px]">🔒</span>
-                        </div>
-                        <div className="font-grotesk text-[8px] tracking-[0.35em] text-[#00B7FF]/35 uppercase mt-1">
-                            FRIDAY, MAY 16, 2025
-                        </div>
+                        <Clock />
                     </div>
                 </div>
 

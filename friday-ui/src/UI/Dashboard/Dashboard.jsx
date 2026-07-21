@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import AnimatedCard from '../../components/Panels/AnimatedCard';
+import Clock from '../../components/Clock/Clock';
 
 export default function Dashboard({ onLock }) {
     return (
@@ -20,9 +21,12 @@ export default function Dashboard({ onLock }) {
                     </button>
                 </div>
                 
-                <div className="font-orbitron text-xs tracking-widest text-[#00B7FF] flex items-center gap-2 drop-shadow-[0_0_8px_rgba(0,183,255,0.4)]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" style={{ boxShadow: '0 0 6px #00ff00' }} />
-                    CONSOLE LEVEL 4 ACTIVE
+                <div className="flex items-center gap-6">
+                    <div className="font-orbitron text-xs tracking-widest text-[#00B7FF] flex items-center gap-2 drop-shadow-[0_0_8px_rgba(0,183,255,0.4)]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" style={{ boxShadow: '0 0 6px #00ff00' }} />
+                        CONSOLE LEVEL 4 ACTIVE
+                    </div>
+                    <Clock />
                 </div>
             </div>
 
