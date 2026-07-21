@@ -138,8 +138,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         console.log('[Voice] Raw speech recognized:', rawTranscript);
 
-        // Check if user spoke an explicit wake word ("Friday", "Hey Friday", "Suno Friday", "FRIDAY")
-        const isWakeWordPresent = /^(?:if|he|hey|hi|hello|ok|okay|sun|suno)\s+(?:friday|fraide|frida)\b|\b(?:friday|fraide|frida)\b/i.test(rawTranscript.trim());
+        // Check if user spoke an explicit wake word ("Friday", "Hey Friday", "Suno Friday", "FRIDAY", "fraide", "frida")
+        const isWakeWordPresent = /(?:if|he|hey|hi|hello|ok|okay|sun|suno)?\s*(?:friday|fraide|frida|freddy|frieda)\b/i.test(rawTranscript.trim());
 
         // ⚡ INSTANT VOICE INTERRUPT: If FRIDAY is currently speaking and user says "Friday", stop TTS immediately!
         if (speakingRef.current) {
@@ -184,9 +184,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         noSpeechStreak = 0;
 
         let query = rawTranscript.trim()
-          .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno)\s+(?:friday|फ्राइडे|fraide|frida)\b\s*/i, '')
-          .replace(/^(?:friday|फ्राइडे|fraide|frida)\b\s*/i, '')
-          .replace(/\s+(?:friday|फ्राइडे|fraide|frida)\b$/i, '')
+          .replace(/(?:if|he|hey|hi|hello|ok|okay|sun|suno)?\s*(?:friday|fraide|frida|freddy|frieda)\b/gi, '')
           .trim();
 
         // Fix speech recognition phonetic misrecognitions
