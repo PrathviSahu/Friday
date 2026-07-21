@@ -17,6 +17,7 @@ export function stopSpeaking() {
     const resolve = currentResolve;
     currentResolve = null;
     resolve();
+    console.log('[TTS] Speech interrupted — stopped mid-sentence.');
   }
 
   // Hard-stop browser audio element
@@ -32,15 +33,20 @@ export function stopSpeaking() {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
-
-  console.log('[TTS] Speech interrupted and stopped.');
 }
 
 export async function speak(text) {
   if (!text || typeof text !== 'string') return;
 
-  // Stop any currently playing speech before starting new one
-  stopSpeaking();
+  // Only stop a PREVIOUS audio if something is actively playing
+  // (do NOT call stopSpeaking() unconditionally — that would abort our own promise)
+  if (currentAudio) {
+    try { currentAudio.pause(); currentAudio.currentTime = 0; } catch (_) {}
+    currentAudio = null;
+  }
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
 
   try {
     const response = await fetch('http://localhost:8000/api/tts', {
@@ -53,7 +59,7 @@ export async function speak(text) {
       const data = await response.json();
       if (data.audio_url) {
         return new Promise((resolve) => {
-          // Store resolver so stopSpeaking() can resolve this promise instantly
+          // Store resolver so stopSpeaking() can resolve this promise instantly from outside
           currentResolve = resolve;
 
           const audio = new Audio(data.audio_url);

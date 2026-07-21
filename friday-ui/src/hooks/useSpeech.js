@@ -22,6 +22,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   const workspaceRef  = useRef(workspace);
   const onCommandRef  = useRef(onCommand);
   const onConvRef     = useRef(onConversation);
+  const lastTranscriptRef = useRef(null); // { text, ts } — dedup guard for double-fired transcripts
 
   // Keep refs in sync with props every render — no re-mount needed
   useEffect(() => { lockedRef.current = _locked; }, [_locked]);
@@ -156,9 +157,19 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         // ⚡ GLOBAL MANDATORY WAKE-WORD GATE: Ignore ALL background speech unless "Friday" wake word is spoken!
         // Do NOT send query to Groq LLM if wake word is missing.
         if (!isWakeWordPresent) {
-          console.log('[Voice Gate] No wake-word detected. Ignoring speech and keeping mic listening:', rawTranscript);
+          console.log('[Voice Gate] No wake-word detected. Ignoring speech:', rawTranscript);
           return;
         }
+
+        // ⚡ DEDUP GUARD: Prevent double-firing of the same transcript within 3 seconds
+        // (browser fires interim + final results; also catches echo after abort)
+        const now = Date.now();
+        const lastRaw = lastTranscriptRef.current;
+        if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 3000) {
+          console.log('[Voice] Suppressing duplicate transcript within 3s:', rawTranscript);
+          return;
+        }
+        lastTranscriptRef.current = { text: rawTranscript.trim(), ts: now };
 
         // STOP Speech Recognition immediately so it doesn't listen while processing or repeat commands
         if (rec) {
