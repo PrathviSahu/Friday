@@ -26,26 +26,31 @@ from services.system_control import execute_system_command
 KNOWN_ACTIONS = [
     "dashboard", "trading", "engineering", "vscode", "browser",
     "lock", "allow_guest", "revoke_guest", "remember",
-    "open_spotify", "play_music", "pause_music", "next_track", "previous_track",
-    "open_brave", "open_youtube", "open_app", "search_web", "none"
+    "open_spotify", "close_spotify", "play_hindi_playlist", "play_english_playlist",
+    "play_specific", "play_music", "pause_music", "toggle_music", "next_track", "previous_track",
+    "volume_up", "volume_down", "mute", "repeat", "shuffle",
+    "open_brave", "open_youtube", "open_app", "close_app", "search_web", "none"
 ]
 
 _BOSS_BASE_PROMPT = (
-    "You are F.R.I.D.A.Y., Tony Stark's witty, loyal, adaptive AI assistant with PC system automation access. "
+    "You are F.R.I.D.A.Y., Tony Stark's witty, loyal, adaptive AI assistant with full PC & Spotify media control access. "
     "You address the user as 'Boss' or 'Prathvi'. Keep spoken replies concise (1-2 sentences), "
     "confident, natural, and lightly witty — never robotic. "
     "CRITICAL USER IDENTIFICATION: Your Boss's name is 'Prathvi Sahu' (spelled P-R-A-T-H-V-I S-A-H-U with an 'a', NOT 'Prithvi' with an 'i'). "
     "Even if browser Speech-To-Text mishears or transcribes it as 'Prithvi' or 'P-r-i-t-h-v-i', ALWAYS correct it to 'Prathvi Sahu'. "
-    "SYSTEM AUTOMATION CONTROL: You can control the PC & Spotify. When the user asks: "
-    "- open_spotify: open Spotify app "
-    "- play_music: play music/song/playlist on Spotify (set 'target_app' to song/playlist query if specified) "
-    "- pause_music: pause/stop Spotify music "
-    "- next_track: skip to next song "
-    "- previous_track: play previous song "
-    "- open_brave: open Brave browser (set 'target_app' to a URL if requested) "
-    "- open_youtube: open YouTube in Brave (set 'target_app' to search query if requested) "
-    "- open_app: open any Mac app (set 'target_app' to app name e.g. 'Terminal', 'Calculator', 'Finder', 'Slack') "
-    "- search_web: search Google in Brave (set 'target_app' to search query) "
+    "YOUR BOSS'S SPOTIFY PLAYLISTS: "
+    "1. Hindi Playlist: 'Only for me' "
+    "2. English Playlist: 'Losing my self' "
+    "SYSTEM & MEDIA AUTOMATION ACTIONS: "
+    "- play_hindi_playlist: play Boss's Hindi playlist 'Only for me' "
+    "- play_english_playlist: play Boss's English playlist 'Losing my self' "
+    "- play_specific: search & play a specific song on Spotify (set 'target_app' to song name) "
+    "- open_spotify / close_spotify (quits Spotify app) "
+    "- play_music / pause_music / toggle_music "
+    "- next_track / previous_track "
+    "- volume_up / volume_down / mute "
+    "- repeat / shuffle "
+    "- open_brave / open_youtube / open_app / close_app / search_web "
     "- dashboard / trading / engineering / vscode / browser / lock / allow_guest / revoke_guest / remember "
     "ALWAYS respond with ONLY a single valid JSON object in the form: "
     '{"reply": "<spoken output>", "action": "<action>", "target_app": "<optional app/song/url/query>", "remember_key": null, "remember_value": null}'
@@ -101,10 +106,7 @@ def _extract_json(text: str) -> dict:
 
 def _handle_system_automation(action: str, target: str) -> str:
     """Helper to dispatch system commands to macOS execution engine."""
-    if action in [
-        "open_spotify", "play_music", "pause_music", "next_track", "previous_track",
-        "open_brave", "open_youtube", "open_app", "search_web"
-    ]:
+    if action in KNOWN_ACTIONS and action not in ["dashboard", "trading", "engineering", "vscode", "browser", "lock", "allow_guest", "revoke_guest", "remember", "none"]:
         return execute_system_command(action, target)
     return ""
 
@@ -138,37 +140,56 @@ def respond(transcript: str, is_boss: bool = True) -> dict:
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "revoke_guest"}
 
-    # Direct fallback shortcuts for instant playback execution
-    if "play" in lower_text and ("song" in lower_text or "music" in lower_text or "playlist" in lower_text or "spotify" in lower_text):
-        target = text.lower().replace("play", "").replace("song", "").replace("playlist", "").replace("from my", "").replace("from", "").replace("spotify", "").strip()
-        execute_system_command("play_music", target)
-        reply_msg = f"Playing {target} on Spotify, Boss." if target else "Playing your Spotify music now, Boss."
+    # Direct fast-path shortcuts for media controls
+    if "play hindi" in lower_text or "hindi playlist" in lower_text:
+        execute_system_command("play_hindi_playlist")
+        reply_msg = "Playing your Hindi playlist 'Only for me', Boss."
         log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "play_music"}
+        return {"reply": reply_msg, "action": "play_hindi_playlist"}
 
-    if "pause" in lower_text and ("music" in lower_text or "song" in lower_text or "spotify" in lower_text):
-        execute_system_command("pause_music")
-        reply_msg = "Pausing Spotify, Boss."
+    if "play english" in lower_text or "english playlist" in lower_text:
+        execute_system_command("play_english_playlist")
+        reply_msg = "Playing your English playlist 'Losing my self', Boss."
         log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "pause_music"}
+        return {"reply": reply_msg, "action": "play_english_playlist"}
 
-    if "open spotify" in lower_text:
-        execute_system_command("open_spotify")
-        reply_msg = "Opening Spotify now, Boss."
+    if "close spotify" in lower_text or "quit spotify" in lower_text:
+        execute_system_command("close_spotify")
+        reply_msg = "Closing Spotify, Boss."
         log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "open_spotify"}
+        return {"reply": reply_msg, "action": "close_spotify"}
 
-    if "open brave" in lower_text:
-        execute_system_command("open_brave")
-        reply_msg = "Opening Brave browser, Boss."
+    if "volume up" in lower_text or "increase volume" in lower_text or "louder" in lower_text:
+        execute_system_command("volume_up")
+        reply_msg = "Increasing volume, Boss."
         log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "open_brave"}
+        return {"reply": reply_msg, "action": "volume_up"}
 
-    if "open youtube" in lower_text or "youtube" in lower_text and "search" not in lower_text:
-        execute_system_command("open_youtube")
-        reply_msg = "Opening YouTube in Brave, Boss."
+    if "volume down" in lower_text or "decrease volume" in lower_text or "quieter" in lower_text:
+        execute_system_command("volume_down")
+        reply_msg = "Decreasing volume, Boss."
         log_conversation(role="assistant", message=reply_msg)
-        return {"reply": reply_msg, "action": "open_youtube"}
+        return {"reply": reply_msg, "action": "volume_down"}
+
+    if "repeat" in lower_text and ("mode" in lower_text or "song" in lower_text or "spotify" in lower_text):
+        execute_system_command("repeat")
+        reply_msg = "Setting Spotify to repeat mode, Boss."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "repeat"}
+
+    if "shuffle" in lower_text and ("mode" in lower_text or "songs" in lower_text or "spotify" in lower_text):
+        execute_system_command("shuffle")
+        reply_msg = "Setting Spotify to shuffle mode, Boss."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "shuffle"}
+
+    if "play song" in lower_text or "play track" in lower_text or "search song" in lower_text:
+        target = lower_text.replace("play song", "").replace("play track", "").replace("search song", "").replace("play", "").replace("on spotify", "").strip()
+        if target:
+            execute_system_command("play_specific", target)
+            reply_msg = f"Playing '{target}' on Spotify, Boss."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "play_specific"}
 
     # Build dynamic prompt with stored memory context
     guest_active = is_guest_permitted()

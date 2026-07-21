@@ -1,7 +1,7 @@
 """FRIDAY System Automation Controller (macOS / PC).
 
 Executes system-level commands requested by Boss:
-- Spotify Media Automation (Play/Pause, Next/Previous, Play specific track/playlist)
+- Spotify Advanced Media Control (Play specific song, Play Hindi / English playlist, Volume Up/Down, Mute, Next/Prev, Repeat, Quit Spotify)
 - Open Applications (Spotify, Brave, VS Code, Terminal, Finder, etc.)
 - Control Web & Browser (YouTube, Google, GitHub, URL navigation in Brave)
 """
@@ -9,6 +9,7 @@ import os
 import subprocess
 import urllib.parse
 import platform
+import time
 
 IS_MAC = platform.system() == "Darwin"
 
@@ -26,30 +27,86 @@ def open_app(app_name: str) -> bool:
     return False
 
 
+def close_app(app_name: str) -> bool:
+    """Quit an application gracefully using AppleScript (Cmd + Q equivalent)."""
+    clean_name = app_name.strip()
+    if IS_MAC:
+        try:
+            script = f'tell application "{clean_name}" to quit'
+            subprocess.Popen(["osascript", "-e", script])
+            return True
+        except Exception as err:
+            print(f"[Automation] Failed to quit app {clean_name}: {err}")
+            return False
+    return False
+
+
+def search_and_play_spotify(song_or_playlist: str) -> bool:
+    """Search for a specific song or playlist on Spotify and auto-play it."""
+    if not IS_MAC or not song_or_playlist:
+        return False
+    try:
+        open_app("Spotify")
+        q_clean = song_or_playlist.strip()
+        q_encoded = urllib.parse.quote(q_clean)
+        
+        # Open Spotify URI search format
+        subprocess.Popen(["open", f"spotify:search:{q_encoded}"])
+        
+        # AppleScript to auto-select and press Enter after search loads
+        script = '''
+        delay 1.2
+        tell application "System Events"
+            tell process "Spotify"
+                key code 36 -- Press Enter to play top result
+            end tell
+        end tell
+        '''
+        subprocess.Popen(["osascript", "-e", script])
+        return True
+    except Exception as err:
+        print(f"[Automation] Spotify search play error: {err}")
+        return False
+
+
 def control_spotify(command: str, query: str = "") -> bool:
-    """Control Spotify playback via macOS AppleScript."""
+    """Control Spotify playback, volume, playlists, and repeat mode via macOS AppleScript."""
     if not IS_MAC:
         return False
     
     cmd = command.lower().strip()
     try:
-        # Ensure Spotify is running first
         open_app("Spotify")
 
         if cmd == "play":
             script = 'tell application "Spotify" to play'
         elif cmd == "pause" or cmd == "stop":
             script = 'tell application "Spotify" to pause'
+        elif cmd == "play_pause" or cmd == "toggle":
+            script = 'tell application "Spotify" to playpause'
         elif cmd == "next":
             script = 'tell application "Spotify" to next track'
         elif cmd == "previous":
             script = 'tell application "Spotify" to previous track'
-        elif cmd == "play_query" and query:
-            # Search and play track/playlist via Spotify URI scheme
-            q_encoded = urllib.parse.quote(query.strip())
-            subprocess.Popen(["open", f"spotify:search:{q_encoded}"])
-            # Auto-trigger play after search opens
-            script = 'delay 1.5\ntell application "System Events" to key code 36' # Press Enter
+        elif cmd == "volume_up":
+            script = 'tell application "Spotify" to set sound volume to (sound volume + 20)'
+        elif cmd == "volume_down":
+            script = 'tell application "Spotify" to set sound volume to (sound volume - 20)'
+        elif cmd == "mute":
+            script = 'tell application "Spotify" to set sound volume to 0'
+        elif cmd == "repeat":
+            script = 'tell application "Spotify" to set repeating to true'
+        elif cmd == "shuffle":
+            script = 'tell application "Spotify" to set shuffling to true'
+        elif cmd == "play_hindi_playlist":
+            search_and_play_spotify("Only for me")
+            return True
+        elif cmd == "play_english_playlist":
+            search_and_play_spotify("Losing my self")
+            return True
+        elif cmd == "play_specific":
+            search_and_play_spotify(query)
+            return True
         else:
             script = 'tell application "Spotify" to play'
 
@@ -101,13 +158,36 @@ def execute_system_command(action_type: str, target: str = "") -> str:
         open_app("Spotify")
         return "Opening Spotify now, Boss."
 
+    elif action == "close_spotify":
+        close_app("Spotify")
+        return "Closing Spotify, Boss."
+
+    elif action == "play_hindi_playlist":
+        control_spotify("play_hindi_playlist")
+        return "Playing your Hindi playlist 'Only for me', Boss."
+
+    elif action == "play_english_playlist":
+        control_spotify("play_english_playlist")
+        return "Playing your English playlist 'Losing my self', Boss."
+
+    elif action == "play_specific":
+        control_spotify("play_specific", target_clean)
+        return f"Searching and playing '{target_clean}' on Spotify, Boss."
+
     elif action == "play_music" or action == "play_spotify":
-        control_spotify("play", target_clean)
-        return f"Playing '{target_clean}' on Spotify, Boss." if target_clean else "Playing your Spotify music now, Boss."
+        if target_clean:
+            control_spotify("play_specific", target_clean)
+            return f"Playing '{target_clean}' on Spotify, Boss."
+        control_spotify("play")
+        return "Playing Spotify music now, Boss."
 
     elif action == "pause_music" or action == "pause_spotify":
         control_spotify("pause")
         return "Pausing Spotify music, Boss."
+
+    elif action == "toggle_music":
+        control_spotify("play_pause")
+        return "Toggling Spotify playback, Boss."
 
     elif action == "next_track":
         control_spotify("next")
@@ -116,6 +196,26 @@ def execute_system_command(action_type: str, target: str = "") -> str:
     elif action == "previous_track":
         control_spotify("previous")
         return "Playing previous track, Boss."
+
+    elif action == "volume_up":
+        control_spotify("volume_up")
+        return "Increasing Spotify volume, Boss."
+
+    elif action == "volume_down":
+        control_spotify("volume_down")
+        return "Decreasing Spotify volume, Boss."
+
+    elif action == "mute":
+        control_spotify("mute")
+        return "Muting Spotify, Boss."
+
+    elif action == "repeat":
+        control_spotify("repeat")
+        return "Setting Spotify to repeat mode, Boss."
+
+    elif action == "shuffle":
+        control_spotify("shuffle")
+        return "Setting Spotify to shuffle mode, Boss."
 
     elif action == "open_brave":
         if target_clean:
@@ -131,6 +231,10 @@ def execute_system_command(action_type: str, target: str = "") -> str:
     elif action == "open_app":
         open_app(target_clean)
         return f"Opening {target_clean}, Boss."
+
+    elif action == "close_app":
+        close_app(target_clean)
+        return f"Closing {target_clean}, Boss."
 
     elif action == "search_web":
         open_google_search(target_clean)
