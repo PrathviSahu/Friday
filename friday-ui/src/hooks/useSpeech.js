@@ -1,117 +1,71 @@
 import { useEffect, useRef } from 'react';
-import { matchVoiceCommand } from './voiceCommands';
-import { speak } from '../services/ttsService';
+import { matchVoiceCommand, normalizeTranscript } from './voiceCommands';
 import { fetchChatText } from '../api/chatText';
+import { speak } from '../services/ttsService';
 
-/**
- * Wake word trigger phrases.
- */
-const WAKE_WORDS = [
-  'hey friday',
-  'hi friday',
-  'hello friday',
-  'ok friday',
-  'okay friday',
-  'wake up friday',
-  'wake up',
-  'friday'
-];
-
-/**
- * Strips out any wake-word (like "hey friday", "friday", etc.) from anywhere in the transcript.
- * Sends ONLY the clean actual query to FRIDAY's AI brain!
- */
-function cleanQuery(transcript) {
-  if (!transcript) return '';
-  let cleaned = transcript.trim();
-
-  // Strip wake word phrases case-insensitively
-  for (const wakeWord of WAKE_WORDS) {
-    const reg = new RegExp(wakeWord, 'gi');
-    cleaned = cleaned.replace(reg, '');
-  }
-
-  // Clean remaining leading/trailing punctuation and whitespace
-  return cleaned.replace(/^[\s,.\-?]+|[\s,.\-?]+$/g, '').trim();
-}
-
-/**
- * Returns the extracted clean query.
- */
-function extractCommand(transcript, locked) {
-  if (!transcript) return null;
-  const t = transcript.trim().toLowerCase();
-
-  const sortedWords = WAKE_WORDS.slice().sort((a, b) => b.length - a.length);
-
-  // Check if wake-word exists in transcript
-  const hasWakeWord = sortedWords.some(w => t.includes(w));
-
-  if (hasWakeWord) {
-    const cleaned = cleanQuery(transcript);
-    return cleaned || 'hello';
-  }
-
-  // Once unlocked, allow direct questions without requiring wake word
-  if (!locked && t.length > 2) {
-    return cleanQuery(transcript) || t;
-  }
-
-  return null;
-}
-
-export function useSpeech({ onCommand, onConversation, enabled = true, locked = false }) {
+export function useSpeech({ isLocked, onCommand, onConversation }) {
   const activeRef = useRef(false);
   const processingRef = useRef(false);
-
+  const lockedRef = useRef(isLocked);
   const onCommandRef = useRef(onCommand);
   const onConversationRef = useRef(onConversation);
-  const lockedRef = useRef(locked);
-
-  onCommandRef.current = onCommand;
-  onConversationRef.current = onConversation;
-  lockedRef.current = locked;
 
   useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
+    lockedRef.current = isLocked;
+  }, [isLocked]);
 
-    let cancelled = false;
+  useEffect(() => {
+    onCommandRef.current = onCommand;
+  }, [onCommand]);
+
+  useEffect(() => {
+    onConversationRef.current = onConversation;
+  }, [onConversation]);
+
+  useEffect(() => {
     let rec = null;
+    let cancelled = false;
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      console.warn('[Voice] SpeechRecognition not supported in this browser environment');
+      return;
+    }
 
     const start = () => {
       if (cancelled) return;
-
-      rec = new SR();
+      rec = new SpeechRec();
       rec.continuous = true;
       rec.interimResults = false;
       rec.lang = 'en-US';
 
-      rec.onresult = (e) => {
-        const result = e.results[e.resultIndex];
-        if (!result || !result.isFinal) return;
-        const text = result[0].transcript.trim();
-        if (!text) return;
-
-        console.log('[Voice] Raw speech recognized:', text);
-        const cmd = extractCommand(text, lockedRef.current);
-        if (cmd) {
-          console.log('[Voice] Clean query sent to AI (wake-word removed):', cmd);
-          handleCmd(cmd);
-        }
+      rec.onstart = () => {
+        console.log('[Voice] Started listening...');
       };
 
       rec.onerror = (e) => {
-        if (e.error === 'no-speech' || e.error === 'aborted') return;
-        console.warn('[Voice] Speech error:', e.error);
-        if (!cancelled && activeRef.current) {
-          setTimeout(start, 500);
-        }
+        console.warn('[Voice] Recognition error:', e.error);
+        activeRef.current = false;
       };
 
       rec.onend = () => {
-        if (!cancelled && activeRef.current) {
-          setTimeout(start, 200);
+        activeRef.current = false;
+        if (!cancelled) {
+          setTimeout(start, 250);
+        }
+      };
+
+      rec.onresult = (e) => {
+        const lastIndex = e.results.length - 1;
+        const rawTranscript = e.results[lastIndex][0].transcript;
+        console.log('[Voice] Raw speech recognized:', rawTranscript);
+
+        let query = rawTranscript.trim();
+        query = query.replace(/^(hey friday|friday)\s*/i, '').trim();
+
+        if (query.length > 0) {
+          console.log('[Voice] Clean query sent to AI (wake-word removed):', query);
+          handleCmd(query);
         }
       };
 
@@ -151,7 +105,7 @@ export function useSpeech({ onCommand, onConversation, enabled = true, locked = 
         }
 
         const data = await fetchChatText(cmd);
-        const reply = data.reply?.trim() || '';
+        const reply = data.reply?.trim() || 'I am standing by, Boss.';
         const action = data.action?.trim() || 'none';
 
         if (action && action !== 'none') {
@@ -164,7 +118,8 @@ export function useSpeech({ onCommand, onConversation, enabled = true, locked = 
           action,
         });
 
-        await speak(reply);
+        // Speak non-blocking so speech recognition never gets stuck if TTS finishes
+        speak(reply).catch((e) => console.warn('[Voice] TTS speak error:', e));
       } catch (err) {
         console.warn('[Voice] Command error:', err);
       } finally {
