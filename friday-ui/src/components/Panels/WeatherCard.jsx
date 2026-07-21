@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, CloudRain, Cloud, Wind, Droplets, MapPin, X, GripHorizontal } from 'lucide-react';
+import { useOrbState } from '../../hooks/useOrbState';
 
 const API = 'http://localhost:8000/api/weather';
 
 export default function WeatherCard() {
+    const { workspace } = useOrbState();
     const [isVisible, setIsVisible] = useState(false);
     const [weather, setWeather] = useState({
         city: 'Locating…',
@@ -27,9 +29,11 @@ export default function WeatherCard() {
 
     useEffect(() => {
         fetchWeather();
-        const iv = setInterval(fetchWeather, 600000); // refresh every 10 min
+        const iv = setInterval(fetchWeather, 300000); // 5 min
         return () => clearInterval(iv);
     }, []);
+
+    if (workspace === 'trading') return null;
 
     if (!isVisible) {
         return (
