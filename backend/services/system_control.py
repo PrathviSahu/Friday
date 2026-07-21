@@ -108,18 +108,20 @@ def search_and_play_spotify(song_or_playlist: str) -> bool:
     if not IS_MAC or not song_or_playlist:
         return False
     try:
-        q_clean = song_or_playlist.strip()
-        q_encoded = urllib.parse.quote(q_clean)
+        q_clean = song_or_playlist.strip().replace('"', '')
         
-        # 1. Open Spotify search view directly via URL scheme
-        # 2. Press Return (key code 36) to auto-select and start playing top result track!
+        # Cmd+L focuses Spotify Search Bar directly -> Type song -> Down Arrow -> Enter plays #1 top result track
         script = f'''
-        open location "spotify:search:{q_encoded}"
-        delay 0.8
+        tell application "Spotify" to activate
+        delay 0.4
         tell application "System Events"
             tell process "Spotify"
-                key code 36
+                keystroke "l" using {{command down}}
                 delay 0.4
+                keystroke "{q_clean}"
+                delay 0.8
+                key code 125
+                delay 0.3
                 key code 36
             end tell
         end tell
