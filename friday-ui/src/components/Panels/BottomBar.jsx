@@ -33,7 +33,7 @@ export default function BottomBar() {
             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                 <rect
                     x="1" y="1"
-                    width="calc(100% - 2)" height="calc(100% - 2)"
+                    width="99%" height="99%"
                     rx="8"
                     fill="rgba(1, 8, 23, 0.55)"
                     stroke="#00B7FF"

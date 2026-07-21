@@ -7,14 +7,14 @@ const withTimeout = (promise, ms) =>
   Promise.race([
     promise,
     new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms)
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
     ),
   ]);
 
 export function useSpeech({ isLocked, onCommand, onConversation }) {
-  const activeRef     = useRef(false);   // true while SpeechRecognition is running
-  const processingRef = useRef(false);   // true while a command is being handled
-  const speakingRef   = useRef(false);   // true while FRIDAY's TTS is playing
+  const activeRef     = useRef(false);  // true while SpeechRecognition is running
+  const processingRef = useRef(false);  // true while a command is being handled
+  const speakingRef   = useRef(false);  // true while FRIDAY's TTS is playing
   const lockedRef     = useRef(isLocked);
   const onCommandRef  = useRef(onCommand);
   const onConvRef     = useRef(onConversation);
@@ -24,10 +24,11 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
   useEffect(() => { onConvRef.current = onConversation; }, [onConversation]);
 
   useEffect(() => {
-    let rec           = null;
-    let cancelled     = false;
-    let restartTimer  = null;   // only ONE restart ever pending at a time
-    let keepAlive     = null;
+    let rec              = null;
+    let cancelled        = false;
+    let restartTimer     = null;    // only ONE pending restart at a time
+    let keepAlive        = null;
+    let noSpeechStreak   = 0;       // consecutive no-speech errors → exponential back-off
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
@@ -35,23 +36,23 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       return;
     }
 
-    // ── Schedule exactly one restart ──────────────────────────────────────────
+    // ── Schedule at most one pending restart ─────────────────────────────────
     const scheduleRestart = (ms) => {
-      if (cancelled || restartTimer) return;          // one pending max
+      if (cancelled || restartTimer) return;   // already one pending — skip
       restartTimer = setTimeout(() => {
         restartTimer = null;
-        if (!speakingRef.current) start();            // don't restart while TTS plays
+        if (!cancelled && !speakingRef.current) start();
       }, ms);
     };
 
     // ── Create and boot a fresh SpeechRecognition instance ───────────────────
     const start = () => {
-      if (cancelled || speakingRef.current) return;  // never start while FRIDAY speaks
+      if (cancelled || speakingRef.current) return;
 
-      // Silence old instance BEFORE abort so its onend/onerror don't trigger more restarts
+      // Silence old instance BEFORE abort so its onend/onerror don't fire
       if (rec) {
-        rec.onend   = null;
-        rec.onerror = null;
+        rec.onend    = null;
+        rec.onerror  = null;
         rec.onresult = null;
         try { rec.abort(); } catch (_) {}
       }
@@ -64,32 +65,43 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       rec.onstart = () => {
         console.log('[Voice] Microphone actively Listening...');
         activeRef.current = true;
+        noSpeechStreak = 0;   // reset back-off on successful start
       };
 
       rec.onerror = (e) => {
         activeRef.current = false;
         if (cancelled) return;
         console.warn('[Voice] Recognition error:', e.error);
-        // aborted = we triggered it ourselves — ignore.  network/no-speech = retry.
-        if (e.error === 'no-speech' || e.error === 'network') {
-          scheduleRestart(300);
+
+        if (e.error === 'no-speech') {
+          // Exponential back-off: 500ms → 1s → 2s → 4s, max 5s
+          noSpeechStreak += 1;
+          const delay = Math.min(500 * Math.pow(2, noSpeechStreak - 1), 5000);
+          console.log(`[Voice] no-speech streak=${noSpeechStreak}, retrying in ${delay}ms`);
+          scheduleRestart(delay);
+        } else if (e.error === 'network') {
+          scheduleRestart(1000);
         }
-        // 'aborted' is swallowed — onend will fire and handle it
+        // 'aborted' is intentional (we caused it) — let onend handle the restart
       };
 
       rec.onend = () => {
         activeRef.current = false;
         if (cancelled) return;
         console.log('[Voice] Recognition ended, scheduling restart...');
-        scheduleRestart(250);
+        // Use longer delay if we're in a no-speech streak so Chrome doesn't throttle
+        const delay = noSpeechStreak > 0 ? Math.min(500 * noSpeechStreak, 3000) : 300;
+        scheduleRestart(delay);
       };
 
       rec.onresult = (e) => {
-        // Suppress any result while FRIDAY is speaking (self-echo guard)
+        // Self-echo guard: drop anything while FRIDAY is speaking
         if (speakingRef.current) {
           console.log('[Voice] Suppressing echo — FRIDAY is speaking.');
           return;
         }
+
+        noSpeechStreak = 0;   // real speech received — reset back-off
 
         const idx = e.resultIndex ?? 0;
         const rawTranscript = e.results[idx]?.[0]?.transcript ?? '';
@@ -103,7 +115,6 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
           .replace(/^friday\b\s*/i, '')
           .trim();
 
-        // Normalise transcript for logging
         const normalized = query.toLowerCase();
         console.log('[Voice] Transcript:', rawTranscript.trim(), '-> normalized:', normalized);
 
@@ -116,18 +127,19 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
       try {
         rec.start();
       } catch (err) {
-        console.warn('[Voice] start() threw:', err);
-        scheduleRestart(500);
+        console.warn('[Voice] start() threw:', err.message || err);
+        scheduleRestart(800);
       }
     };
 
-    // ── Watchdog: restart if mic silently died ────────────────────────────────
+    // ── Watchdog: revive if mic silently died ─────────────────────────────────
     keepAlive = setInterval(() => {
-      if (!cancelled && !activeRef.current && !processingRef.current && !speakingRef.current) {
+      if (!cancelled && !activeRef.current && !processingRef.current && !speakingRef.current && !restartTimer) {
         console.log('[Voice Watchdog] Mic inactive — restarting...');
+        noSpeechStreak = 0;
         start();
       }
-    }, 3000);
+    }, 5000);   // 5s — generous so we don't fight the back-off
 
     // ── Command handler ───────────────────────────────────────────────────────
     const handleCmd = async (cmd) => {
@@ -150,22 +162,18 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
           return;
         }
 
-        const data = await withTimeout(fetchChatText(cmd), 12000);
+        const data  = await withTimeout(fetchChatText(cmd), 12000);
         const reply  = data.reply?.trim()  || 'At your service, Boss.';
         const action = data.action?.trim() || 'none';
 
-        if (action && action !== 'none') {
-          onCommandRef.current?.(action);
-        }
-
+        if (action && action !== 'none') onCommandRef.current?.(action);
         onConvRef.current?.({ transcript: cmd, reply, action });
 
-        // ── PAUSE mic while speaking, resume cleanly after ──────────────────
+        // ── Pause mic during TTS so we don't hear FRIDAY's own voice ─────────
         speakingRef.current = true;
-        // Stop the running recognizer so it doesn't pick up FRIDAY's voice
         if (rec) {
-          rec.onend   = null;   // silence the handler temporarily
-          rec.onerror = null;
+          rec.onend    = null;   // silence handlers while we deliberately stop
+          rec.onerror  = null;
           rec.onresult = null;
           try { rec.stop(); } catch (_) {}
           activeRef.current = false;
@@ -174,26 +182,27 @@ export function useSpeech({ isLocked, onCommand, onConversation }) {
         try { await withTimeout(speak(reply), 15000); } catch (_) {}
 
         speakingRef.current = false;
+        noSpeechStreak = 0;   // fresh start after TTS
 
-        // Short silence buffer after TTS ends before we start listening again
-        await new Promise(r => setTimeout(r, 400));
+        // Brief buffer so FRIDAY's voice echo fades before mic opens
+        await new Promise(r => setTimeout(r, 600));
         if (!cancelled) start();
 
       } catch (err) {
         console.warn('[Voice] Command error:', err);
         speakingRef.current = false;
+        if (!cancelled) scheduleRestart(500);
       } finally {
         processingRef.current = false;
       }
     };
 
-    // Boot immediately
     const bootTimer = setTimeout(start, 0);
 
     return () => {
       cancelled = true;
-      activeRef.current = false;
-      speakingRef.current = false;
+      activeRef.current    = false;
+      speakingRef.current  = false;
       if (keepAlive)    clearInterval(keepAlive);
       if (restartTimer) clearTimeout(restartTimer);
       clearTimeout(bootTimer);
