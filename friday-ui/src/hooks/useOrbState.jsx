@@ -54,14 +54,14 @@ export function OrbProvider({ children }) {
     //   'admin'  — privileged; requires fingerprint OR a written (typed)
     //              password before commands are accepted. Opens locked by default.
     // There is NO spoken passphrase anymore.
-    const [mode, setModeState] = useState('normal');
-    const [adminAuthed, setAdminAuthed] = useState(true);
+    const [mode, setModeState] = useState('admin');
+    const [adminAuthed, setAdminAuthed] = useState(false);
     // `locked` is derived: normal mode is never locked; admin mode is locked
-    // until the user authenticates. Defaults to unlocked.
-    const [locked, setLocked] = useState(false);
-    const lockedRef = useRef(false);
-    const modeRef = useRef('normal');
-    const adminAuthedRef = useRef(true);
+    // until the user authenticates. Defaults to locked (admin).
+    const [locked, setLocked] = useState(true);
+    const lockedRef = useRef(true);
+    const modeRef = useRef('admin');
+    const adminAuthedRef = useRef(false);
     const idleMsgRef  = useRef(0);
     const idleTimer   = useRef(null);
     const commandTimersRef = useRef([]);

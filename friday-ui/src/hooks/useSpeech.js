@@ -239,15 +239,6 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       lastProcessedTime = now;
 
       try {
-        if (lockedRef.current) {
-          const lockedReply = 'Access denied, Boss. Please authenticate with your fingerprint key first.';
-          onConvRef.current?.({ transcript: cmd, reply: lockedReply, action: 'none' });
-          speakingRef.current = true;
-          try { await withTimeout(speak(lockedReply), 10000); } catch (_) {}
-          speakingRef.current = false;
-          return;
-        }
-
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
           onCommandRef.current?.(localCommand);
