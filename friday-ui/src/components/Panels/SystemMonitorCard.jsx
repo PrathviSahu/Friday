@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, HardDrive, Battery, Zap, X, GripHorizontal, Activity } from 'lucide-react';
+import { useOrbState } from '../../hooks/useOrbState';
 
 const API = 'http://localhost:8000/api/system/stats';
 
@@ -36,7 +37,10 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
 }
 
 export default function SystemMonitorCard() {
+    const { workspace } = useOrbState();
     const [isVisible, setIsVisible] = useState(false);
+
+    if (workspace === 'trading') return null;
     const [stats, setStats] = useState({
         cpu_percent: 0,
         ram_percent: 0,

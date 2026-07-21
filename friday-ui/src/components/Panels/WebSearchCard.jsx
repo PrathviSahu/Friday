@@ -1,11 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Globe, X, GripHorizontal, ArrowRight, ExternalLink } from 'lucide-react';
+import { useOrbState } from '../../hooks/useOrbState';
 
 const API = 'http://localhost:8000/api/search';
 
 export default function WebSearchCard() {
+    const { workspace } = useOrbState();
     const [isVisible, setIsVisible] = useState(false);
+
+    if (workspace === 'trading') return null;
     const [query, setQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [results, setResults] = useState([]);
