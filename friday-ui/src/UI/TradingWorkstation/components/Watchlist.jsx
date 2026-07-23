@@ -529,11 +529,11 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
 
                 {/* Table Header Columns: Symbol | Last | Chg | Chg% */}
                 <div className="px-2 py-1 bg-[#131722] border-b border-[#2a2e39]">
-                    <div className="grid grid-cols-12 items-center px-3 py-1.5 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider gap-1">
-                        <div className={watchlistWidth < 300 ? 'col-span-5' : 'col-span-4'}>Symbol</div>
-                        <div className={`${watchlistWidth < 300 ? 'col-span-4' : 'col-span-3'} text-right`}>Last</div>
-                        {watchlistWidth >= 300 && <div className="col-span-2 text-right">Chg</div>}
-                        <div className={`${watchlistWidth < 300 ? 'col-span-3' : 'col-span-3'} text-right pr-1`}>Chg%</div>
+                    <div className="flex items-center px-3 py-1.5 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                        <div className="flex-1 min-w-0">Symbol</div>
+                        <div className="w-24 text-right">Last</div>
+                        {watchlistWidth >= 300 && <div className="w-20 text-right pr-1">Chg</div>}
+                        <div className="w-20 text-right pr-1">Chg%</div>
                     </div>
                 </div>
 
@@ -568,7 +568,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 onDragOver={(e) => handleDragOver(e, idx)}
                                 onDrop={(e) => handleDrop(e, idx)}
                                 onClick={() => onSelectSymbol(item.symbol)}
-                                className={`group grid grid-cols-12 items-center px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl gap-1 ${
+                                className={`group flex items-center px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl ${
                                     isDragging ? 'opacity-30 border-cyan-400 border-dashed scale-95' :
                                     isSelected 
                                         ? 'bg-[#1e222d] border-[#2962ff] shadow-lg ring-1 ring-[#2962ff]/50' 
@@ -581,7 +581,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 )}
 
                                 {/* Column 1: SymbolLogo + Ticker Name */}
-                                <div className={`${watchlistWidth < 300 ? 'col-span-5' : 'col-span-4'} flex items-center gap-2 min-w-0 pr-1`}>
+                                <div className="flex-1 flex items-center gap-2 min-w-0 pr-2">
                                     <SymbolLogo item={item} size="sm" />
                                     <span className="text-xs font-extrabold text-white font-mono truncate tracking-tight">
                                         {item.name}
@@ -589,7 +589,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 </div>
 
                                 {/* Column 2: Last Price — clean bright white, blinks on tick */}
-                                <div className={`${watchlistWidth < 300 ? 'col-span-4' : 'col-span-3'} text-right font-mono text-xs font-bold text-slate-100 transition-all ${
+                                <div className={`w-24 text-right font-mono text-xs font-bold text-slate-100 shrink-0 transition-all ${
                                     tickDir === 'up' 
                                         ? 'text-[#089981] animate-pulse' 
                                         : tickDir === 'down' 
@@ -601,7 +601,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
 
                                 {/* Column 3: Change Absolute (Hidden when narrow) */}
                                 {watchlistWidth >= 300 && (
-                                    <div className={`col-span-2 text-right font-mono text-[11px] font-semibold ${
+                                    <div className={`w-20 text-right font-mono text-[11px] font-semibold shrink-0 pr-1 ${
                                         isPositive ? 'text-[#089981]' : 'text-[#f23645]'
                                     }`}>
                                         {displayChange}
@@ -609,7 +609,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 )}
 
                                 {/* Column 4: Change % / Delete Icon on Hover */}
-                                <div className={`${watchlistWidth < 300 ? 'col-span-3' : 'col-span-3'} flex items-center justify-end font-mono text-[11px] font-bold relative pr-1`}>
+                                <div className="w-20 flex items-center justify-end font-mono text-[11px] font-bold shrink-0 relative pr-1">
                                     <span className={`group-hover:hidden ${isPositive ? 'text-[#089981]' : 'text-[#f23645]'}`}>
                                         {displayPct}
                                     </span>
