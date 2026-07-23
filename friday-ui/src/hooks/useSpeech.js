@@ -14,15 +14,16 @@ const withTimeout = (promise, ms) =>
 export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, onCommand, onConversation }) {
   // Support both prop name variants: locked (LockScreen) and isLocked (legacy)
   const _locked = locked ?? isLocked ?? false;
-  const activeRef     = useRef(false);  // true while SpeechRecognition is running
-  const processingRef = useRef(false);  // true while a command is being handled
-  const speakingRef   = useRef(false);  // true while FRIDAY's TTS is playing
-  const enabledRef    = useRef(enabled); // mirrors the enabled prop reactively
-  const lockedRef     = useRef(_locked);
-  const workspaceRef  = useRef(workspace);
-  const onCommandRef  = useRef(onCommand);
-  const onConvRef     = useRef(onConversation);
+  const activeRef         = useRef(false);  // true while SpeechRecognition is running
+  const processingRef     = useRef(false);  // true while a command is being handled
+  const speakingRef       = useRef(false);  // true while FRIDAY's TTS is playing
+  const enabledRef        = useRef(enabled); // mirrors the enabled prop reactively
+  const lockedRef         = useRef(_locked);
+  const workspaceRef      = useRef(workspace);
+  const onCommandRef      = useRef(onCommand);
+  const onConvRef         = useRef(onConversation);
   const lastTranscriptRef = useRef(null); // { text, ts } — dedup guard for double-fired transcripts
+  const lastSpokenTtsRef  = useRef({ text: '', ts: 0 }); // stores FRIDAY's own spoken text to prevent self-echo loops
 
   // Keep refs in sync with props every render — no re-mount needed
   useEffect(() => { lockedRef.current = _locked; }, [_locked]);
@@ -31,14 +32,12 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   useEffect(() => { onConvRef.current = onConversation; }, [onConversation]);
 
   // When enabled flips OFF → abort recognizer immediately.
-  // When it flips ON  → let the inner loop restart via scheduleRestart.
   useEffect(() => {
     enabledRef.current = enabled;
     if (!enabled) {
-      // Hard-stop: abort is caught below by the silenced handlers, no restart scheduled
       stopRecognizer();
     }
-  }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   // Hold a stable ref to the abort helper so the enabled effect can call it
   const stopRecognizerRef = useRef(null);
@@ -49,11 +48,10 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   useEffect(() => {
     let rec              = null;
     let cancelled        = false;
-    let restartTimer     = null;    // only ONE pending restart at a time
+    let restartTimer     = null;
     let keepAlive        = null;
-    let noSpeechStreak   = 0;       // consecutive no-speech errors → exponential back-off
+    let noSpeechStreak   = 0;
 
-    // Register the abort helper so the enabled-toggle effect can reach it
     stopRecognizerRef.current = () => {
       if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
       if (rec) {
@@ -71,7 +69,6 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       return;
     }
 
-    // ── Schedule at most one pending restart ─────────────────────────────────
     const scheduleRestart = (ms) => {
       if (cancelled || restartTimer || !enabledRef.current) return;
       restartTimer = setTimeout(() => {
@@ -80,11 +77,9 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       }, ms);
     };
 
-    // ── Create and boot a fresh SpeechRecognition instance ───────────────────
     const start = () => {
       if (cancelled || !enabledRef.current) return;
 
-      // Silence old instance BEFORE abort so its onend/onerror don't re-fire
       if (rec) {
         rec.onend    = null;
         rec.onerror  = null;
@@ -110,21 +105,17 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         console.warn('[Voice] Recognition error:', e.error);
 
         if (e.error === 'no-speech') {
-          // Exponential back-off: 500 → 1000 → 2000 → 4000 → 5000ms cap
           noSpeechStreak += 1;
           const delay = Math.min(500 * Math.pow(2, noSpeechStreak - 1), 5000);
-          console.log(`[Voice] no-speech streak=${noSpeechStreak}, retrying in ${delay}ms`);
           scheduleRestart(delay);
         } else if (e.error === 'network') {
           scheduleRestart(1000);
         }
-        // 'aborted' is intentional — let onend handle cleanup
       };
 
       rec.onend = () => {
         activeRef.current = false;
         if (cancelled || !enabledRef.current) return;
-        console.log('[Voice] Recognition ended, scheduling restart...');
         const delay = noSpeechStreak > 0 ? Math.min(500 * noSpeechStreak, 3000) : 300;
         scheduleRestart(delay);
       };
@@ -134,49 +125,61 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         const idx = e.resultIndex ?? 0;
         const rawTranscript = e.results[idx]?.[0]?.transcript ?? '';
-        if (!rawTranscript.trim()) return;
+        const normRaw = rawTranscript.toLowerCase().trim();
+        if (!normRaw) return;
 
         console.log('[Voice] Raw speech recognized:', rawTranscript);
 
-        // ⚡ INSTANT BARGE-IN: stop TTS when user speaks
-        if (speakingRef.current) {
-          console.log('[Voice Interrupt] 🛑 User speech mid-sentence — aborting TTS...');
-          stopSpeaking();
-          speakingRef.current = false;
+        // 🛡️ SELF-ECHO REJECTION GUARD:
+        // Ignore audio if it's FRIDAY's own spoken TTS output or matches recent response
+        const now = Date.now();
+        const spokenInfo = lastSpokenTtsRef.current;
+        const isRecentTts = spokenInfo.text && (now - spokenInfo.ts < 5000);
+        const containsTtsSnippet = isRecentTts && (
+          normRaw.includes(spokenInfo.text) ||
+          spokenInfo.text.includes(normRaw) ||
+          /\b(?:brightness|set to|percent|standing by|prem|at your service|opening|closing|system is locked|enabled|disabled|locking display)\b/.test(normRaw)
+        );
+
+        if (speakingRef.current || containsTtsSnippet) {
+          // Check for explicit user barge-in stop command
+          const isExplicitStop = /\b(?:stop|shut up|quiet|pause|hush|wait)\b/.test(normRaw);
+          if (isExplicitStop) {
+            console.log('[Voice Interrupt] 🛑 User explicit stop command — aborting TTS.');
+            stopSpeaking();
+            speakingRef.current = false;
+          } else {
+            console.log('[Voice Self-Echo Blocked] Suppressing speaker audio capture:', rawTranscript);
+            return;
+          }
         }
 
-        // ── Wake-word stripping (only at start of transcript) ─────────────────
-        // Strips optional wake-word prefix: "Friday play music" -> "play music", "Hey Friday volume 80" -> "volume 80"
+        // ── Wake-word stripping ─────────────────────────────────────────────
         let query = rawTranscript.trim()
-          // Fix known Web Speech STT phonetic misheards at start of phrase
           .replace(/^ready\s*(?:film|feel|fill)/i, 'play')
           .replace(/^if\s+friday\s+please/i, 'play')
           .replace(/^suno\s+friday/i, '')
           .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno|aye)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday|fri\s*day)\b\s*/gi, '')
           .trim();
 
-        // Wake-word-only interrupt (user said only "Friday" to stop TTS)
         if (!query) {
           console.log('[Voice Interrupt] Wake-word only — listening for command...');
           noSpeechStreak = 0;
           return;
         }
 
-        // ── Minimal Noise Filter (grunts only) ─────────────────────────────────
-        // ONLY drop pure non-word grunts — NEVER drop song names or short queries!
+        // ── Minimal Noise Filter (grunts only) ──────────────────────────────
         const NOISE_ONLY = new Set(['uh', 'um', 'hmm', 'hm', 'ah', 'oh']);
-        const normalized = query.toLowerCase().trim();
-        if (NOISE_ONLY.has(normalized)) {
+        if (NOISE_ONLY.has(query.toLowerCase().trim())) {
           console.log('[Voice] Ignored grunt noise:', query);
           start();
           return;
         }
 
-        // ── Dedup guard ───────────────────────────────────────────────────────
-        const now = Date.now();
+        // ── Dedup guard ─────────────────────────────────────────────────────
         const lastRaw = lastTranscriptRef.current;
-        if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 2500) {
-          console.log('[Voice] Suppressing duplicate transcript within 2.5s:', rawTranscript);
+        if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 3000) {
+          console.log('[Voice] Suppressing duplicate transcript within 3s:', rawTranscript);
           return;
         }
         lastTranscriptRef.current = { text: rawTranscript.trim(), ts: now };
@@ -193,7 +196,6 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         noSpeechStreak = 0;
 
-        // Fix common Web Speech STT phonetic misrecognitions
         if (/^at\s+this\s+song/i.test(query)) {
           query = query.replace(/^at\s+this\s+song/i, 'add this song');
         }
@@ -216,8 +218,6 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         }
       };
 
-
-
       try {
         rec.start();
       } catch (err) {
@@ -226,11 +226,10 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       }
     };
 
-    // ── Watchdog: revive if mic silently died ─────────────────────────────────
+    // ── Watchdog: revive if mic silently died ─────────────────────────────
     keepAlive = setInterval(() => {
-      if (!cancelled && enabledRef.current && !activeRef.current && !processingRef.current && !restartTimer) {
-        console.log('[Voice Watchdog] Mic inactive — restarting...');
-        noSpeechStreak = 0;
+      if (enabledRef.current && !activeRef.current && !processingRef.current && !speakingRef.current) {
+        console.log('[Voice Watchdog] Mic inactive, reviving...');
         start();
       }
     }, 5000);
@@ -238,10 +237,10 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     let lastProcessedCmd = '';
     let lastProcessedTime = 0;
 
-    // ── Command handler ───────────────────────────────────────────────────────
+    // ── Command handler ───────────────────────────────────────────────────
     const handleCmd = async (cmd) => {
       const now = Date.now();
-      if (processingRef.current || (cmd === lastProcessedCmd && now - lastProcessedTime < 2500)) {
+      if (processingRef.current || (cmd === lastProcessedCmd && now - lastProcessedTime < 3000)) {
         console.log('[Voice] Suppressing duplicate rapid command:', cmd);
         if (!activeRef.current) start();
         return;
@@ -253,11 +252,13 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       try {
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
-          // Workspace commands are blocked when the system is locked
           const workspaceCommands = ['trading', 'dashboard', 'engineering', 'vscode', 'browser'];
           if (lockedRef.current && workspaceCommands.includes(localCommand)) {
             const lockedReply = 'System is locked, Boss. Please unlock first.';
             onConvRef.current?.({ transcript: cmd, reply: lockedReply, action: 'none' });
+            
+            // Register TTS self-echo guard
+            lastSpokenTtsRef.current = { text: lockedReply.toLowerCase().trim(), ts: Date.now() };
             speakingRef.current = true;
             try { await withTimeout(speak(lockedReply), 8000); } catch (_) {}
             speakingRef.current = false;
@@ -273,6 +274,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             ? 'Opening Engineering Console, Prem.'
             : 'Executing command, Prem.';
           onConvRef.current?.({ transcript: cmd, reply, action: localCommand });
+
+          lastSpokenTtsRef.current = { text: reply.toLowerCase().trim(), ts: Date.now() };
           speakingRef.current = true;
           try { await withTimeout(speak(reply), 10000); } catch (_) {}
           speakingRef.current = false;
@@ -286,15 +289,15 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         if (action && action !== 'none') onCommandRef.current?.(action);
         onConvRef.current?.({ transcript: cmd, reply, action });
 
-        // ── Speak response ───────────────────────────────────────────────────
+        // ── Speak response ─────────────────────────────────────────────────
         if (!data.silence_tts) {
+          lastSpokenTtsRef.current = { text: reply.toLowerCase().trim(), ts: Date.now() };
           speakingRef.current = true;
           try { await withTimeout(speak(reply), 15000); } catch (_) {}
           speakingRef.current = false;
         }
         noSpeechStreak = 0;
 
-        // Brief buffer after speech finishes, restart mic
         await new Promise(r => setTimeout(r, 400));
 
       } catch (err) {
@@ -302,14 +305,12 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         speakingRef.current = false;
       } finally {
         processingRef.current = false;
-        // 🚀 CRITICAL PERMANENT FIX: Always guarantee mic restarts in finally block
         if (!cancelled && enabledRef.current && !activeRef.current) {
           start();
         }
       }
     };
 
-    // Boot immediately if enabled
     const bootTimer = setTimeout(() => { if (enabledRef.current) start(); }, 0);
 
     return () => {
@@ -319,11 +320,13 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       stopRecognizerRef.current = null;
       if (keepAlive)    clearInterval(keepAlive);
       if (restartTimer) clearTimeout(restartTimer);
-      clearTimeout(bootTimer);
+      if (bootTimer)    clearTimeout(bootTimer);
       if (rec) {
-        rec.onend = null; rec.onerror = null; rec.onresult = null;
+        rec.onend    = null;
+        rec.onerror  = null;
+        rec.onresult = null;
         try { rec.abort(); } catch (_) {}
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 }
