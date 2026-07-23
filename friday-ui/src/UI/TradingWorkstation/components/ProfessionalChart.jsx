@@ -1,79 +1,126 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, CrosshairMode } from 'lightweight-charts';
-import { Sliders, X, RefreshCw, TrendingUp, Activity } from 'lucide-react';
+import { RefreshCw, TrendingUp, Activity, ChevronDown } from 'lucide-react';
 
-const INTERVALS = [
+// TradingView-exact timeframe list
+const TIMEFRAMES = [
     { label: '1m',  value: '1' },
     { label: '5m',  value: '5' },
     { label: '15m', value: '15' },
     { label: '30m', value: '30' },
     { label: '1h',  value: '60' },
+    { label: '4h',  value: '240' },
     { label: '1D',  value: 'D' },
     { label: '1W',  value: 'W' },
 ];
 
-export default function ProfessionalChart({ symbol = 'NSE:RELIANCE' }) {
+// TradingView dark theme — exact color match
+const TV_THEME = {
+    bg:          '#131722',
+    bgSecondary: '#1e222d',
+    border:      '#2a2e39',
+    text:        '#b2b5be',
+    textLight:   '#787b86',
+    textBright:  '#d1d4dc',
+    cyan:        '#00b7ff',
+    green:       '#089981',
+    red:         '#f23645',
+    liveGreen:   '#26a69a',
+};
+
+function formatOHLC(value, symbol = '') {
+    if (value === undefined || value === null) return '—';
+    const s = String(symbol).toUpperCase();
+    const isJPY = s.includes('JPY');
+    const isFX  = s.includes('FX:');
+    if (isJPY)  return value.toFixed(3);
+    if (isFX)   return value.toFixed(5);
+    return value.toFixed(4);
+}
+
+export default function ProfessionalChart({ symbol = 'FX:EURUSD', interval: propInterval, onIntervalChange }) {
     const containerRef = useRef(null);
     const chartRef     = useRef(null);
     const candleRef    = useRef(null);
     const volumeRef    = useRef(null);
+    const pollRef      = useRef(null);
 
-    const [interval, setInterval] = useState('5');
-    const [loading, setLoading]   = useState(false);
-    const [error, setError]       = useState(null);
-    const [ohlcInfo, setOhlcInfo] = useState(null);
-    const [showSettings, setShowSettings] = useState(false);
-    const [lastUpdated, setLastUpdated]   = useState(null);
-    const [isLive, setIsLive]             = useState(false);
-    const pollTimerRef = useRef(null);
-    const [upColor,   setUpColor]   = useState('#089981');
-    const [downColor, setDownColor] = useState('#f23645');
+    const [interval, setIntervalState] = useState(propInterval || '5');
+    const [loading,  setLoading]   = useState(false);
+    const [error,    setError]     = useState(null);
+    const [ohlcInfo, setOhlcInfo]  = useState(null);
+    const [isLive,   setIsLive]    = useState(false);
+    const [lastTick, setLastTick]  = useState(null);
+    const [upColor,   setUpColor]   = useState(TV_THEME.green);
+    const [downColor, setDownColor] = useState(TV_THEME.red);
 
-    // ── Create / resize chart ─────────────────────────────────────────────────
+    // Sync controlled interval from parent
+    useEffect(() => {
+        if (propInterval && propInterval !== interval) {
+            setIntervalState(propInterval);
+        }
+    }, [propInterval]);
+
+    const handleIntervalClick = (val) => {
+        setIntervalState(val);
+        onIntervalChange?.(val);
+    };
+
+    // ── Build chart once ─────────────────────────────────────────────────────
     useEffect(() => {
         if (!containerRef.current) return;
 
         const chart = createChart(containerRef.current, {
             layout: {
-                background:  { color: '#0a0f1d' },
-                textColor:   '#9ca3af',
-                fontFamily:  'Inter, JetBrains Mono, monospace',
+                background:  { color: TV_THEME.bg },
+                textColor:   TV_THEME.text,
+                fontFamily:  '"Inter", "JetBrains Mono", -apple-system, monospace',
                 fontSize:    11,
             },
             grid: {
-                vertLines: { color: '#1e222d' },
-                horzLines: { color: '#1e222d' },
+                vertLines: { color: TV_THEME.bgSecondary },
+                horzLines: { color: TV_THEME.bgSecondary },
             },
             crosshair: {
                 mode: CrosshairMode.Normal,
-                vertLine: { color: '#00b7ff', labelBackgroundColor: '#0a0f1d' },
-                horzLine: { color: '#00b7ff', labelBackgroundColor: '#0a0f1d' },
-            },
-            rightPriceScale: {
-                borderColor: '#1e222d',
-                scaleMargins: { top: 0.05, bottom: 0.22 },
-            },
-            timeScale: {
-                borderColor:     '#1e222d',
-                timeVisible:     true,
-                secondsVisible:  false,
-                tickMarkFormatter: (time) => {
-                    const d = new Date(time * 1000);
-                    return d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+                vertLine: {
+                    color:                TV_THEME.cyan,
+                    width:                1,
+                    style:                1, // dashed
+                    labelBackgroundColor: TV_THEME.bgSecondary,
+                },
+                horzLine: {
+                    color:                TV_THEME.cyan,
+                    width:                1,
+                    style:                1,
+                    labelBackgroundColor: TV_THEME.bgSecondary,
                 },
             },
-            handleScroll:  true,
-            handleScale:   true,
-            autoSize: true,
+            rightPriceScale: {
+                borderColor:  TV_THEME.border,
+                scaleMargins: { top: 0.06, bottom: 0.20 },
+                mode:         0, // Normal
+            },
+            leftPriceScale: { visible: false },
+            timeScale: {
+                borderColor:    TV_THEME.border,
+                timeVisible:    true,
+                secondsVisible: false,
+                rightOffset:    8,
+                barSpacing:     6,
+            },
+            handleScroll:  { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+            handleScale:   { axisPressedMouseMove: true, axisDoubleClickReset: true, mouseWheel: true, pinch: true },
+            autoSize:      true,
         });
 
         const candleSeries = chart.addCandlestickSeries({
             upColor,
             downColor,
-            wickUpColor:   upColor,
-            wickDownColor: downColor,
-            borderUpColor:   upColor,
-            borderDownColor: downColor,
+            wickUpColor:      upColor,
+            wickDownColor:    downColor,
+            borderUpColor:    upColor,
+            borderDownColor:  downColor,
             priceLineVisible: true,
             lastValueVisible: true,
         });
@@ -81,26 +128,31 @@ export default function ProfessionalChart({ symbol = 'NSE:RELIANCE' }) {
         const volumeSeries = chart.addHistogramSeries({
             priceFormat:  { type: 'volume' },
             priceScaleId: 'volume',
+        });
+        chart.priceScale('volume').applyOptions({
             scaleMargins: { top: 0.82, bottom: 0 },
         });
-        chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 
         chartRef.current  = chart;
         candleRef.current = candleSeries;
         volumeRef.current = volumeSeries;
 
-        // Crosshair → update OHLC tooltip
         chart.subscribeCrosshairMove((param) => {
             if (!param?.seriesData) return;
             const cd = param.seriesData.get(candleSeries);
             if (cd) setOhlcInfo(cd);
         });
 
-        return () => { chart.remove(); chartRef.current = null; };
+        return () => {
+            chart.remove();
+            chartRef.current  = null;
+            candleRef.current = null;
+            volumeRef.current = null;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Update candle / wick colors when user changes them ───────────────────
+    // Update candle colours live
     useEffect(() => {
         if (!candleRef.current) return;
         candleRef.current.applyOptions({
@@ -110,204 +162,189 @@ export default function ProfessionalChart({ symbol = 'NSE:RELIANCE' }) {
         });
     }, [upColor, downColor]);
 
-    // ── Fetch OHLCV data from backend ─────────────────────────────────────────
+    // ── Fetch full OHLCV history ─────────────────────────────────────────────
     const fetchData = useCallback(async (sym, iv) => {
         if (!candleRef.current || !volumeRef.current) return;
         setLoading(true);
         setError(null);
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 12000);
-
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 15000);
         try {
             const res = await fetch(
                 `http://localhost:8000/api/trading/ohlcv?symbol=${encodeURIComponent(sym)}&interval=${iv}`,
-                { signal: controller.signal }
+                { signal: ctrl.signal }
             );
-            clearTimeout(timeout);
+            clearTimeout(timer);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const { candles, error: apiError } = await res.json();
+            const { candles, error: apiErr, count } = await res.json();
+            if (apiErr) throw new Error(apiErr);
+            if (!candles || candles.length === 0) throw new Error(`No data available for ${sym}`);
 
-            if (apiError) throw new Error(apiError);
-            if (!candles || candles.length === 0) throw new Error(`No data for ${sym}`);
+            // Deduplicate by time (yfinance sometimes returns dupes)
+            const seen = new Set();
+            const clean = candles
+                .filter(c => { if (seen.has(c.time)) return false; seen.add(c.time); return true; })
+                .sort((a, b) => a.time - b.time);
 
-            candles.sort((a, b) => a.time - b.time);
-
-            candleRef.current.setData(candles.map(c => ({
+            candleRef.current.setData(clean.map(c => ({
                 time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
             })));
-            volumeRef.current.setData(candles.map(c => ({
+            volumeRef.current.setData(clean.map(c => ({
                 time:  c.time,
                 value: c.volume,
-                color: c.close >= c.open ? `${upColor}66` : `${downColor}66`,
+                color: c.close >= c.open ? `${upColor}55` : `${downColor}55`,
             })));
             chartRef.current?.timeScale().fitContent();
-            setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-            setOhlcInfo(candles[candles.length - 1]);
+            setOhlcInfo(clean[clean.length - 1]);
+            setLastTick(new Date());
         } catch (e) {
-            clearTimeout(timeout);
+            clearTimeout(timer);
             if (e.name === 'AbortError') {
-                setError('Request timed out. Backend may be slow — click ↺ to retry.');
+                setError('Request timed out — click ↺ to retry.');
             } else {
-                setError(`Failed to load ${sym}: ${e.message}`);
+                setError(`${e.message}`);
             }
         } finally {
             setLoading(false);
         }
     }, [upColor, downColor]);
 
-
-    // Re-fetch when symbol or interval changes
+    // Refetch on symbol or interval change
     useEffect(() => {
         fetchData(symbol, interval);
     }, [symbol, interval, fetchData]);
 
-    // ── Live auto-refresh every 30 s ─────────────────────────────────────────
+    // ── Live tick poll (30s) for intraday intervals ─────────────────────────
     useEffect(() => {
-        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-
-        // Only poll for intraday intervals (not D / W)
+        if (pollRef.current) clearInterval(pollRef.current);
         const shouldPoll = !['D', 'W'].includes(interval);
         if (!shouldPoll) { setIsLive(false); return; }
-
         setIsLive(true);
-        pollTimerRef.current = setInterval(async () => {
+
+        pollRef.current = setInterval(async () => {
             if (!candleRef.current || !volumeRef.current) return;
             try {
-                const res  = await fetch(
+                const res = await fetch(
                     `http://localhost:8000/api/trading/ohlcv?symbol=${encodeURIComponent(symbol)}&interval=${interval}`
                 );
                 const { candles } = await res.json();
-                if (!candles || candles.length === 0) return;
-                candles.sort((a, b) => a.time - b.time);
-
-                // Update only the last candle (live tick)
-                const last = candles[candles.length - 1];
+                if (!candles?.length) return;
+                const sorted = [...candles].sort((a, b) => a.time - b.time);
+                const last = sorted[sorted.length - 1];
                 candleRef.current.update({ time: last.time, open: last.open, high: last.high, low: last.low, close: last.close });
-                volumeRef.current.update({ time: last.time, value: last.volume, color: last.close >= last.open ? `${upColor}66` : `${downColor}66` });
-                setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                volumeRef.current.update({ time: last.time, value: last.volume, color: last.close >= last.open ? `${upColor}55` : `${downColor}55` });
                 setOhlcInfo(last);
+                setLastTick(new Date());
             } catch (_) {}
         }, 30000);
 
-        return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
+        return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }, [symbol, interval, upColor, downColor]);
 
-    // ── Interval button strip ─────────────────────────────────────────────────
-    const displaySymbol = symbol.replace(/^(NSE:|BSE:|OANDA:|BINANCE:|FX:|NASDAQ:|NYSE:|CAPITALCOM:)/, '');
+    // Strip exchange prefix for display
+    const displaySymbol = symbol.replace(/^(FX:|OANDA:|BINANCE:|NASDAQ:|NYSE:|CAPITALCOM:|NSE:|BSE:|NYMEX:)/, '');
+    const priceDelta = ohlcInfo ? (ohlcInfo.close - ohlcInfo.open) : 0;
+    const isUp       = priceDelta >= 0;
 
     return (
-        <div className="w-full h-full bg-[#0a0f1d] relative overflow-hidden flex flex-col">
+        <div style={{ background: TV_THEME.bg }} className="w-full h-full flex flex-col relative overflow-hidden">
 
-            {/* ── Top Bar ── */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0d1220] border-b border-white/5 z-20 flex-shrink-0">
-                {/* Symbol badge */}
-                <div className="flex items-center gap-1.5">
-                    <TrendingUp size={13} className="text-cyan-400" />
-                    <span className="text-white font-mono font-bold text-sm tracking-wide">{displaySymbol}</span>
-                    <span className="text-slate-500 font-mono text-xs">{symbol.split(':')[0]}</span>
+            {/* ── TradingView-style Top Bar ── */}
+            <div
+                style={{ background: TV_THEME.bg, borderBottom: `1px solid ${TV_THEME.border}` }}
+                className="flex items-center gap-0 px-2 py-0 flex-shrink-0 select-none"
+                style={{ height: '38px', borderBottom: `1px solid ${TV_THEME.border}`, background: TV_THEME.bg }}
+            >
+                {/* Symbol pill */}
+                <div className="flex items-center gap-1.5 pr-3 mr-1" style={{ borderRight: `1px solid ${TV_THEME.border}` }}>
+                    <TrendingUp size={12} style={{ color: TV_THEME.cyan }} />
+                    <span style={{ color: TV_THEME.textBright }} className="font-bold text-sm font-mono tracking-wide">
+                        {displaySymbol}
+                    </span>
+                    <ChevronDown size={11} style={{ color: TV_THEME.textLight }} />
                 </div>
 
-                <div className="h-4 w-px bg-white/10 mx-1" />
-
-                {/* LIVE indicator */}
-                {isLive && (
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30">
-                        <Activity size={9} className="text-emerald-400 animate-pulse" />
-                        <span className="text-emerald-400 font-mono text-[9px] font-bold">LIVE</span>
-                    </div>
-                )}
-
-                <div className="h-4 w-px bg-white/10 mx-1" />
-
-                {/* Interval selector */}
-                <div className="flex items-center gap-0.5">
-                    {INTERVALS.map(iv => (
+                {/* Timeframe buttons — TradingView style */}
+                <div className="flex items-center gap-0 px-1">
+                    {TIMEFRAMES.map(tf => (
                         <button
-                            key={iv.value}
-                            onClick={() => setInterval(iv.value)}
-                            className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
-                                interval === iv.value
-                                    ? 'bg-cyan-500 text-black'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                            }`}
+                            key={tf.value}
+                            onClick={() => handleIntervalClick(tf.value)}
+                            className="transition-all duration-100 rounded font-mono text-xs px-2 py-0.5"
+                            style={{
+                                background:   interval === tf.value ? '#2962ff' : 'transparent',
+                                color:         interval === tf.value ? '#fff'           : TV_THEME.text,
+                                fontWeight:    interval === tf.value ? '700' : '400',
+                                fontSize:      '11px',
+                            }}
                         >
-                            {iv.label}
+                            {tf.label}
                         </button>
                     ))}
                 </div>
 
-                <div className="flex-1" />
+                <div style={{ flex: 1 }} />
 
-                {/* OHLC display */}
+                {/* OHLC Values — TradingView style */}
                 {ohlcInfo && (
-                    <div className="flex items-center gap-2 text-[10px] font-mono">
-                        <span className="text-slate-500">O <span className="text-white">{ohlcInfo.open?.toFixed(2)}</span></span>
-                        <span className="text-slate-500">H <span className="text-emerald-400">{ohlcInfo.high?.toFixed(2)}</span></span>
-                        <span className="text-slate-500">L <span className="text-rose-400">{ohlcInfo.low?.toFixed(2)}</span></span>
-                        <span className="text-slate-500">C <span className={`font-bold ${ohlcInfo.close >= ohlcInfo.open ? 'text-emerald-400' : 'text-rose-400'}`}>{ohlcInfo.close?.toFixed(2)}</span></span>
-                    </div>
-                )}
-
-                {/* Last updated timestamp */}
-                {lastUpdated && (
-                    <span className="text-slate-600 font-mono text-[9px] hidden md:block">{lastUpdated}</span>
-                )}
-
-                <div className="flex items-center gap-1 ml-1">
-                    <button
-                        onClick={() => { fetchData(symbol, interval); setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })); }}
-                        title="Refresh"
-                        className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-white/5 rounded transition-all"
-                    >
-                        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                    </button>
-                    <button
-                        onClick={() => setShowSettings(s => !s)}
-                        title="Settings"
-                        className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-white/5 rounded transition-all"
-                    >
-                        <Sliders size={12} />
-                    </button>
-                </div>
-            </div>
-
-            {/* ── Settings Panel ── */}
-            {showSettings && (
-                <div className="absolute top-10 right-3 z-50 w-64 rounded-2xl bg-[#080d1a]/97 border border-cyan-500/30 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-2xl text-slate-100 text-xs flex flex-col gap-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-cyan-500/20">
-                        <span className="font-mono text-cyan-300 font-bold flex items-center gap-1.5">
-                            <Sliders size={12} /> CANDLE COLORS
+                    <div className="flex items-center gap-3 font-mono text-[11px] mr-2">
+                        <span style={{ color: TV_THEME.textLight }}>
+                            O <span style={{ color: TV_THEME.textBright }}>{formatOHLC(ohlcInfo.open, symbol)}</span>
                         </span>
-                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-white">
-                            <X size={13} />
-                        </button>
+                        <span style={{ color: TV_THEME.textLight }}>
+                            H <span style={{ color: TV_THEME.green }}>{formatOHLC(ohlcInfo.high, symbol)}</span>
+                        </span>
+                        <span style={{ color: TV_THEME.textLight }}>
+                            L <span style={{ color: TV_THEME.red }}>{formatOHLC(ohlcInfo.low, symbol)}</span>
+                        </span>
+                        <span style={{ color: TV_THEME.textLight }}>
+                            C <span style={{ color: isUp ? TV_THEME.green : TV_THEME.red, fontWeight: 700 }}>
+                                {formatOHLC(ohlcInfo.close, symbol)}
+                            </span>
+                        </span>
+                        <span style={{
+                            color: isUp ? TV_THEME.green : TV_THEME.red,
+                            fontWeight: 600,
+                        }}>
+                            {isUp ? '+' : ''}{formatOHLC(priceDelta, symbol)}
+                        </span>
                     </div>
-                    <div className="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-white/5">
-                        <span className="text-emerald-400 font-medium">Bullish (Up)</span>
-                        <input type="color" value={upColor} onChange={e => setUpColor(e.target.value)}
-                            className="w-6 h-6 rounded cursor-pointer bg-transparent border-0" />
+                )}
+
+                {/* Live badge */}
+                {isLive && (
+                    <div className="flex items-center gap-1 mr-2 px-1.5 py-0.5 rounded"
+                        style={{ background: `${TV_THEME.liveGreen}20`, border: `1px solid ${TV_THEME.liveGreen}50` }}>
+                        <Activity size={8} style={{ color: TV_THEME.liveGreen }} className="animate-pulse" />
+                        <span style={{ color: TV_THEME.liveGreen, fontSize: '9px', fontWeight: 700 }} className="font-mono">LIVE</span>
                     </div>
-                    <div className="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-white/5">
-                        <span className="text-rose-400 font-medium">Bearish (Down)</span>
-                        <input type="color" value={downColor} onChange={e => setDownColor(e.target.value)}
-                            className="w-6 h-6 rounded cursor-pointer bg-transparent border-0" />
-                    </div>
-                    <button
-                        onClick={() => { fetchData(symbol, interval); setShowSettings(false); }}
-                        className="w-full py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold transition-all cursor-pointer"
-                    >
-                        Apply
-                    </button>
-                </div>
-            )}
+                )}
+
+                {/* Refresh */}
+                <button
+                    onClick={() => fetchData(symbol, interval)}
+                    title="Refresh"
+                    className="p-1 rounded transition-all"
+                    style={{ color: TV_THEME.textLight }}
+                    onMouseEnter={e => e.currentTarget.style.color = TV_THEME.textBright}
+                    onMouseLeave={e => e.currentTarget.style.color = TV_THEME.textLight}
+                >
+                    <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+                </button>
+            </div>
 
             {/* ── Loading overlay ── */}
             {loading && (
-                <div className="absolute inset-0 flex items-center justify-center z-30 bg-[#0a0f1d]/80 backdrop-blur-sm">
+                <div
+                    className="absolute inset-0 flex items-center justify-center z-30"
+                    style={{ background: `${TV_THEME.bg}cc`, backdropFilter: 'blur(4px)' }}
+                >
                     <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-cyan-400 font-mono text-xs">Loading {displaySymbol}...</span>
+                        <div className="w-7 h-7 border-2 rounded-full animate-spin"
+                            style={{ borderColor: `${TV_THEME.cyan}40`, borderTopColor: TV_THEME.cyan }} />
+                        <span style={{ color: TV_THEME.cyan }} className="font-mono text-xs">
+                            Loading {displaySymbol}...
+                        </span>
                     </div>
                 </div>
             )}
@@ -316,11 +353,12 @@ export default function ProfessionalChart({ symbol = 'NSE:RELIANCE' }) {
             {!loading && error && (
                 <div className="absolute inset-0 flex items-center justify-center z-30">
                     <div className="flex flex-col items-center gap-3 text-center px-8">
-                        <span className="text-4xl">⚠️</span>
-                        <span className="text-rose-400 font-mono text-sm">{error}</span>
+                        <span className="text-3xl">⚠️</span>
+                        <span style={{ color: TV_THEME.red }} className="font-mono text-xs max-w-xs">{error}</span>
                         <button
                             onClick={() => fetchData(symbol, interval)}
-                            className="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold transition-all"
+                            className="px-4 py-1.5 rounded font-mono text-xs font-bold transition-all"
+                            style={{ background: '#2962ff', color: '#fff' }}
                         >
                             Retry
                         </button>
@@ -328,7 +366,7 @@ export default function ProfessionalChart({ symbol = 'NSE:RELIANCE' }) {
                 </div>
             )}
 
-            {/* ── Chart container ── */}
+            {/* ── Chart canvas ── */}
             <div ref={containerRef} className="flex-1 relative z-10" />
         </div>
     );

@@ -332,83 +332,89 @@ def get_indian_prices_endpoint():
     }
 
 @app.get("/api/trading/ohlcv")
-def get_ohlcv_endpoint(symbol: str = "NSE:RELIANCE", interval: str = "5"):
+def get_ohlcv_endpoint(symbol: str = "FX:EURUSD", interval: str = "5"):
     """
-    Fetch OHLCV candle data for any symbol and return in Lightweight Charts format.
-    Supports NSE/BSE Indian stocks, Forex, Crypto, US stocks, Indices.
-    interval: 1, 5, 15, 30, 60 (minutes), D (daily), W (weekly)
+    Fetch OHLCV candle data — Forex optimised, 24/5 always live.
+    Supports FX pairs, Gold, DXY, Crypto, US stocks, Indices.
+    interval: 1, 5, 15, 30, 60, 240 (minutes), D (daily), W (weekly)
     """
     import yfinance as yf
 
-    # Map watchlist symbol → Yahoo Finance ticker
+    # TV symbol → Yahoo Finance ticker (Forex-first)
     SYMBOL_MAP = {
+        # Forex major pairs
+        'FX:EURUSD': 'EURUSD=X', 'FX:GBPUSD': 'GBPUSD=X', 'FX:USDJPY': 'JPY=X',
+        'FX:USDCHF': 'CHF=X',    'FX:USDCAD': 'CAD=X',    'FX:AUDUSD': 'AUDUSD=X',
+        'FX:NZDUSD': 'NZDUSD=X',
+        # Forex cross pairs
+        'FX:EURJPY': 'EURJPY=X', 'FX:GBPJPY': 'GBPJPY=X', 'FX:EURGBP': 'EURGBP=X',
+        'FX:EURAUD': 'EURAUD=X',
+        # Commodities & Indices
         'OANDA:XAUUSD': 'GC=F', 'OANDA:XAGUSD': 'SI=F', 'NYMEX:CL1!': 'CL=F',
         'OANDA:NAS100USD': '^NDX', 'OANDA:SPX500USD': '^GSPC', 'CAPITALCOM:DXY': 'DX-Y.NYB',
         'OANDA:UK100GBP': '^FTSE', 'OANDA:DE30EUR': '^GDAXI',
+        # Crypto
         'BINANCE:BTCUSDT': 'BTC-USD', 'BINANCE:ETHUSDT': 'ETH-USD',
-        'BINANCE:SOLUSDT': 'SOL-USD', 'BINANCE:BNBUSDT': 'BNB-USD',
-        'BINANCE:XRPUSDT': 'XRP-USD', 'BINANCE:ADAUSDT': 'ADA-USD',
-        'BINANCE:DOGEUSDT': 'DOGE-USD',
-        'FX:EURUSD': 'EURUSD=X', 'FX:GBPUSD': 'GBPUSD=X', 'FX:USDJPY': 'JPY=X',
-        'FX:USDCHF': 'CHF=X', 'FX:USDCAD': 'CAD=X', 'FX:AUDUSD': 'AUDUSD=X',
-        'FX:NZDUSD': 'NZDUSD=X', 'FX:EURAUD': 'EURAUD=X', 'FX:GBPJPY': 'GBPJPY=X',
-        'FX:EURJPY': 'EURJPY=X', 'FX:EURGBP': 'EURGBP=X',
+        'BINANCE:SOLUSDT': 'SOL-USD',  'BINANCE:BNBUSDT': 'BNB-USD',
+        # US Stocks
         'NASDAQ:AAPL': 'AAPL', 'NASDAQ:TSLA': 'TSLA', 'NASDAQ:NVDA': 'NVDA',
         'NASDAQ:META': 'META', 'NASDAQ:AMZN': 'AMZN', 'NASDAQ:MSFT': 'MSFT',
-        'NASDAQ:GOOGL': 'GOOGL', 'NYSE:JPM': 'JPM', 'NYSE:GS': 'GS', 'NYSE:V': 'V',
-        'NSE:NIFTY50': '^NSEI', 'BSE:SENSEX': '^BSESN', 'NSE:BANKNIFTY': '^NSEBANK',
-        'NSE:NIFTY BANK': '^NSEBANK',
+        'NASDAQ:GOOGL': 'GOOGL', 'NYSE:JPM': 'JPM', 'NYSE:GS': 'GS',
     }
 
-    # interval mapping: TV interval → yfinance period/interval
+    # TV interval → (yfinance_period, yfinance_interval)
+    # Forex = 24/5, use tighter windows so data is always fresh
     INTERVAL_MAP = {
-        '1':  ('1d',  '1m'),
-        '3':  ('5d',  '5m'),
-        '5':  ('5d',  '5m'),
-        '15': ('1mo', '15m'),
-        '30': ('1mo', '30m'),
-        '60': ('3mo', '60m'),
-        'D':  ('1y',  '1d'),
-        'W':  ('2y',  '1wk'),
+        '1':   ('2d',  '1m'),   # last 2 days of 1-minute candles
+        '5':   ('5d',  '5m'),   # 5 days of 5-minute candles
+        '15':  ('10d', '15m'),  # 10 days of 15-minute candles
+        '30':  ('20d', '30m'),  # 20 days of 30-minute candles
+        '60':  ('60d', '60m'),  # 60 days of 1-hour candles
+        '240': ('60d', '60m'),  # 4H: fetch 1H and client resamples — yfinance has no 4H
+        'D':   ('2y',  '1d'),   # 2 years of daily
+        'W':   ('5y',  '1wk'),  # 5 years of weekly
     }
 
     yf_interval_key = str(interval)
     period, yf_interval = INTERVAL_MAP.get(yf_interval_key, ('5d', '5m'))
 
-    # Convert symbol to Yahoo Finance format
-    yf_ticker = SYMBOL_MAP.get(symbol)
-    if not yf_ticker:
-        # NSE/BSE Indian equities
-        if symbol.startswith('NSE:'):
-            yf_ticker = symbol.replace('NSE:', '') + '.NS'
-        elif symbol.startswith('BSE:'):
-            yf_ticker = symbol.replace('BSE:', '') + '.BO'
-        else:
-            yf_ticker = symbol
+    # Resolve ticker
+    yf_ticker = SYMBOL_MAP.get(symbol, symbol)
+
+    # Determine decimal precision: Forex pairs = 5dp, JPY pairs = 3dp, Gold/indices = 2dp
+    is_jpy = 'JPY' in symbol.upper()
+    is_fx  = symbol.startswith('FX:')
+    if is_jpy:
+        digits = 3
+    elif is_fx:
+        digits = 5
+    else:
+        digits = 4
 
     try:
-        tk = yf.Ticker(yf_ticker)
-        df = tk.history(period=period, interval=yf_interval, auto_adjust=True)
+        tk  = yf.Ticker(yf_ticker)
+        df  = tk.history(period=period, interval=yf_interval, auto_adjust=True)
         if df is None or df.empty:
-            return {"candles": [], "symbol": symbol, "yf_ticker": yf_ticker}
+            return {"candles": [], "symbol": symbol, "yf_ticker": yf_ticker, "error": "No data returned"}
 
         candles = []
         for ts, row in df.iterrows():
-            # lightweight-charts expects time as unix seconds
             t = int(ts.timestamp())
             candles.append({
-                "time": t,
-                "open":  round(float(row['Open']), 4),
-                "high":  round(float(row['High']), 4),
-                "low":   round(float(row['Low']), 4),
-                "close": round(float(row['Close']), 4),
+                "time":   t,
+                "open":   round(float(row['Open']),  digits),
+                "high":   round(float(row['High']),  digits),
+                "low":    round(float(row['Low']),   digits),
+                "close":  round(float(row['Close']), digits),
                 "volume": int(row.get('Volume', 0) or 0),
             })
 
-        return {"candles": candles, "symbol": symbol, "yf_ticker": yf_ticker, "interval": yf_interval}
+        print(f"[OHLCV] ✅ {symbol} ({yf_ticker}) {yf_interval}/{period} → {len(candles)} candles")
+        return {"candles": candles, "symbol": symbol, "yf_ticker": yf_ticker, "interval": yf_interval, "count": len(candles)}
     except Exception as e:
-        print(f"[OHLCV] Error fetching {yf_ticker}: {e}")
+        print(f"[OHLCV] ❌ Error fetching {yf_ticker}: {e}")
         return {"candles": [], "symbol": symbol, "error": str(e)}
+
 
 
 @app.get("/api/trading/search")

@@ -20,12 +20,13 @@ const TIMEFRAMES = [
 
 export default function QuantumTradingWorkstation({ isMinimized = false, onMinimize, onRestore, onClose }) {
     const { micEnabled, setMicEnabled } = useFriday();
-    const [selectedSymbol, setSelectedSymbol] = useState('OANDA:NAS100USD');
+    const [selectedSymbol, setSelectedSymbol] = useState('FX:EURUSD');
     const [selectedInterval, setSelectedInterval] = useState('5');
     const [showSymbolSearchModal, setShowSymbolSearchModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [layoutGrid, setLayoutGrid] = useState('single'); // 'single' | 'dual' | 'quad'
     const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Risk-Reward Lot Size Calculator State
     const [showRiskCalculatorModal, setShowRiskCalculatorModal] = useState(false);
@@ -363,7 +364,7 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
                             </form>
 
                             <div className="text-[11px] text-slate-400">
-                                Popular: <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('OANDA:NAS100USD'); setShowSymbolSearchModal(false); }}>NASDAQ 100</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('OANDA:XAUUSD'); setShowSymbolSearchModal(false); }}>XAUUSD</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('CAPITALCOM:INDIA50'); setShowSymbolSearchModal(false); }}>NIFTY 50</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('BINANCE:BTCUSDT'); setShowSymbolSearchModal(false); }}>BTCUSD</span>
+                                Popular: <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('FX:EURUSD'); setShowSymbolSearchModal(false); }}>EUR/USD</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('FX:GBPUSD'); setShowSymbolSearchModal(false); }}>GBP/USD</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('FX:USDJPY'); setShowSymbolSearchModal(false); }}>USD/JPY</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('OANDA:XAUUSD'); setShowSymbolSearchModal(false); }}>XAU/USD</span> • <span className="text-[#2962ff] cursor-pointer" onClick={() => { setSelectedSymbol('BINANCE:BTCUSDT'); setShowSymbolSearchModal(false); }}>BTC/USD</span>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -467,7 +468,7 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
                                 <ProfessionalChart symbol={selectedSymbol} interval={selectedInterval} />
                             </div>
                             <div className="w-full h-full relative rounded overflow-hidden border border-[#2a2e39]">
-                                <ProfessionalChart symbol="OANDA:XAUUSD" interval={selectedInterval} />
+                                <ProfessionalChart symbol="FX:GBPUSD" interval={selectedInterval} />
                             </div>
                         </div>
                     )}
@@ -478,13 +479,13 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
                                 <ProfessionalChart symbol={selectedSymbol} interval={selectedInterval} />
                             </div>
                             <div className="w-full h-full relative rounded overflow-hidden border border-[#2a2e39]">
+                                <ProfessionalChart symbol="FX:GBPUSD" interval={selectedInterval} />
+                            </div>
+                            <div className="w-full h-full relative rounded overflow-hidden border border-[#2a2e39]">
+                                <ProfessionalChart symbol="FX:USDJPY" interval={selectedInterval} />
+                            </div>
+                            <div className="w-full h-full relative rounded overflow-hidden border border-[#2a2e39]">
                                 <ProfessionalChart symbol="OANDA:XAUUSD" interval={selectedInterval} />
-                            </div>
-                            <div className="w-full h-full relative rounded overflow-hidden border border-[#2a2e39]">
-                                <ProfessionalChart symbol="BINANCE:BTCUSDT" interval={selectedInterval} />
-                            </div>
-                            <div className="w-full h-full relative rounded overflow-hidden border border-[#2a2e39]">
-                                <ProfessionalChart symbol="CAPITALCOM:INDIA50" interval={selectedInterval} />
                             </div>
                         </div>
                     )}
