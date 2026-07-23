@@ -195,6 +195,22 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         try { localStorage.setItem(`friday_watchlist_items_${activeWatchlistId}`, JSON.stringify(defaults)); } catch(_) {}
         return defaults;
     });
+    // ── Open / Closed Toggle state for Watchlist panel ────────────────────────
+    const [isOpen, setIsOpen] = useState(() => {
+        try {
+            const saved = localStorage.getItem('friday_watchlist_open');
+            return saved !== null ? saved === 'true' : true;
+        } catch (_) { return true; }
+    });
+
+    const toggleOpen = React.useCallback(() => {
+        setIsOpen(prev => {
+            const next = !prev;
+            try { localStorage.setItem('friday_watchlist_open', String(next)); } catch (_) {}
+            return next;
+        });
+    }, []);
+
     // ── Resizable Watchlist Width state (draggable left/right) ─────────────────
     const [watchlistWidth, setWatchlistWidth] = useState(() => {
         try {
@@ -418,226 +434,243 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         const q = searchQuery.trim().toLowerCase();
         const matchesSearch = !q || s.name.toLowerCase().includes(q) || s.full.toLowerCase().includes(q) || s.symbol.toLowerCase().includes(q);
         const matchesCategory = activeCategory === 'all' || s.type === activeCategory;
-        return matchesSearch && matchesCategory;
-    });
-
-    const seenSymbols = new Set(localMatches.map(m => m.symbol));
-    const dedupedRemote = remoteResults.filter(r => !seenSymbols.has(r.symbol) && (activeCategory === 'all' || r.type === activeCategory));
-    const searchResults = [...localMatches, ...dedupedRemote];
-
-    const inWatchlist = new Set(watchlistItems.map(i => i.symbol));
-
-    const activeItem = watchlistItems.find(i => i.symbol === currentSymbol) || watchlistItems[0] || DEFAULT_WATCHLIST_ITEMS[0];
-
-    return (
+       return (
         <div className="flex h-full select-none font-sans z-30 shadow-2xl overflow-hidden bg-[#131722] text-[#d1d4dc] shrink-0 max-w-[45vw]">
-            {/* Draggable Resize Divider Handle on Left Edge */}
-            <div
-                onMouseDown={handleMouseDownResize}
-                onDoubleClick={handleDoubleClickResize}
-                className="w-2 hover:w-2.5 h-full bg-[#2a2e39]/60 hover:bg-[#2962ff] active:bg-[#2962ff] cursor-col-resize transition-all shrink-0 z-50 flex items-center justify-center group"
-                title="Drag left/right to resize watchlist width (Double-click to reset)"
-            >
-                <div className="w-0.5 h-10 bg-slate-500/50 group-hover:bg-white rounded-full transition-colors" />
-            </div>
-
-            {/* Main Watchlist Container (Dynamic Resizable Width) */}
-            <div
-                style={{ width: `${watchlistWidth}px` }}
-                className="flex flex-col h-full bg-[#131722] border-l border-[#2a2e39] py-1 shrink-0 transition-none overflow-hidden"
-            >
-                {/* Watchlist Header Tabs / Dropdown Options */}
-                <div className="h-13 border-b border-[#2a2e39] px-3 flex items-center justify-between bg-[#131722] relative z-40">
-                    <div 
-                        onClick={() => setShowWatchlistDropdown(s => !s)}
-                        className="flex items-center gap-2 cursor-pointer hover:text-white group relative"
+            {isOpen && (
+                <>
+                    {/* Draggable Resize Divider Handle on Left Edge */}
+                    <div
+                        onMouseDown={handleMouseDownResize}
+                        onDoubleClick={handleDoubleClickResize}
+                        className="w-2 hover:w-2.5 h-full bg-[#2a2e39]/60 hover:bg-[#2962ff] active:bg-[#2962ff] cursor-col-resize transition-all shrink-0 z-50 flex items-center justify-center group"
+                        title="Drag left/right to resize watchlist width (Double-click to reset)"
                     >
-                        <span className="text-sm font-black tracking-wide uppercase text-slate-100 group-hover:text-cyan-400 transition-colors">
-                            {activeWatchlistId === 'indian' ? 'Indian Stocks' : activeWatchlistId === 'main' ? 'Main Watchlist' : (customWatchlists.find(w => w.id === activeWatchlistId)?.name || 'Watchlist')} ({watchlistItems.length})
-                        </span>
-                        <ChevronDown size={16} className="text-slate-400 group-hover:text-cyan-400 transition-colors" />
-
-                        {/* Watchlist Switcher Dropdown */}
-                        <AnimatePresence>
-                            {showWatchlistDropdown && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 4, scale: 0.96 }}
-                                    className="absolute left-0 top-10 w-64 rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl p-2 z-50 flex flex-col gap-1 text-xs"
-                                    onClick={e => e.stopPropagation()}
-                                >
-                                    <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase font-mono tracking-wider">
-                                        Select Watchlist
-                                    </div>
-                                    <button
-                                        onClick={() => selectWatchlist('indian', DEFAULT_INDIAN_WATCHLIST)}
-                                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between font-semibold transition-all ${
-                                            activeWatchlistId === 'indian' ? 'bg-[#2962ff]/20 text-cyan-400 font-bold border border-[#2962ff]/40' : 'hover:bg-white/5 text-slate-200'
-                                        }`}
-                                    >
-                                        <span>Indian Stocks (NSE/BSE)</span>
-                                        <span className="text-xs opacity-70 font-mono">{DEFAULT_INDIAN_WATCHLIST.length}</span>
-                                    </button>
-                                    <button
-                                        onClick={() => selectWatchlist('main', DEFAULT_WATCHLIST_ITEMS)}
-                                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between font-semibold transition-all ${
-                                            activeWatchlistId === 'main' ? 'bg-[#2962ff]/20 text-cyan-400 font-bold border border-[#2962ff]/40' : 'hover:bg-white/5 text-slate-200'
-                                        }`}
-                                    >
-                                        <span>Main Global Watchlist</span>
-                                        <span className="text-xs opacity-70 font-mono">{DEFAULT_WATCHLIST_ITEMS.length}</span>
-                                    </button>
-
-                                    {customWatchlists.map(cw => (
-                                        <button
-                                            key={cw.id}
-                                            onClick={() => selectWatchlist(cw.id, cw.items)}
-                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between font-semibold transition-all ${
-                                                activeWatchlistId === cw.id ? 'bg-[#2962ff]/20 text-cyan-400 font-bold border border-[#2962ff]/40' : 'hover:bg-white/5 text-slate-200'
-                                            }`}
-                                        >
-                                            <span>📊 {cw.name}</span>
-                                            <span className="text-xs opacity-70 font-mono">{cw.items?.length || 0}</span>
-                                        </button>
-                                    ))}
-
-                                    <div className="h-px bg-[#2a2e39] my-1" />
-                                    <button
-                                        onClick={() => { setShowWatchlistDropdown(false); setShowCreateWatchlistModal(true); }}
-                                        className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-cyan-400 hover:bg-cyan-500/10 font-bold transition-all"
-                                    >
-                                        <Plus size={15} />
-                                        <span>Create New Watchlist...</span>
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        <div className="w-0.5 h-10 bg-slate-500/50 group-hover:bg-white rounded-full transition-colors" />
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        {/* Add Symbol Plus Button */}
-                        <button 
-                            onClick={() => setShowAddModal(true)} 
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer border border-white/10"
-                            title="Add Symbol to Watchlist"
-                        >
-                            <Plus size={18} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Table Header Columns: Symbol | Last | Chg | Chg% */}
-                <div className="px-2 py-1 bg-[#131722] border-b border-[#2a2e39]">
-                    <div className="flex items-center px-3 py-1.5 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                        <div className="flex-1 min-w-0">Symbol</div>
-                        <div className="w-24 text-right">Last</div>
-                        {watchlistWidth >= 300 && <div className="w-20 text-right pr-1">Chg</div>}
-                        <div className="w-20 text-right pr-1">Chg%</div>
-                    </div>
-                </div>
-
-                {/* Watchlist Items Scroll List */}
-                <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1.5 scrollbar-thin scrollbar-thumb-[#2a2e39]">
-                    {/* Collapsible Section Header */}
-                    <div 
-                        onClick={() => setSectionOpen(!sectionOpen)} 
-                        className="mx-1 px-3 py-2 flex items-center gap-2 text-xs font-mono font-bold text-cyan-400 uppercase bg-[#1e222d]/80 rounded-xl cursor-pointer hover:bg-[#1e222d] border border-cyan-500/20 shadow-sm"
+                    {/* Main Watchlist Container (Dynamic Resizable Width) */}
+                    <div
+                        style={{ width: `${watchlistWidth}px` }}
+                        className="flex flex-col h-full bg-[#131722] border-l border-[#2a2e39] py-1 shrink-0 transition-none overflow-hidden"
                     >
-                        {sectionOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        <span className="tracking-widest">SECTION 1</span>
-                    </div>
-
-                    {sectionOpen && watchlistItems.map((item, idx) => {
-                        const isSelected = currentSymbol === item.symbol;
-                        const isDragging = draggedIndex === idx;
-                        const liveInfo = liveData[item.symbol];
-
-                        // Use formatted live data if available, fall back to static DB values
-                        const displayPrice  = liveInfo ? liveInfo.price_str  : (item.price   || '—');
-                        const displayChange = liveInfo ? liveInfo.change_str : (item.change  || '—');
-                        const displayPct    = liveInfo ? liveInfo.pct_str    : (item.changePct || '—');
-                        const isPositive    = liveInfo ? liveInfo.isPositive : item.isPositive;
-                        const tickDir       = liveInfo ? liveInfo.tick_direction : null;
-
-                        return (
-                            <div
-                                key={item.symbol}
-                                draggable={true}
-                                onDragStart={(e) => handleDragStart(e, idx)}
-                                onDragOver={(e) => handleDragOver(e, idx)}
-                                onDrop={(e) => handleDrop(e, idx)}
-                                onClick={() => onSelectSymbol(item.symbol)}
-                                className={`group flex items-center px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl ${
-                                    isDragging ? 'opacity-30 border-cyan-400 border-dashed scale-95' :
-                                    isSelected 
-                                        ? 'bg-[#1e222d] border-[#2962ff] shadow-lg ring-1 ring-[#2962ff]/50' 
-                                        : 'bg-white/[0.04] hover:bg-white/[0.09] border-white/5 hover:border-white/15'
-                                }`}
+                        {/* Watchlist Header Tabs / Dropdown Options */}
+                        <div className="h-13 border-b border-[#2a2e39] px-3 flex items-center justify-between bg-[#131722] relative z-40">
+                            <div 
+                                onClick={() => setShowWatchlistDropdown(s => !s)}
+                                className="flex items-center gap-2 cursor-pointer hover:text-white group relative"
                             >
-                                {/* Left Red Bookmark Ribbon Flag */}
-                                {item.flagged && (
-                                    <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-[#f23645]" />
-                                )}
+                                <span className="text-sm font-black tracking-wide uppercase text-slate-100 group-hover:text-cyan-400 transition-colors">
+                                    {activeWatchlistId === 'indian' ? 'Indian Stocks' : activeWatchlistId === 'main' ? 'Main Watchlist' : (customWatchlists.find(w => w.id === activeWatchlistId)?.name || 'Watchlist')} ({watchlistItems.length})
+                                </span>
+                                <ChevronDown size={16} className="text-slate-400 group-hover:text-cyan-400 transition-colors" />
 
-                                {/* Column 1: SymbolLogo + Ticker Name */}
-                                <div className="flex-1 flex items-center gap-2 min-w-0 pr-2">
-                                    <SymbolLogo item={item} size="sm" />
-                                    <span className="text-xs font-extrabold text-white font-mono truncate tracking-tight">
-                                        {item.name}
-                                    </span>
-                                </div>
+                                {/* Watchlist Switcher Dropdown */}
+                                <AnimatePresence>
+                                    {showWatchlistDropdown && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                                            className="absolute left-0 top-10 w-64 rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl p-2 z-50 flex flex-col gap-1 text-xs"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase font-mono tracking-wider">
+                                                Select Watchlist
+                                            </div>
+                                            <button
+                                                onClick={() => selectWatchlist('indian', DEFAULT_INDIAN_WATCHLIST)}
+                                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between font-semibold transition-all ${
+                                                    activeWatchlistId === 'indian' ? 'bg-[#2962ff]/20 text-cyan-400 font-bold border border-[#2962ff]/40' : 'hover:bg-white/5 text-slate-200'
+                                                }`}
+                                            >
+                                                <span>Indian Stocks (NSE/BSE)</span>
+                                                <span className="text-xs opacity-70 font-mono">{DEFAULT_INDIAN_WATCHLIST.length}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => selectWatchlist('main', DEFAULT_WATCHLIST_ITEMS)}
+                                                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between font-semibold transition-all ${
+                                                    activeWatchlistId === 'main' ? 'bg-[#2962ff]/20 text-cyan-400 font-bold border border-[#2962ff]/40' : 'hover:bg-white/5 text-slate-200'
+                                                }`}
+                                            >
+                                                <span>Main Global Watchlist</span>
+                                                <span className="text-xs opacity-70 font-mono">{DEFAULT_WATCHLIST_ITEMS.length}</span>
+                                            </button>
 
-                                {/* Column 2: Last Price — clean bright white, blinks on tick */}
-                                <div className={`w-24 text-right font-mono text-xs font-bold text-slate-100 shrink-0 transition-all ${
-                                    tickDir === 'up' 
-                                        ? 'text-[#089981] animate-pulse' 
-                                        : tickDir === 'down' 
-                                        ? 'text-[#f23645] animate-pulse' 
-                                        : 'text-slate-100'
-                                }`}>
-                                    {displayPrice}
-                                </div>
+                                            {customWatchlists.map(cw => (
+                                                <button
+                                                    key={cw.id}
+                                                    onClick={() => selectWatchlist(cw.id, cw.items)}
+                                                    className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between font-semibold transition-all ${
+                                                        activeWatchlistId === cw.id ? 'bg-[#2962ff]/20 text-cyan-400 font-bold border border-[#2962ff]/40' : 'hover:bg-white/5 text-slate-200'
+                                                    }`}
+                                                >
+                                                    <span>📊 {cw.name}</span>
+                                                    <span className="text-xs opacity-70 font-mono">{cw.items?.length || 0}</span>
+                                                </button>
+                                            ))}
 
-                                {/* Column 3: Change Absolute (Hidden when narrow) */}
-                                {watchlistWidth >= 300 && (
-                                    <div className={`w-20 text-right font-mono text-[11px] font-semibold shrink-0 pr-1 ${
-                                        isPositive ? 'text-[#089981]' : 'text-[#f23645]'
-                                    }`}>
-                                        {displayChange}
-                                    </div>
-                                )}
-
-                                {/* Column 4: Change % / Delete Icon on Hover */}
-                                <div className="w-20 flex items-center justify-end font-mono text-[11px] font-bold shrink-0 relative pr-1">
-                                    <span className={`group-hover:hidden ${isPositive ? 'text-[#089981]' : 'text-[#f23645]'}`}>
-                                        {displayPct}
-                                    </span>
-                                    <button
-                                        onClick={(e) => handleDeleteSymbol(item.symbol, e)}
-                                        className="hidden group-hover:flex p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all"
-                                        title={`Delete ${item.name}`}
-                                    >
-                                        <Trash2 size={13} />
-                                    </button>
-                                </div>
+                                            <div className="h-px bg-[#2a2e39] my-1" />
+                                            <button
+                                                onClick={() => { setShowWatchlistDropdown(false); setShowCreateWatchlistModal(true); }}
+                                                className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-cyan-400 hover:bg-cyan-500/10 font-bold transition-all"
+                                            >
+                                                <Plus size={15} />
+                                                <span>Create New Watchlist...</span>
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                        );
-                    })}
-                </div>
 
-                {/* Bottom Active Symbol Toolbar Pane */}
-                <div className="h-11 border-t border-[#2a2e39] px-3.5 flex items-center justify-between bg-[#131722]">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <SymbolLogo item={activeItem || DEFAULT_INDIAN_WATCHLIST[0]} size="sm" />
-                        <span className="font-bold text-white text-xs font-mono truncate">{activeItem?.name || 'TICKER'}</span>
-                    </div>
+                            <div className="flex items-center gap-1.5">
+                                {/* Add Symbol Plus Button */}
+                                <button 
+                                    onClick={() => setShowAddModal(true)} 
+                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer border border-white/10"
+                                    title="Add Symbol to Watchlist"
+                                >
+                                    <Plus size={16} />
+                                </button>
+                                {/* Close Watchlist Button */}
+                                <button 
+                                    onClick={toggleOpen} 
+                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all cursor-pointer border border-white/10"
+                                    title="Close Watchlist (Hide Panel)"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        </div>
 
-                    <div className="flex items-center gap-3 text-slate-400 shrink-0">
-                        <button className="hover:text-white transition-all cursor-pointer"><Grid size={14} /></button>
-                        <button onClick={() => setShowAddModal(true)} className="hover:text-white transition-all cursor-pointer"><Plus size={14} /></button>
+                        {/* Table Header Columns: Symbol | Last | Chg | Chg% */}
+                        <div className="px-2 py-1 bg-[#131722] border-b border-[#2a2e39]">
+                            <div className="flex items-center px-3 py-1.5 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                                <div className="flex-1 min-w-0">Symbol</div>
+                                <div className="w-24 text-right">Last</div>
+                                {watchlistWidth >= 300 && <div className="w-20 text-right pr-1">Chg</div>}
+                                <div className="w-20 text-right pr-1">Chg%</div>
+                            </div>
+                        </div>
+
+                        {/* Watchlist Items Scroll List */}
+                        <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1.5 scrollbar-thin scrollbar-thumb-[#2a2e39]">
+                            {/* Collapsible Section Header */}
+                            <div 
+                                onClick={() => setSectionOpen(!sectionOpen)} 
+                                className="mx-1 px-3 py-2 flex items-center gap-2 text-xs font-mono font-bold text-cyan-400 uppercase bg-[#1e222d]/80 rounded-xl cursor-pointer hover:bg-[#1e222d] border border-cyan-500/20 shadow-sm"
+                            >
+                                {sectionOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                <span className="tracking-widest">SECTION 1</span>
+                            </div>
+
+                            {sectionOpen && watchlistItems.map((item, idx) => {
+                                const isSelected = currentSymbol === item.symbol;
+                                const isDragging = draggedIndex === idx;
+                                const liveInfo = liveData[item.symbol];
+
+                                // Use formatted live data if available, fall back to static DB values
+                                const displayPrice  = liveInfo ? liveInfo.price_str  : (item.price   || '—');
+                                const displayChange = liveInfo ? liveInfo.change_str : (item.change  || '—');
+                                const displayPct    = liveInfo ? liveInfo.pct_str    : (item.changePct || '—');
+                                const isPositive    = liveInfo ? liveInfo.isPositive : item.isPositive;
+                                const tickDir       = liveInfo ? liveInfo.tick_direction : null;
+
+                                return (
+                                    <div
+                                        key={item.symbol}
+                                        draggable={true}
+                                        onDragStart={(e) => handleDragStart(e, idx)}
+                                        onDragOver={(e) => handleDragOver(e, idx)}
+                                        onDrop={(e) => handleDrop(e, idx)}
+                                        onClick={() => onSelectSymbol(item.symbol)}
+                                        className={`group flex items-center px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl ${
+                                            isDragging ? 'opacity-30 border-cyan-400 border-dashed scale-95' :
+                                            isSelected 
+                                                ? 'bg-[#1e222d] border-[#2962ff] shadow-lg ring-1 ring-[#2962ff]/50' 
+                                                : 'bg-white/[0.04] hover:bg-white/[0.09] border-white/5 hover:border-white/15'
+                                        }`}
+                                    >
+                                        {/* Left Red Bookmark Ribbon Flag */}
+                                        {item.flagged && (
+                                            <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-[#f23645]" />
+                                        )}
+
+                                        {/* Column 1: SymbolLogo + Ticker Name */}
+                                        <div className="flex-1 flex items-center gap-2 min-w-0 pr-2">
+                                            <SymbolLogo item={item} size="sm" />
+                                            <span className="text-xs font-extrabold text-white font-mono truncate tracking-tight">
+                                                {item.name}
+                                            </span>
+                                        </div>
+
+                                        {/* Column 2: Last Price — clean bright white, blinks on tick */}
+                                        <div className={`w-24 text-right font-mono text-xs font-bold text-slate-100 shrink-0 transition-all ${
+                                            tickDir === 'up' 
+                                                ? 'text-[#089981] animate-pulse' 
+                                                : tickDir === 'down' 
+                                                ? 'text-[#f23645] animate-pulse' 
+                                                : 'text-slate-100'
+                                        }`}>
+                                            {displayPrice}
+                                        </div>
+
+                                        {/* Column 3: Change Absolute (Hidden when narrow) */}
+                                        {watchlistWidth >= 300 && (
+                                            <div className={`w-20 text-right font-mono text-[11px] font-semibold shrink-0 pr-1 ${
+                                                isPositive ? 'text-[#089981]' : 'text-[#f23645]'
+                                            }`}>
+                                                {displayChange}
+                                            </div>
+                                        )}
+
+                                        {/* Column 4: Change % / Delete Icon on Hover */}
+                                        <div className="w-20 flex items-center justify-end font-mono text-[11px] font-bold shrink-0 relative pr-1">
+                                            <span className={`group-hover:hidden ${isPositive ? 'text-[#089981]' : 'text-[#f23645]'}`}>
+                                                {displayPct}
+                                            </span>
+                                            <button
+                                                onClick={(e) => handleDeleteSymbol(item.symbol, e)}
+                                                className="hidden group-hover:flex p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all"
+                                                title={`Delete ${item.name}`}
+                                            >
+                                                <Trash2 size={13} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Bottom Active Symbol Toolbar Pane */}
+                        <div className="h-11 border-t border-[#2a2e39] px-3.5 flex items-center justify-between bg-[#131722]">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <SymbolLogo item={activeItem || DEFAULT_INDIAN_WATCHLIST[0]} size="sm" />
+                                <span className="font-bold text-white text-xs font-mono truncate">{activeItem?.name || 'TICKER'}</span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-slate-400 shrink-0">
+                                <button className="hover:text-white transition-all cursor-pointer"><Grid size={14} /></button>
+                                <button onClick={() => setShowAddModal(true)} className="hover:text-white transition-all cursor-pointer"><Plus size={14} /></button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </>
+            )}
+
+            {/* TradingView Rightmost Vertical Icon Bar */}
+            <div className="w-[45px] bg-[#131722] border-l border-[#2a2e39] flex flex-col items-center justify-between py-3 text-slate-400 shrink-0">
+                <div className="flex flex-col items-center gap-5">
+                    <button
+                        onClick={toggleOpen}
+                        className={`p-2 rounded transition-all cursor-pointer ${
+                            isOpen
+                                ? 'bg-[#2962ff]/20 text-[#2962ff] border border-[#2962ff]/40 shadow-sm'
+                                : 'hover:bg-[#1e222d] text-slate-400 hover:text-slate-200'
+                        }`}
+                        title={isOpen ? 'Close Watchlist (Hide Panel)' : 'Open Watchlist Panel'}
+                    >
+                        <Clock size={18} />
+                    </button>          </div>
             </div>
 
             {/* TradingView Rightmost Vertical Icon Bar */}
