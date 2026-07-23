@@ -19,7 +19,7 @@ const STATE_CONFIG = {
     SPEAKING:   { color: [0.0,  0.80,  1.0],  bloom: 1.9, ringSpeed: 4.8, label: 'SPEAKING...'              },
     VERIFYING:  { color: [0.0,  0.55,  0.9],  bloom: 1.8, ringSpeed: 5.0, label: 'VERIFYING IDENTITY...'    },
     UNLOCKING:  { color: [0.0,  0.55,  0.9],  bloom: 2.5, ringSpeed: 7.0, label: 'IDENTITY CONFIRMED'       },
-    UNLOCKED:   { color: [0.0,  0.55,  0.9],  bloom: 0.6, ringSpeed: 1.2, label: 'MONITORING SYSTEMS'       },
+    UNLOCKED:   { color: [0.0,  0.55,  0.9],  bloom: 0.6, ringSpeed: 1.2, label: 'ONLINE AND READY'         },
 };
 
 // Contextual idle messages that rotate
@@ -497,7 +497,8 @@ export function OrbProvider({ children }) {
             setAuthStep(null);
             setResponseMessage('');
             setConversationMode('idle');
-            transitionTo('UNLOCKED');
+            // ✅ FIX: Go to LISTENING (hot mic, orange glow) — not passive UNLOCKED/monitoring
+            transitionTo('LISTENING');
             setState('verified');
         }, maxDelay + 2200);
     }, [transitionTo, setState, scheduleTimer, unlockAudio, setMicEnabled]);

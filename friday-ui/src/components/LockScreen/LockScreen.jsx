@@ -134,11 +134,11 @@ export default function LockScreen() {
                                     animate={{ opacity: 1, y: 0 }}
                                     className="flex flex-col items-center gap-2"
                                 >
-                                    <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#00D9FF] font-light" style={{ textShadow: '0 0 16px rgba(0,217,255,0.35)' }}>
-                                        MONITORING SYSTEMS
+                                    <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#FF8C00] font-light" style={{ textShadow: '0 0 16px rgba(255,140,0,0.45)' }}>
+                                        LISTENING...
                                     </h2>
                                     <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
-                                        AMBIENT MODE · SAY “HEY FRIDAY”
+                                        VOICE ACTIVE · SPEAK FREELY
                                     </p>
                                 </motion.div>
                             )}
