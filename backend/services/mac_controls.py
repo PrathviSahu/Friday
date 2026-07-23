@@ -1,7 +1,7 @@
 """macOS Display & System Automation Controller for F.R.I.D.A.Y.
 
-Provides zero-latency hardware & display controls:
-- Display Brightness adjustment via CoreGraphics DisplayServices framework (0.0 to 1.0)
+Provides hardware & display controls:
+- Display Brightness adjustment via CoreGraphics DisplayServices + AppleScript hardware keycode simulation
 - System Dark Mode / Light Mode toggle via AppleScript
 - System Volume & Mute control via AppleScript
 - Screen Saver / Lock Display execution
@@ -9,6 +9,7 @@ Provides zero-latency hardware & display controls:
 import ctypes
 import os
 import platform
+import re
 import subprocess
 from typing import Dict, Any
 
@@ -16,8 +17,11 @@ IS_MAC = platform.system() == "Darwin"
 
 # ── Private DisplayServices C-Bindings for macOS Display Brightness ──────────
 _display_services = None
+_quartz = None
 if IS_MAC:
     try:
+        import Quartz
+        _quartz = Quartz
         _display_services = ctypes.CDLL(
             "/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices"
         )
@@ -33,7 +37,8 @@ def get_brightness() -> float:
     if _display_services:
         try:
             val = ctypes.c_float()
-            _display_services.DisplayServicesGetBrightness(1, ctypes.byref(val))
+            display_id = _quartz.CGMainDisplayID() if _quartz else 1
+            _display_services.DisplayServicesGetBrightness(display_id, ctypes.byref(val))
             return round(float(val.value), 2)
         except Exception:
             pass
@@ -50,27 +55,42 @@ def set_brightness(level: float) -> bool:
         level = level / 100.0
     level = max(0.0, min(1.0, float(level)))
 
+    current = get_brightness()
+    success = False
+
+    # 1. Try C-bindings for DisplayServices across all active displays
     if _display_services:
         try:
-            _display_services.DisplayServicesSetBrightness(1, level)
-            print(f"[MacControls] Set display brightness to {int(level * 100)}%")
-            return True
+            displays = [1]
+            if _quartz:
+                try:
+                    (err, d_list, count) = _quartz.CGGetOnlineDisplayList(10, None, None)
+                    if d_list:
+                        displays = list(d_list)
+                except Exception:
+                    displays = [_quartz.CGMainDisplayID()]
+
+            for d in displays:
+                _display_services.DisplayServicesSetBrightness(d, level)
+            success = True
+            print(f"[MacControls] Set display brightness to {int(level * 100)}% via DisplayServices")
         except Exception as e:
             print(f"[MacControls] DisplayServices error: {e}")
 
-    # Fallback to key code simulation via AppleScript
+    # 2. Keycode 144 (Down) / 145 (Up) AppleScript hardware simulation for Apple Silicon & macOS Control Center
     try:
-        current = get_brightness()
-        steps = int(round((level - current) * 16))
+        diff = level - current
+        steps = int(round(diff * 16))
         if steps != 0:
             key_code = 145 if steps > 0 else 144
             script = f'tell application "System Events" to repeat {abs(steps)} times\nkey code {key_code}\nend repeat'
-            subprocess.run(["osascript", "-e", script], check=True)
-            return True
+            subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=3)
+            success = True
+            print(f"[MacControls] Triggered {abs(steps)} keycode {key_code} brightness steps")
     except Exception as e:
-        print(f"[MacControls] AppleScript brightness fallback error: {e}")
+        print(f"[MacControls] AppleScript brightness keycode error: {e}")
 
-    return False
+    return success
 
 
 def get_dark_mode() -> bool:
@@ -109,7 +129,6 @@ def get_system_volume() -> Dict[str, Any]:
         res = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=2)
         out = res.stdout.strip()
         
-        # Output format: output volume:80, input volume:50, alert volume:100, output muted:false
         vol_match = re.search(r'output volume:(\d+)', out)
         mute_match = re.search(r'output muted:(true|false)', out, re.IGNORECASE)
         
@@ -155,7 +174,6 @@ def lock_display() -> bool:
     if not IS_MAC:
         return False
     try:
-        # Trigger macOS lock display
         subprocess.run(["pmset", "displaysleepnow"], check=True)
         print("[MacControls] Lock display executed")
         return True
