@@ -6,7 +6,7 @@ import edge_tts
 
 import re
 
-VOICE_ENGLISH = 'en-IN-NeerjaNeural'      # Indian English Neural (Neerja) — crystal clear Indian accent for English & Hinglish
+VOICE_ENGLISH = 'en-GB-SoniaNeural'      # Authentic F.R.I.D.A.Y. British Female Neural Voice (Sonia)
 VOICE_HINDI   = 'hi-IN-SwaraNeural'       # Native Devanagari Hindi Neural Voice
 
 
