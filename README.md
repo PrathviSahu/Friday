@@ -38,19 +38,20 @@ Key architectural pillars:
 - **Now Playing Telemetry**: Live track title, artist, artwork, position timer, and click-to-seek progress bar (`/api/spotify/seek`).
 
 ### 📈 3. Quantum Trading Workstation
-- **TradingView Lightweight Charts Engine**: High-performance canvas chart rendering with candlestick & volume histograms.
-- **Real-Time Data Pipeline (`/api/trading/ohlcv`)**: Live and historical OHLCV data via Yahoo Finance (`yfinance`) across 7 timeframes (`1m`, `5m`, `15m`, `30m`, `1h`, `1D`, `1W`).
-- **5000+ Symbols Covered**: Indian Equities (`NSE:RELIANCE`, `NSE:TCS`, `BSE:SENSEX`, `NSE:NIFTY50`), Forex (`FX:EURUSD`), Crypto (`BINANCE:BTCUSDT`), Global Indices (`OANDA:NAS100USD`), and US Equities.
-- **Persistent Drag-and-Drop Watchlist**: HTML5 drag-and-drop reordering. All custom ordering, stock additions, and deletions persist permanently in SQLite (`friday_trading_db.sqlite`) and `localStorage`.
-- **Live Auto-Polling**: Real-time tick updates every 30 seconds with pulsing `LIVE` badge and manual refresh button (`↺`).
+- **Authentic TradingView Widget Engine**: Full left drawing toolbar (Trendlines, Rays, Fibonacci Retracements, Long/Short Position Calculators, Ruler, Brush, Boxes) + all technical indicators (RSI, MACD, Moving Averages, Order Blocks) and chart styles (Candles, Heikin Ashi, Line, Bars).
+- **Live 24/5 Global Data Feeds**: Default pairs for Forex majors (`FX:EURUSD`, `GBPUSD`, `USDJPY`), Gold (`OANDA:XAUUSD`), Bitcoin (`BINANCE:BTCUSDT`), Nasdaq (`OANDA:NAS100USD`), and DXY.
+- **Multi-Chart Layouts**: Toggle seamlessly between 1x1 single view, 2x1 dual split view, and 2x2 quad grid view.
+- **Custom Resizable Watchlist**: Dynamic resizable width with draggable divider, header Close button (`X`), and sidebar toggle icon (`Clock`).
+- **Risk & Lot Size Calculator**: Interactive position size calculator for account balance, risk %, and stop loss pips.
+- **SQLite Auto-Save**: Silent background sync every 5 seconds to persist chart layout & drawings in `friday_brain.db`.
 
-- **Voice Media Control**: *"play Kesariya"*, *"volume down"*, *"mute"*, *"set volume to 70%"*, *"next track"*, *"pause"*, *"play English playlist"*.
-- **Now Playing Telemetry**: Live song title, artist name, album cover art, playback position timer, and click-to-seek progress bar (`/api/spotify/seek`).
-
-### 💻 4. macOS System Automation & Telemetry
+### 💻 4. macOS System Automation & Telemetry (`mac_controls.py`)
+- **Zero-Latency Display Brightness**: Dual-engine C-bindings using macOS `DisplayServices` private framework + keycode hardware simulation for exact 100%, 10%, 50% brightness control across Retina & external displays.
+- **System Dark Mode Toggle**: Instant AppleScript switching between Dark Mode and Light Mode.
+- **Master Audio & Mute Controls**: Voice and slider control for system output volume and mute status.
+- **Lock Display Execution**: Instant screen locking (`pmset displaysleepnow`) via voice or UI HUD.
 - **Voice Application Control**: Open and quit macOS applications (`Brave`, `VS Code`, `Spotify`, `Terminal`, `Finder`) via sanitized AppleScript wrappers.
 - **System Telemetry**: Real-time CPU usage %, RAM GB/%, SSD Disk %, and Battery power monitoring via `psutil`.
-- **System Volume Control**: Adjust master output volume by percentage or relative step commands.
 
 ### 📋 5. HUD Dashboard & Widgets
 - **Spotify Card**: Floating player with album art, position seek bar, and playback toggles.
