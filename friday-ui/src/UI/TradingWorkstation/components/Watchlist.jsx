@@ -528,19 +528,21 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                 </div>
 
                 {/* Table Header Columns: Symbol | Last | Chg | Chg% */}
-                <div className="grid grid-cols-12 px-4 py-2.5 text-xs font-mono font-bold text-slate-300 uppercase tracking-wider bg-[#131722] border-b border-[#2a2e39]">
-                    <div className="col-span-4">Symbol</div>
-                    <div className="col-span-3 text-right">Last</div>
-                    <div className="col-span-2 text-right">Chg</div>
-                    <div className="col-span-3 text-right">Chg%</div>
+                <div className="px-2 py-1 bg-[#131722] border-b border-[#2a2e39]">
+                    <div className="grid grid-cols-12 items-center px-3 py-1.5 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider gap-1">
+                        <div className={watchlistWidth < 300 ? 'col-span-5' : 'col-span-4'}>Symbol</div>
+                        <div className={`${watchlistWidth < 300 ? 'col-span-4' : 'col-span-3'} text-right`}>Last</div>
+                        {watchlistWidth >= 300 && <div className="col-span-2 text-right">Chg</div>}
+                        <div className={`${watchlistWidth < 300 ? 'col-span-3' : 'col-span-3'} text-right pr-1`}>Chg%</div>
+                    </div>
                 </div>
 
                 {/* Watchlist Items Scroll List */}
-                <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2 scrollbar-thin scrollbar-thumb-[#2a2e39]">
+                <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1.5 scrollbar-thin scrollbar-thumb-[#2a2e39]">
                     {/* Collapsible Section Header */}
                     <div 
                         onClick={() => setSectionOpen(!sectionOpen)} 
-                        className="mx-1 px-4 py-2.5 flex items-center gap-2 text-xs font-mono font-bold text-cyan-400 uppercase bg-[#1e222d]/80 rounded-xl cursor-pointer hover:bg-[#1e222d] border border-cyan-500/20 shadow-sm"
+                        className="mx-1 px-3 py-2 flex items-center gap-2 text-xs font-mono font-bold text-cyan-400 uppercase bg-[#1e222d]/80 rounded-xl cursor-pointer hover:bg-[#1e222d] border border-cyan-500/20 shadow-sm"
                     >
                         {sectionOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         <span className="tracking-widest">SECTION 1</span>
@@ -566,9 +568,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 onDragOver={(e) => handleDragOver(e, idx)}
                                 onDrop={(e) => handleDrop(e, idx)}
                                 onClick={() => onSelectSymbol(item.symbol)}
-                                className={`group grid items-center px-3 py-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl gap-1 ${
-                                    watchlistWidth < 300 ? 'grid-cols-12' : 'grid-cols-12'
-                                } ${
+                                className={`group grid grid-cols-12 items-center px-3 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl gap-1 ${
                                     isDragging ? 'opacity-30 border-cyan-400 border-dashed scale-95' :
                                     isSelected 
                                         ? 'bg-[#1e222d] border-[#2962ff] shadow-lg ring-1 ring-[#2962ff]/50' 
@@ -588,8 +588,8 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                     </span>
                                 </div>
 
-                                {/* Column 2: Last Price — blinks green/red on tick */}
-                                <div className={`${watchlistWidth < 300 ? 'col-span-4' : 'col-span-3'} text-right font-mono text-xs font-bold transition-all ${
+                                {/* Column 2: Last Price — clean bright white, blinks on tick */}
+                                <div className={`${watchlistWidth < 300 ? 'col-span-4' : 'col-span-3'} text-right font-mono text-xs font-bold text-slate-100 transition-all ${
                                     tickDir === 'up' 
                                         ? 'text-[#089981] animate-pulse' 
                                         : tickDir === 'down' 
@@ -609,7 +609,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 )}
 
                                 {/* Column 4: Change % / Delete Icon on Hover */}
-                                <div className={`${watchlistWidth < 300 ? 'col-span-3' : 'col-span-3'} flex items-center justify-end font-mono text-[11px] font-bold relative pl-1`}>
+                                <div className={`${watchlistWidth < 300 ? 'col-span-3' : 'col-span-3'} flex items-center justify-end font-mono text-[11px] font-bold relative pr-1`}>
                                     <span className={`group-hover:hidden ${isPositive ? 'text-[#089981]' : 'text-[#f23645]'}`}>
                                         {displayPct}
                                     </span>
