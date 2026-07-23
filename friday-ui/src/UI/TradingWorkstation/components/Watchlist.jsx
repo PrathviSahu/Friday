@@ -195,6 +195,36 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         try { localStorage.setItem(`friday_watchlist_items_${activeWatchlistId}`, JSON.stringify(defaults)); } catch(_) {}
         return defaults;
     });
+    // ── Resizable Watchlist Width state (draggable left/right) ─────────────────
+    const [watchlistWidth, setWatchlistWidth] = useState(() => {
+        try { return parseInt(localStorage.getItem('friday_watchlist_width') || '300', 10); } catch (_) { return 300; }
+    });
+    const isResizingRef = useRef(false);
+
+    const handleMouseDownResize = React.useCallback((e) => {
+        e.preventDefault();
+        isResizingRef.current = true;
+        const startX = e.clientX;
+        const startWidth = watchlistWidth;
+
+        const onMouseMove = (moveEvent) => {
+            if (!isResizingRef.current) return;
+            const deltaX = startX - moveEvent.clientX; // Left drag increases width
+            const newWidth = Math.max(180, Math.min(550, startWidth + deltaX));
+            setWatchlistWidth(newWidth);
+            try { localStorage.setItem('friday_watchlist_width', String(newWidth)); } catch (_) {}
+        };
+
+        const onMouseUp = () => {
+            isResizingRef.current = false;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    }, [watchlistWidth]);
+
     const [apiLoading, setApiLoading] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState(null);
 
@@ -389,10 +419,22 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
 
     return (
         <div className="flex h-full select-none font-sans z-30 shadow-2xl overflow-hidden bg-[#131722] text-[#d1d4dc]">
-            {/* Main Watchlist Container (Enlarged 420px width & spacious rows) */}
-            <div className="w-[420px] flex flex-col h-full bg-[#131722] border-l border-[#2a2e39] py-1">
+            {/* Draggable Resize Divider Handle on Left Edge */}
+            <div
+                onMouseDown={handleMouseDownResize}
+                className="w-2 hover:w-2.5 h-full bg-[#2a2e39]/60 hover:bg-[#2962ff] active:bg-[#2962ff] cursor-col-resize transition-all shrink-0 z-50 flex items-center justify-center group"
+                title="Drag left/right to resize watchlist width"
+            >
+                <div className="w-0.5 h-10 bg-slate-500/50 group-hover:bg-white rounded-full transition-colors" />
+            </div>
+
+            {/* Main Watchlist Container (Dynamic Resizable Width) */}
+            <div
+                style={{ width: `${watchlistWidth}px` }}
+                className="flex flex-col h-full bg-[#131722] border-l border-[#2a2e39] py-1 shrink-0 transition-none overflow-hidden"
+            >
                 {/* Watchlist Header Tabs / Dropdown Options */}
-                <div className="h-13 border-b border-[#2a2e39] px-4 flex items-center justify-between bg-[#131722] relative z-40">
+                <div className="h-13 border-b border-[#2a2e39] px-3 flex items-center justify-between bg-[#131722] relative z-40">
                     <div 
                         onClick={() => setShowWatchlistDropdown(s => !s)}
                         className="flex items-center gap-2 cursor-pointer hover:text-white group relative"
@@ -511,7 +553,9 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                 onDragOver={(e) => handleDragOver(e, idx)}
                                 onDrop={(e) => handleDrop(e, idx)}
                                 onClick={() => onSelectSymbol(item.symbol)}
-                                className={`group grid grid-cols-12 items-center px-4 py-3 rounded-2xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl ${
+                                className={`group grid items-center px-3 py-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all relative border backdrop-blur-xl gap-1 ${
+                                    watchlistWidth < 300 ? 'grid-cols-12' : 'grid-cols-12'
+                                } ${
                                     isDragging ? 'opacity-30 border-cyan-400 border-dashed scale-95' :
                                     isSelected 
                                         ? 'bg-[#1e222d] border-[#2962ff] shadow-lg ring-1 ring-[#2962ff]/50' 
@@ -520,19 +564,19 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                             >
                                 {/* Left Red Bookmark Ribbon Flag */}
                                 {item.flagged && (
-                                    <div className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r bg-[#f23645]" />
+                                    <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-[#f23645]" />
                                 )}
 
                                 {/* Column 1: SymbolLogo + Ticker Name */}
-                                <div className="col-span-4 flex items-center gap-3 min-w-0 pr-1 pl-1">
+                                <div className={`${watchlistWidth < 300 ? 'col-span-5' : 'col-span-4'} flex items-center gap-2 min-w-0 pr-1`}>
                                     <SymbolLogo item={item} size="sm" />
-                                    <span className="text-sm font-extrabold text-white font-mono truncate tracking-tight">
+                                    <span className="text-xs font-extrabold text-white font-mono truncate tracking-tight">
                                         {item.name}
                                     </span>
                                 </div>
 
                                 {/* Column 2: Last Price — blinks green/red on tick */}
-                                <div className={`col-span-3 text-right font-mono text-[13px] font-bold transition-all ${
+                                <div className={`${watchlistWidth < 300 ? 'col-span-4' : 'col-span-3'} text-right font-mono text-xs font-bold transition-all ${
                                     tickDir === 'up' 
                                         ? 'text-[#089981] animate-pulse' 
                                         : tickDir === 'down' 
@@ -542,15 +586,17 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                     {displayPrice}
                                 </div>
 
-                                {/* Column 3: Change Absolute */}
-                                <div className={`col-span-2 text-right font-mono text-xs font-semibold ${
-                                    isPositive ? 'text-[#089981]' : 'text-[#f23645]'
-                                }`}>
-                                    {displayChange}
-                                </div>
+                                {/* Column 3: Change Absolute (Hidden when narrow) */}
+                                {watchlistWidth >= 300 && (
+                                    <div className={`col-span-2 text-right font-mono text-[11px] font-semibold ${
+                                        isPositive ? 'text-[#089981]' : 'text-[#f23645]'
+                                    }`}>
+                                        {displayChange}
+                                    </div>
+                                )}
 
                                 {/* Column 4: Change % / Delete Icon on Hover */}
-                                <div className="col-span-3 flex items-center justify-end font-mono text-[11px] font-bold relative pl-1">
+                                <div className={`${watchlistWidth < 300 ? 'col-span-3' : 'col-span-3'} flex items-center justify-end font-mono text-[11px] font-bold relative pl-1`}>
                                     <span className={`group-hover:hidden ${isPositive ? 'text-[#089981]' : 'text-[#f23645]'}`}>
                                         {displayPct}
                                     </span>
@@ -559,7 +605,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
                                         className="hidden group-hover:flex p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all"
                                         title={`Delete ${item.name}`}
                                     >
-                                        <Trash2 size={14} />
+                                        <Trash2 size={13} />
                                     </button>
                                 </div>
                             </div>
