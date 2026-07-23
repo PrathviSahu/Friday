@@ -3,9 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Environment variables
+# Environment variables & OAuth tokens
 .env
 *.env
+backend/credentials.json
+backend/token.json
+*.db
+*.sqlite
+backend/data/*.db
+backend/data/*.sqlite
+backend/data/gdrive_backups/
 
 # Virtual environments
 .venv/

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from 'framer-motion';
 import {
     Play, Pause, SkipBack, SkipForward,
     Volume2, VolumeX, X, Search,
     Shuffle, Repeat, Repeat1, Heart,
     GripHorizontal, Mic2, ListMusic,
-    Maximize2
+    Maximize2, Plus, ListPlus, Sparkles, Music
 } from 'lucide-react';
 import { fetchChatText } from '../../api/chatText';
 
@@ -48,8 +48,99 @@ export default function SpotifyCard() {
     const [progress, setProgress] = useState(0); // real seconds
     const [songQuery, setSongQuery] = useState('');
     const [searching, setSearching] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
+    const [showSearch, setShowSearch] = useState(true);
+    const [suggestions, setSuggestions] = useState([]);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const progressBarRef = useRef(null);
+
+    // Create New Playlist Modal State
+    const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
+    const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [newPlaylistVibe, setNewPlaylistVibe] = useState('🎧 Chill Lo-Fi');
+    const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+    const [playlistCreatedMsg, setPlaylistCreatedMsg] = useState('');
+
+    // ── 3D Liquid Drag & Motion Controls ──
+    const [isDragging, setIsDragging] = useState(false);
+    const [transformOrigin, setTransformOrigin] = useState('50% 50%');
+    const cardRef = useRef(null);
+
+    const dragControls = useDragControls();
+    const rawRotateX = useMotionValue(0);
+    const rawRotateY = useMotionValue(0);
+    const rotateX = useSpring(rawRotateX, { stiffness: 180, damping: 14, mass: 0.35 });
+    const rotateY = useSpring(rawRotateY, { stiffness: 180, damping: 14, mass: 0.35 });
+
+    const handlePointerDownHeader = (e) => {
+        if (cardRef.current) {
+            const rect = cardRef.current.getBoundingClientRect();
+            setTransformOrigin(`${e.clientX - rect.left}px ${e.clientY - rect.top}px`);
+        }
+        setIsDragging(true);
+        dragControls.start(e);
+    };
+
+    const handleDrag = (_, info) => {
+        const vx = info.velocity.x;
+        const vy = info.velocity.y;
+        // Balanced tilt sensitivity & 24deg max tilt limit
+        const targetTiltX = Math.max(-24, Math.min(24, -vy * 0.045));
+        const targetTiltY = Math.max(-24, Math.min(24, vx * 0.045));
+        rawRotateX.set(targetTiltX);
+        rawRotateY.set(targetTiltY);
+    };
+
+    const handleDragEnd = () => {
+        setIsDragging(false);
+        rawRotateX.set(0);
+        rawRotateY.set(0);
+    };
+
+    // Live search suggestions as user types (Spotify style)
+    useEffect(() => {
+        const q = songQuery.trim();
+        if (q.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            setLoadingSuggestions(true);
+            try {
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const items = (data.results || []).map(r => ({
+                        id: r.trackId,
+                        title: r.trackName,
+                        artist: r.artistName,
+                        artwork: r.artworkUrl60 || r.artworkUrl100
+                    }));
+                    setSuggestions(items);
+                }
+            } catch (_) {}
+            setLoadingSuggestions(false);
+        }, 220);
+        return () => clearTimeout(timer);
+    }, [songQuery]);
+
+    const playSuggestion = async (title, artist) => {
+        const query = `${title} ${artist}`;
+        setSearching(true);
+        setSuggestions([]);
+        setSongQuery('');
+        try {
+            await fetchChatText(`play ${query}`, true);
+            setTimeout(async () => {
+                const res = await fetch('http://localhost:8000/api/spotify/current-track');
+                if (res.ok) {
+                    const data = await res.json();
+                    setSpotifyTrack(data);
+                    if (typeof data.position === 'number') setProgress(data.position);
+                }
+            }, 1000);
+        } catch (_) {}
+        setTimeout(() => setSearching(false), 1500);
+    };
 
     const totalSecs = spotifyTrack.duration || 180;
     const progressPct = Math.min(100, (progress / totalSecs) * 100);
@@ -74,11 +165,20 @@ export default function SpotifyCard() {
         e.preventDefault();
         const q = songQuery.trim();
         if (!q) return;
-        setSearching(true);
-        setSongQuery('');
-        setShowSearch(false);
+        playSuggestion(q, '');
+    };
+
+    const handleCreatePlaylist = async (e) => {
+        if (e) e.preventDefault();
+        const name = newPlaylistName.trim() || newPlaylistVibe.replace(/^[^\s]+\s*/, '');
+        if (!name) return;
+        setCreatingPlaylist(true);
         try {
-            await fetchChatText(`play ${q}`, true);
+            await fetchChatText(`play ${name} playlist`, true);
+            setPlaylistCreatedMsg(`✨ Playing '${name}'`);
+            setTimeout(() => setPlaylistCreatedMsg(''), 4000);
+            setShowCreatePlaylist(false);
+            setNewPlaylistName('');
             setTimeout(async () => {
                 const res = await fetch('http://localhost:8000/api/spotify/current-track');
                 if (res.ok) {
@@ -88,7 +188,7 @@ export default function SpotifyCard() {
                 }
             }, 1000);
         } catch (_) {}
-        setTimeout(() => setSearching(false), 1500);
+        setCreatingPlaylist(false);
     };
 
     // Real-time track position tick + periodic synchronization
@@ -108,7 +208,17 @@ export default function SpotifyCard() {
                 if (res.ok) {
                     const data = await res.json();
                     setSpotifyTrack(data);
-                    if (typeof data.position === 'number') setProgress(data.position);
+                    if (typeof data.position === 'number') {
+                        setProgress(currP => {
+                            if (Math.abs(currP - data.position) > 2 || !data.playing) {
+                                return data.position;
+                            }
+                            return currP;
+                        });
+                    }
+                    if (typeof data.volume === 'number') {
+                        setVolume(data.volume);
+                    }
                 }
             } catch (_) {}
         };
@@ -137,8 +247,9 @@ export default function SpotifyCard() {
         return (
             <motion.div
                 drag
-                dragConstraints={{ left: -1000, right: 200, top: -800, bottom: 200 }}
-                dragElastic={0.1}
+                dragMomentum={false}
+                dragConstraints={{ left: -3000, right: 3000, top: -3000, bottom: 3000 }}
+                dragElastic={0.05}
                 whileDrag={{ scale: 1.05 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -147,16 +258,22 @@ export default function SpotifyCard() {
                 onClick={() => setIsVisible(true)}
                 style={{
                     position: 'fixed', bottom: 32, right: 40, zIndex: 50,
-                    display: 'flex', itemsAlign: 'center', gap: 8,
-                    padding: '8px 16px', borderRadius: 24,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 12px', borderRadius: 20,
                     background: '#121212', border: '1px solid #282828',
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
                 }}
                 className="active:cursor-grabbing"
             >
-                <SpotifyIcon size={16} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#b3b3b3', letterSpacing: '0.04em' }}>
+                <SpotifyIcon size={14} />
+                <span
+                    style={{
+                        fontSize: 11, fontWeight: 600, color: '#b3b3b3',
+                        letterSpacing: '0.02em', maxWidth: 160,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}
+                >
                     {spotifyTrack.playing ? `${spotifyTrack.title} • ${spotifyTrack.artist}` : 'Now Playing'}
                 </span>
             </motion.div>
@@ -166,30 +283,60 @@ export default function SpotifyCard() {
     return (
         <AnimatePresence>
             <motion.div
+                ref={cardRef}
                 drag
-                dragConstraints={{ left: -600, right: 80, top: -600, bottom: 80 }}
-                dragElastic={0.07}
-                initial={{ opacity: 0, y: 24, scale: 0.94 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.9 }}
+                dragControls={dragControls}
+                dragListener={false}
+                dragMomentum={false}
+                dragElastic={0.2}
+                dragConstraints={{ left: -3000, right: 3000, top: -3000, bottom: 3000 }}
+                onDrag={handleDrag}
+                onDragEnd={handleDragEnd}
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: isDragging ? 1.06 : 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 32 }}
                 style={{
                     position: 'fixed', bottom: 88, right: 40, zIndex: 40,
                     width: 360, borderRadius: 12,
                     background: '#121212', border: '1px solid #282828',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
+                    boxShadow: isDragging ? '0 45px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.15)' : '0 32px 80px rgba(0,0,0,0.8)',
                     pointerEvents: 'auto', userSelect: 'none', overflow: 'hidden',
-                    fontFamily: "'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+                    fontFamily: "'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+                    rotateX,
+                    rotateY,
+                    transformOrigin,
+                    transformStyle: 'preserve-3d',
+                    perspective: 1000,
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden',
                 }}
             >
-                {/* ── Top bar: drag + close ── */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 8px', borderBottom: '1px solid #282828' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', color: '#535353' }}>
+                {/* ── Top edge & side edge drag handle strips ── */}
+
+                {/* ── Top edge & side edge drag handle strips ── */}
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 8, cursor: 'grab', zIndex: 50 }} />
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 8, cursor: 'grab', zIndex: 50 }} />
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 8, cursor: 'grab', zIndex: 50 }} />
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 8, cursor: 'grab', zIndex: 50 }} />
+
+                {/* ── Top bar: drag handle + close ── */}
+                <div
+                    onPointerDown={handlePointerDownHeader}
+                    style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 16px 8px', borderBottom: '1px solid #282828',
+                        cursor: 'grab', position: 'relative', zIndex: 40
+                    }}
+                    className="active:cursor-grabbing"
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#535353' }}>
                         <GripHorizontal size={13} />
                         <SpotifyIcon size={14} />
                         <span style={{ fontSize: 10, fontWeight: 700, color: '#535353', letterSpacing: '0.12em' }}>SPOTIFY</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onPointerDown={(e) => e.stopPropagation()}>
+                        <IconBtn icon={ListPlus} size={14} title="Create New Playlist" onClick={() => setShowCreatePlaylist(s => !s)} active={showCreatePlaylist} activeColor="#1DB954" />
                         <IconBtn icon={Search} size={14} title="Search a song" onClick={() => setShowSearch(s => !s)} active={showSearch} activeColor="#1DB954" />
                         <button onClick={() => setIsVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#535353', display: 'flex' }}
                             onMouseEnter={e => e.currentTarget.style.color = '#b3b3b3'}
@@ -199,39 +346,155 @@ export default function SpotifyCard() {
                     </div>
                 </div>
 
-                {/* ── Search bar (togglable) ── */}
+                {/* ── Toast Banner when playlist is created ── */}
+                {playlistCreatedMsg && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        style={{ background: '#1DB954', color: '#000', padding: '6px 16px', fontSize: 11, fontWeight: 700, textAlign: 'center' }}
+                    >
+                        {playlistCreatedMsg}
+                    </motion.div>
+                )}
+
+                {/* ── Create New Playlist Drawer Modal ── */}
                 <AnimatePresence>
-                    {showSearch && (
+                    {showCreatePlaylist && (
                         <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            style={{ overflow: 'hidden', borderBottom: '1px solid #282828' }}
+                            style={{ borderBottom: '1px solid #282828', background: '#181818', padding: '12px 16px', overflow: 'hidden' }}
                         >
-                            <form onSubmit={handlePlaySong} style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, background: '#181818' }}>
-                                <Search size={14} style={{ color: '#535353', flexShrink: 0 }} />
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    value={songQuery}
-                                    onChange={e => setSongQuery(e.target.value)}
-                                    placeholder={searching ? 'Searching…' : 'What do you want to play?'}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#1DB954', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                    <Sparkles size={13} />
+                                    <span>Create New Playlist</span>
+                                </div>
+                                <button onClick={() => setShowCreatePlaylist(false)} style={{ background: 'none', border: 'none', color: '#535353', cursor: 'pointer', padding: 2 }}>
+                                    <X size={13} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleCreatePlaylist} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#282828', borderRadius: 8, padding: '6px 12px' }}>
+                                    <Music size={13} style={{ color: '#b3b3b3', flexShrink: 0 }} />
+                                    <input
+                                        type="text"
+                                        value={newPlaylistName}
+                                        onChange={e => setNewPlaylistName(e.target.value)}
+                                        placeholder="Playlist name (e.g. Midnight Beats)..."
+                                        style={{ background: 'none', border: 'none', outline: 'none', color: '#fff', fontSize: 12, width: '100%', fontFamily: 'inherit' }}
+                                    />
+                                </div>
+
+                                <div style={{ fontSize: 10, color: '#b3b3b3', fontWeight: 600, marginTop: 2 }}>
+                                    Or Pick a Preset Vibe:
+                                </div>
+
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                    {[
+                                        '🎧 Chill Lo-Fi',
+                                        '⚡ Gym & Hype',
+                                        '🕉️ Krishna Bhajans',
+                                        '☕ Acoustic Coffee',
+                                        '🌃 Bollywood Romance',
+                                        '🎸 Indie Rock'
+                                    ].map(vibe => (
+                                        <button
+                                            key={vibe}
+                                            type="button"
+                                            onClick={() => { setNewPlaylistVibe(vibe); setNewPlaylistName(vibe.replace(/^[^\s]+\s*/, '')); }}
+                                            style={{
+                                                fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 12,
+                                                background: (newPlaylistVibe === vibe && !newPlaylistName) ? '#1DB954' : '#282828',
+                                                color: (newPlaylistVibe === vibe && !newPlaylistName) ? '#000' : '#b3b3b3',
+                                                border: 'none', cursor: 'pointer', transition: 'all 0.15s ease'
+                                            }}
+                                        >
+                                            {vibe}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <motion.button
+                                    type="submit"
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    disabled={creatingPlaylist}
                                     style={{
-                                        background: 'none', border: 'none', outline: 'none',
-                                        fontSize: 13, color: '#ffffff', width: '100%',
-                                        fontFamily: 'inherit'
+                                        marginTop: 4, padding: '8px 14px', borderRadius: 20,
+                                        background: '#1DB954', color: '#000', border: 'none',
+                                        fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                                     }}
-                                />
-                                {songQuery.trim() && (
-                                    <motion.button type="submit" initial={{ scale: 0 }} animate={{ scale: 1 }}
-                                        style={{ background: '#1DB954', border: 'none', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                                        <Play size={11} fill="#000" color="#000" style={{ marginLeft: 1 }} />
-                                    </motion.button>
-                                )}
+                                >
+                                    <Plus size={14} />
+                                    <span>{creatingPlaylist ? 'Creating...' : 'Create & Play Playlist'}</span>
+                                </motion.button>
                             </form>
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* ── Search bar (Permanent & Prominent) ── */}
+                <div style={{ borderBottom: '1px solid #282828', background: '#181818' }}>
+                    <form onSubmit={handlePlaySong} style={{ padding: '10px 16px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Search size={14} style={{ color: '#1DB954', flexShrink: 0 }} />
+                        <input
+                            type="text"
+                            value={songQuery}
+                            onChange={e => setSongQuery(e.target.value)}
+                            placeholder={searching ? 'Searching Spotify...' : 'Search & play any song (e.g. Kesariya)...'}
+                            style={{
+                                background: 'none', border: 'none', outline: 'none',
+                                fontSize: 12, color: '#ffffff', width: '100%',
+                                fontFamily: 'inherit'
+                            }}
+                        />
+                        {songQuery.trim() && (
+                            <motion.button type="submit" initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                style={{ background: '#1DB954', border: 'none', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                                <Play size={11} fill="#000" color="#000" style={{ marginLeft: 1 }} />
+                            </motion.button>
+                        )}
+                    </form>
+
+                    {/* ── Live Search Suggestions Dropdown (Spotify Style) ── */}
+                    {suggestions.length > 0 && (
+                        <div style={{ maxHeight: 210, overflowY: 'auto', borderTop: '1px solid #282828', background: '#141414' }}>
+                            <div style={{ padding: '6px 16px 2px', fontSize: 10, fontWeight: 700, color: '#1DB954', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                Spotify Suggestions
+                            </div>
+                            {suggestions.map((item) => (
+                                <div
+                                    key={item.id}
+                                    onClick={() => playSuggestion(item.title, item.artist)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px',
+                                        cursor: 'pointer', transition: 'background 0.15s ease'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#282828'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                    <img src={item.artwork} alt="" style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {item.title}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: '#b3b3b3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {item.artist}
+                                        </div>
+                                    </div>
+                                    <button style={{ background: '#1DB954', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                                        <Play size={10} fill="#000" color="#000" style={{ marginLeft: 1 }} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* ── Album art + Track info + Heart ── */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 0' }}>

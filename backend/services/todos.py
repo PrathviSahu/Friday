@@ -26,7 +26,7 @@ def _save(todos: list):
 
 def get_todos() -> list:
     """Return all todos sorted by created_at descending."""
-    return sorted(_load(), key=lambda t: t["created_at"], reverse=True)
+    return sorted(_load(), key=lambda t: t.get("created_at", ""), reverse=True)
 
 
 def add_todo(text: str, priority: str = "normal") -> dict:

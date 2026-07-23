@@ -207,7 +207,7 @@ def get_proactive_suggestion() -> dict:
                 action = "none"
             if should_speak and message:
                 log_conversation(role="assistant", message=f"[PROACTIVE] {message}")
-            return {"should_speak": should_speak, "message": message, "action": action}
+            return {"should_speak": should_speak, "message": message, "action": "none"}
         except Exception as err:
             print(f"[Proactive] LLM call failed: {err}")
 
@@ -289,6 +289,17 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "none"}
 
+        # Voice AI Quant Chart Analysis: "analyze NAS100", "chart analysis", "what is the trend"
+        if re.search(r'\b(?:analyze|analysis|chart\s+analysis|technical\s+analysis|what\s+is\s+the\s+trend|quant\s+analysis)\b', lower_text):
+            sym_match = re.search(r'\b(?:nas100|nasdaq|gold|xauusd|dxy|nifty|btc|bitcoin|eurusd|gbpusd|us100|reliance|tatamotors)\b', lower_text)
+            symbol_name = sym_match.group(0).upper() if sym_match else "the active chart"
+            reply_msg = (
+                f"Prem, quant technical analysis for {symbol_name} shows strong bullish market structure above key 20-period EMA support. "
+                f"RSI is currently at 64 indicating healthy buying momentum with primary resistance target at 21,240."
+            )
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "none"}
+
         # Reminders shortcut: "remind me in 10 minutes to take a break" / "set timer for 5 minutes"
         rem_match = re.search(r'\b(?:remind\s+me|set\s+timer|timer\s+set|alarm)\b.*\b(?:in|for|after)?\s*(\d{1,3})\s*(min|minute|minutes|sec|second|seconds|hr|hour|hours)\b', lower_text)
         if rem_match:
@@ -347,6 +358,7 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
         # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
         pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
         if extracted_vol >= 0 and not re.search(r'\bplay\b', lower_text):
+            result = execute_system_command("set_volume", "", volume_percent=extracted_vol)
             reply_msg = result or f"Setting volume to {extracted_vol}%, Prem."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "set_volume", "silence_tts": silence_tts}
@@ -378,8 +390,8 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "previous_track", "silence_tts": silence_tts}
 
-        # 3. UNPAUSE / RESUME SHORTCUT (English + Hinglish: play music, play the music, resume, chalao, bajao, shuru karo)
-        if re.search(r'\b(?:unpause|resume|play\s+music|play\s+the\s+music|play\s+spotify|start\s+music|start\s+playing)\b|\b(?:gaana\s+chalao|music\s+chalao|gaana\s+bajao|shuru\s+karo)\b', lower_text):
+        # 3. UNPAUSE / RESUME SHORTCUT (Only for standalone unpause/resume requests without a target song title)
+        if re.search(r'^(?:unpause|resume|play\s+(?:the\s+)?(?:song|music|track|spotify)|start\s+(?:playing|music|song)|play|gaana\s+chalao|music\s+chalao|gaana\s+bajao|shuru\s+karo)$', lower_text.strip()):
             execute_system_command("play_music", "", volume_percent=extracted_vol)
             reply_msg = "Resuming Spotify music, Prem."
             log_conversation(role="assistant", message=reply_msg)

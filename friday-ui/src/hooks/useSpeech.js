@@ -76,13 +76,13 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       if (cancelled || restartTimer || !enabledRef.current) return;
       restartTimer = setTimeout(() => {
         restartTimer = null;
-        if (!cancelled && !speakingRef.current && enabledRef.current) start();
+        if (!cancelled && enabledRef.current) start();
       }, ms);
     };
 
     // ── Create and boot a fresh SpeechRecognition instance ───────────────────
     const start = () => {
-      if (cancelled || speakingRef.current || !enabledRef.current) return;
+      if (cancelled || !enabledRef.current) return;
 
       // Silence old instance BEFORE abort so its onend/onerror don't re-fire
       if (rec) {
@@ -129,7 +129,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         scheduleRestart(delay);
       };
 
-      rec.onresult = (e) => {
+      rec.onresult = async (e) => {
         if (!enabledRef.current) return;
 
         const idx = e.resultIndex ?? 0;
@@ -138,35 +138,32 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         console.log('[Voice] Raw speech recognized:', rawTranscript);
 
-        // Check if user spoke an explicit wake word ("Friday", "Hey Friday", "Suno Friday", "FRIDAY", "fraide", "frida")
-        const isWakeWordPresent = /(?:if|he|hey|hi|hello|ok|okay|sun|suno)?\s*(?:friday|fraide|frida|freddy|frieda)\b/i.test(rawTranscript.trim());
-
-        // ⚡ INSTANT VOICE INTERRUPT: If FRIDAY is currently speaking and user says "Friday", stop TTS immediately!
+        // ⚡ INSTANT BARGE-IN / VOICE INTERRUPT:
+        // If FRIDAY is currently speaking and user speaks anything (or says "Friday"), STOP TTS IMMEDIATELY!
         if (speakingRef.current) {
-          if (isWakeWordPresent) {
-            console.log('[Voice Interrupt] Wake-word detected while FRIDAY is speaking! Stopping TTS playback immediately...');
-            stopSpeaking();
-            speakingRef.current = false;
-          } else {
-            // Suppress ambient speech or self-echo while FRIDAY is speaking
-            console.log('[Voice] Suppressing ambient audio while FRIDAY is speaking.');
-            return;
-          }
+          console.log('[Voice Interrupt] 🛑 User speech detected mid-sentence! Aborting TTS playback immediately...');
+          stopSpeaking();
+          speakingRef.current = false;
         }
 
-        // ⚡ GLOBAL MANDATORY WAKE-WORD GATE: Ignore ALL background speech unless "Friday" wake word is spoken!
-        // Do NOT send query to Groq LLM if wake word is missing.
-        if (!isWakeWordPresent) {
-          console.log('[Voice Gate] No wake-word detected. Ignoring speech:', rawTranscript);
+        // Clean optional wake-word if user prefixed it ("Friday decrease volume" -> "decrease volume")
+        let query = rawTranscript.trim()
+          .replace(/(?:if|he|hey|hi|hello|ok|okay|sun|suno)?\s*(?:friday|fraide|frida|freddy|frieda)\b/gi, '')
+          .trim();
+
+        // If user said ONLY "Friday" to interrupt speech, stopSpeaking() already executed! Resume listening without sending empty query.
+        if (!query) {
+          console.log('[Voice Interrupt] TTS playback interrupted by wake-word. Listening for user command...');
+          noSpeechStreak = 0;
           return;
         }
 
-        // ⚡ DEDUP GUARD: Prevent double-firing of the same transcript within 3 seconds
+        // ⚡ DEDUP GUARD: Prevent double-firing of the same transcript within 2.5 seconds
         // (browser fires interim + final results; also catches echo after abort)
         const now = Date.now();
         const lastRaw = lastTranscriptRef.current;
-        if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 3000) {
-          console.log('[Voice] Suppressing duplicate transcript within 3s:', rawTranscript);
+        if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 2500) {
+          console.log('[Voice] Suppressing duplicate transcript within 2.5s:', rawTranscript);
           return;
         }
         lastTranscriptRef.current = { text: rawTranscript.trim(), ts: now };
@@ -183,10 +180,6 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         noSpeechStreak = 0;
 
-        let query = rawTranscript.trim()
-          .replace(/(?:if|he|hey|hi|hello|ok|okay|sun|suno)?\s*(?:friday|fraide|frida|freddy|frieda)\b/gi, '')
-          .trim();
-
         // Fix speech recognition phonetic misrecognitions
         if (/^at\s+this\s+song/i.test(query)) {
           query = query.replace(/^at\s+this\s+song/i, 'add this song');
@@ -196,10 +189,20 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         console.log('[Voice] Transcript:', rawTranscript.trim(), '-> normalized:', normalized);
 
         if (query.length > 0) {
-          console.log('[Voice] Clean query sent to AI (wake-word removed):', query);
+          console.log('[Voice] Direct query sent to AI (no wake word required):', query);
+
+          // Check if this is a "yes" confirmation for a pending proactive action
+          if (window.fridayCheckPendingConfirmation) {
+            const handled = await window.fridayCheckPendingConfirmation(query);
+            if (handled) {
+              console.log('[Voice] Pending proactive action confirmed — skipping AI call.');
+              start();
+              return;
+            }
+          }
+
           handleCmd(query);
         } else {
-          // If empty wake word triggers, restart the mic
           start();
         }
       };
@@ -214,7 +217,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
     // ── Watchdog: revive if mic silently died ─────────────────────────────────
     keepAlive = setInterval(() => {
-      if (!cancelled && enabledRef.current && !activeRef.current && !processingRef.current && !speakingRef.current && !restartTimer) {
+      if (!cancelled && enabledRef.current && !activeRef.current && !processingRef.current && !restartTimer) {
         console.log('[Voice Watchdog] Mic inactive — restarting...');
         noSpeechStreak = 0;
         start();
@@ -239,8 +242,25 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       try {
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
+          // Workspace commands are blocked when the system is locked
+          const workspaceCommands = ['trading', 'dashboard', 'engineering', 'vscode', 'browser'];
+          if (lockedRef.current && workspaceCommands.includes(localCommand)) {
+            const lockedReply = 'System is locked, Boss. Please unlock first.';
+            onConvRef.current?.({ transcript: cmd, reply: lockedReply, action: 'none' });
+            speakingRef.current = true;
+            try { await withTimeout(speak(lockedReply), 8000); } catch (_) {}
+            speakingRef.current = false;
+            return;
+          }
+
           onCommandRef.current?.(localCommand);
-          const reply = localCommand === 'trading' ? 'Opening Personal Trading Station, Prem.' : localCommand === 'dashboard' ? 'Opening Dashboard, Prem.' : 'Executing command, Prem.';
+          const reply = localCommand === 'trading'
+            ? 'Opening Personal Trading Station, Prem.'
+            : localCommand === 'dashboard'
+            ? 'Opening Dashboard, Prem.'
+            : localCommand === 'engineering'
+            ? 'Opening Engineering Console, Prem.'
+            : 'Executing command, Prem.';
           onConvRef.current?.({ transcript: cmd, reply, action: localCommand });
           speakingRef.current = true;
           try { await withTimeout(speak(reply), 10000); } catch (_) {}

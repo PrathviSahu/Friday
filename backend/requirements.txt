@@ -2,3 +2,7 @@ fastapi
 uvicorn[standard]
 edge-tts
 httpx
+yfinance
+groq
+google-genai
+psutil

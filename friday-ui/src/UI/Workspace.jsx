@@ -10,11 +10,19 @@ export default function Workspace() {
 
     if (workspace === 'lockscreen') return null;
 
+    const isTradingActive = workspace === 'trading' || workspace === 'trading_minimized';
+
     return (
         <div className="absolute inset-0" style={{ zIndex: 40, pointerEvents: 'auto' }}>
             <AnimatePresence mode="wait">
-                {workspace === 'trading' && (
-                    <QuantumTradingWorkstation key="trading" onClose={() => setWorkspace('unlocked')} />
+                {isTradingActive && (
+                    <QuantumTradingWorkstation
+                        key="trading_persisted"
+                        isMinimized={workspace === 'trading_minimized'}
+                        onMinimize={() => setWorkspace('trading_minimized')}
+                        onRestore={() => setWorkspace('trading')}
+                        onClose={() => setWorkspace('unlocked')}
+                    />
                 )}
                 {workspace === 'dashboard' && (
                     <Dashboard key="dashboard" onLock={() => setWorkspace('lockscreen')} />

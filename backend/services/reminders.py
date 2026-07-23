@@ -30,7 +30,7 @@ def get_active_reminders() -> list:
     now = time.time()
     items = _load()
     active = [i for i in items if not i.get("triggered") and i.get("trigger_at", 0) > now]
-    return sorted(active, key=lambda x: x["trigger_at"])
+    return sorted(active, key=lambda x: x.get("trigger_at", 0))
 
 
 def add_reminder(message: str, delay_seconds: int) -> dict:

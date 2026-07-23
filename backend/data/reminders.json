@@ -1,0 +1,10 @@
+[
+  {
+    "id": "0071b98a-98fa-40bc-9130-53f405ff3c01",
+    "message": "test friday alarm",
+    "delay_seconds": 5,
+    "created_at": "2026-07-21T23:22:14.737699",
+    "trigger_at": 1784656339.737484,
+    "triggered": true
+  }
+]

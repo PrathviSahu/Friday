@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from 'framer-motion';
 import {
     CheckSquare, X, Plus, Trash2, Check,
     GripHorizontal, Flag, ChevronDown, ClipboardList, Pencil
@@ -8,9 +8,9 @@ import {
 const API = 'http://localhost:8000/api/todos';
 
 const PRIORITY_META = {
-    high:   { color: '#ef4444', label: 'High',   dot: 'bg-red-500' },
+    high: { color: '#ef4444', label: 'High', dot: 'bg-red-500' },
     normal: { color: '#6366f1', label: 'Normal', dot: 'bg-indigo-400' },
-    low:    { color: '#6b7280', label: 'Low',    dot: 'bg-gray-500' },
+    low: { color: '#6b7280', label: 'Low', dot: 'bg-gray-500' },
 };
 
 export default function TodoCard() {
@@ -31,7 +31,7 @@ export default function TodoCard() {
                 const data = await res.json();
                 setTodos(data.todos);
             }
-        } catch (_) {}
+        } catch (_) { }
     };
 
     useEffect(() => { fetchTodos(); }, []);
@@ -51,28 +51,28 @@ export default function TodoCard() {
                 fetchTodos();
                 inputRef.current?.focus();
             }
-        } catch (_) {}
+        } catch (_) { }
     };
 
     const toggleTodo = async (id) => {
         try {
             await fetch(`${API}/${id}/toggle`, { method: 'PATCH' });
             fetchTodos();
-        } catch (_) {}
+        } catch (_) { }
     };
 
     const deleteTodo = async (id) => {
         try {
             await fetch(`${API}/${id}`, { method: 'DELETE' });
             fetchTodos();
-        } catch (_) {}
+        } catch (_) { }
     };
 
     const clearDone = async () => {
         try {
             await fetch(`${API}/done`, { method: 'DELETE' });
             fetchTodos();
-        } catch (_) {}
+        } catch (_) { }
     };
 
     const saveEdit = async (id) => {
@@ -86,7 +86,7 @@ export default function TodoCard() {
             });
             setEditId(null);
             fetchTodos();
-        } catch (_) {}
+        } catch (_) { }
     };
 
     const filtered = todos.filter(t => {
@@ -95,8 +95,43 @@ export default function TodoCard() {
         return true;
     });
 
-    const doneCount = todos.filter(t => t.done).length;
+    // ── 3D Liquid Drag & Motion Controls ──
+    const [isDragging, setIsDragging] = useState(false);
+    const [transformOrigin, setTransformOrigin] = useState('50% 50%');
+    const cardRef = useRef(null);
+
+    const dragControls = useDragControls();
+    const rawRotateX = useMotionValue(0);
+    const rawRotateY = useMotionValue(0);
+    const rotateX = useSpring(rawRotateX, { stiffness: 180, damping: 14, mass: 0.35 });
+    const rotateY = useSpring(rawRotateY, { stiffness: 180, damping: 14, mass: 0.35 });
+
+    const handlePointerDownHeader = (e) => {
+        if (cardRef.current) {
+            const rect = cardRef.current.getBoundingClientRect();
+            setTransformOrigin(`${e.clientX - rect.left}px ${e.clientY - rect.top}px`);
+        }
+        setIsDragging(true);
+        dragControls.start(e);
+    };
+
+    const handleDrag = (_, info) => {
+        const vx = info.velocity.x;
+        const vy = info.velocity.y;
+        const targetTiltX = Math.max(-24, Math.min(24, -vy * 0.045));
+        const targetTiltY = Math.max(-24, Math.min(24, vx * 0.045));
+        rawRotateX.set(targetTiltX);
+        rawRotateY.set(targetTiltY);
+    };
+
+    const handleDragEnd = () => {
+        setIsDragging(false);
+        rawRotateX.set(0);
+        rawRotateY.set(0);
+    };
+
     const totalCount = todos.length;
+    const doneCount = todos.filter(t => t.done).length;
 
     if (!isVisible) {
         return (
@@ -122,23 +157,46 @@ export default function TodoCard() {
     return (
         <AnimatePresence>
             <motion.div
+                ref={cardRef}
                 drag
-                dragConstraints={{ left: -100, right: 600, top: -600, bottom: 100 }}
-                dragElastic={0.08}
-                initial={{ opacity: 0, y: 24, scale: 0.93 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                dragControls={dragControls}
+                dragListener={false}
+                dragMomentum={false}
+                dragElastic={0.2}
+                dragConstraints={{ left: -3000, right: 3000, top: -3000, bottom: 3000 }}
+                onDrag={handleDrag}
+                onDragEnd={handleDragEnd}
+                initial={{ opacity: 0, scale: 0.93 }}
+                animate={{ opacity: 1, scale: isDragging ? 1.06 : 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
                 className="fixed bottom-24 left-10 z-40 w-80 rounded-2xl pointer-events-auto select-none overflow-hidden"
                 style={{
                     background: '#0f0f1a',
                     border: '1px solid #1e1b4b',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.75)',
+                    boxShadow: isDragging ? '0 45px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.15)' : '0 32px 80px rgba(0,0,0,0.75)',
                     fontFamily: 'Inter, system-ui, sans-serif',
+                    rotateX,
+                    rotateY,
+                    transformOrigin,
+                    transformStyle: 'preserve-3d',
+                    perspective: 1000,
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden',
                 }}
             >
+                {/* ── Top edge & side edge drag handle strips ── */}
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 8, cursor: 'grab', zIndex: 50 }} />
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 8, cursor: 'grab', zIndex: 50 }} />
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 8, cursor: 'grab', zIndex: 50 }} />
+                <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 8, cursor: 'grab', zIndex: 50 }} />
+
                 {/* ── Header ── */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 10px', borderBottom: '1px solid #1e1b4b' }}>
+                <div
+                    onPointerDown={handlePointerDownHeader}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 10px', borderBottom: '1px solid #1e1b4b', cursor: 'grab', position: 'relative', zIndex: 40 }}
+                    className="active:cursor-grabbing"
+                >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'grab' }}>
                         <GripHorizontal size={13} style={{ color: '#4338ca' }} />
                         <CheckSquare size={15} style={{ color: '#818cf8' }} />

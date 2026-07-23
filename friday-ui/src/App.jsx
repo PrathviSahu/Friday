@@ -1,5 +1,5 @@
 import './index.css';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrbProvider } from './hooks/useOrbState';
 import LockScreen from './components/LockScreen/LockScreen';
@@ -16,14 +16,43 @@ import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
 
 function FridayCore() {
     const [proactiveToast, setProactiveToast] = useState(null);
+    const pendingActionRef = useRef(null); // holds confirmPendingAction fn when action is pending
 
-    useProactiveSuggestions({
+    const { confirmPendingAction } = useProactiveSuggestions({
         enabled: true,
         onSuggestion: ({ message }) => {
             setProactiveToast(message);
             setTimeout(() => setProactiveToast(null), 8000);
         },
+        onPendingAction: (action) => {
+            // When action goes pending, store the confirm fn; when cleared, null it out
+            if (action) {
+                pendingActionRef.current = confirmPendingAction;
+            } else {
+                pendingActionRef.current = null;
+            }
+        },
     });
+
+    // Expose a global hook so useSpeech can check for pending confirmation BEFORE routing to AI
+    useEffect(() => {
+        const YES_WORDS = /^(yes|yeah|yep|yup|sure|ok|okay|haan|ha|play it|go ahead|do it)$/i;
+
+        window.fridayCheckPendingConfirmation = async (transcript) => {
+            const trimmed = (transcript || '').trim();
+            if (pendingActionRef.current && YES_WORDS.test(trimmed)) {
+                console.log('[Proactive] Voice confirmation received:', trimmed);
+                await pendingActionRef.current();
+                pendingActionRef.current = null;
+                return true; // signal: handled, don't send to AI
+            }
+            return false; // not a confirmation, route normally
+        };
+
+        return () => {
+            delete window.fridayCheckPendingConfirmation;
+        };
+    }, [confirmPendingAction]);
 
     return (
         <>

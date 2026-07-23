@@ -113,12 +113,26 @@ function fallbackWebSpeech(text, onEnd) {
   }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.pitch = 1.0;
+  utterance.pitch = 1.1; // Slightly higher pitch for female voice
   utterance.rate = 1.05;
 
   const voices = window.speechSynthesis.getVoices();
-  const ukVoice = voices.find(v => v.lang.includes('en-GB') || v.name.includes('UK') || v.name.includes('Victoria') || v.name.includes('Karen'));
-  if (ukVoice) utterance.voice = ukVoice;
+  // Strictly target female voices (Samantha, Victoria, Karen, Moira, Fiona, Zira, Google UK Female)
+  // Exclude known male voices (Daniel, Alex, Fred, Oliver, George)
+  const femaleVoice = voices.find(v => {
+    const name = (v.name || '').toLowerCase();
+    const isFemaleName = name.includes('female') || name.includes('victoria') || name.includes('samantha') ||
+                         name.includes('karen') || name.includes('moira') || name.includes('fiona') ||
+                         name.includes('zira') || name.includes('siri') || name.includes('neerja');
+    const isMaleName = name.includes('daniel') || name.includes('alex') || name.includes('fred') ||
+                       name.includes('oliver') || name.includes('george') || name.includes('male');
+    return isFemaleName && !isMaleName;
+  }) || voices.find(v => {
+    const name = (v.name || '').toLowerCase();
+    return !name.includes('daniel') && !name.includes('alex') && !name.includes('fred') && !name.includes('male');
+  });
+
+  if (femaleVoice) utterance.voice = femaleVoice;
 
   utterance.onend = () => { if (onEnd) onEnd(); };
   utterance.onerror = () => { if (onEnd) onEnd(); };
