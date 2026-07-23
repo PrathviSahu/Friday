@@ -225,7 +225,7 @@ def get_proactive_suggestion() -> dict:
                 action = "none"
             if should_speak and message:
                 log_conversation(role="assistant", message=f"[PROACTIVE] {message}")
-            return {"should_speak": should_speak, "message": message, "action": "none"}
+            return {"should_speak": should_speak, "message": message, "action": action}
         except Exception as err:
             print(f"[Proactive] LLM call failed: {err}")
 
@@ -336,7 +336,6 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
         if rem_match:
             num = int(rem_match.group(1))
             unit = rem_match.group(2)
-            sec = num * 60 if 'min' in unit or 'hour' in unit and 'min' not in unit else num * 3600 if 'hour' in unit or 'hr' in unit else num
             if 'hour' in unit or 'hr' in unit:
                 sec = num * 3600
             elif 'min' in unit:
@@ -389,7 +388,7 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
 
         # 0. SET VOLUME TO SPECIFIC PERCENTAGE (e.g. "volume 30%", "set volume to 100", "70 percent")
         # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
-        pct_match = re.search(r'(?:set\s+(?:the\s+)?(?:volume|sound)|(?:volume|sound)\s+(?:at|to|is)?\s*|(\d{1,3})\s*(?:percent|%))', lower_text)
+        # extracted_vol already parsed unconditionally above — no duplicate match needed here
         if extracted_vol >= 0 and not re.search(r'\bplay\b', lower_text):
             result = execute_system_command("set_volume", "", volume_percent=extracted_vol)
             reply_msg = result or f"Setting volume to {extracted_vol}%, Prem."
