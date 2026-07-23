@@ -23,6 +23,14 @@ from services.system_stats import get_system_stats
 from services.weather import get_weather
 from services.web_search import search_web_instant
 from services.reminders import add_reminder, get_active_reminders
+from services.mac_controls import (
+    get_display_status,
+    set_brightness,
+    set_dark_mode,
+    set_system_volume,
+    set_system_mute,
+    lock_display,
+)
 
 # Ensure temp_audio directory exists
 AUDIO_DIR = Path('temp_audio')
@@ -75,6 +83,22 @@ class SearchRequest(BaseModel):
 class ReminderRequest(BaseModel):
     message: str
     seconds: int
+
+
+class BrightnessRequest(BaseModel):
+    level: float
+
+
+class DarkModeRequest(BaseModel):
+    enabled: bool
+
+
+class VolumeRequest(BaseModel):
+    level: int
+
+
+class MuteRequest(BaseModel):
+    muted: bool
 
 
 class TodoCreateRequest(BaseModel):
@@ -160,6 +184,47 @@ def spotify_unduck_endpoint():
     ok = unduck_spotify_volume()
     return {"status": "ok" if ok else "ignored"}
 
+
+# ── macOS Display & Hardware Controls ─────────────────────────────────────────
+@app.get("/api/system/display")
+def get_display_endpoint():
+    """Return live brightness, dark mode, system volume, and mute status."""
+    return get_display_status()
+
+
+@app.post("/api/system/display/brightness")
+def set_brightness_endpoint(req: BrightnessRequest):
+    """Set main display brightness (0-100 or 0.0-1.0)."""
+    ok = set_brightness(req.level)
+    return {"status": "ok" if ok else "error", "brightness": req.level}
+
+
+@app.post("/api/system/display/dark-mode")
+def set_dark_mode_endpoint(req: DarkModeRequest):
+    """Toggle macOS Dark Mode on or off."""
+    ok = set_dark_mode(req.enabled)
+    return {"status": "ok" if ok else "error", "dark_mode": req.enabled}
+
+
+@app.post("/api/system/display/volume")
+def set_volume_endpoint(req: VolumeRequest):
+    """Set system output volume (0-100)."""
+    ok = set_system_volume(req.level)
+    return {"status": "ok" if ok else "error", "volume": req.level}
+
+
+@app.post("/api/system/display/mute")
+def set_mute_endpoint(req: MuteRequest):
+    """Mute or unmute system audio output."""
+    ok = set_system_mute(req.muted)
+    return {"status": "ok" if ok else "error", "muted": req.muted}
+
+
+@app.post("/api/system/display/lock")
+def lock_display_endpoint():
+    """Immediately lock display / trigger screen saver."""
+    ok = lock_display()
+    return {"status": "ok" if ok else "error"}
 
 
 @app.get("/api/proactive")

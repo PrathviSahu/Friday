@@ -40,6 +40,13 @@ from services.learning_engine import (
     extract_job_profile_from_text,
     search_semantic_memories,
 )
+from services.mac_controls import (
+    get_brightness,
+    set_brightness,
+    set_dark_mode,
+    lock_display,
+    set_system_volume,
+)
 
 # Track last FRIDAY action context for correction detection
 _last_action_context: dict = {"query": "", "target": ""}
@@ -319,6 +326,42 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             reply_msg = "Screenshot saved, Prem." if path else "Screenshot failed."
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "none"}
+
+        # 🖥️ macOS DISPLAY & HARDWARE VOICE CONTROLS
+        # 1. Brightness: "set brightness to 80%", "increase brightness", "dim the screen", "make screen brighter"
+        if re.search(r'\b(?:brightness|dim\s+screen|brighten\s+screen|screen\s+brightness)\b', lower_text):
+            b_match = re.search(r'(\d{1,3})\s*(?:%|percent)?', lower_text)
+            if b_match:
+                lvl = int(b_match.group(1))
+            elif any(w in lower_text for w in ["max", "full", "100"]):
+                lvl = 100
+            elif any(w in lower_text for w in ["dim", "lower", "reduce", "down"]):
+                lvl = max(10, int(get_brightness() * 100) - 25)
+            elif any(w in lower_text for w in ["up", "increase", "higher", "bright"]):
+                lvl = min(100, int(get_brightness() * 100) + 25)
+            else:
+                lvl = 80
+            
+            set_brightness(lvl)
+            reply_msg = f"Brightness set to {lvl}%, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "brightness"}
+
+        # 2. Dark Mode: "turn on dark mode", "enable light mode", "toggle dark mode"
+        if re.search(r'\b(?:dark\s+mode|light\s+mode|appearance|theme)\b', lower_text):
+            enable_dark = not ("light mode" in lower_text or "turn off dark" in lower_text or "disable dark" in lower_text)
+            set_dark_mode(enable_dark)
+            mode_name = "Dark mode" if enable_dark else "Light mode"
+            reply_msg = f"{mode_name} enabled, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "dark_mode"}
+
+        # 3. Lock Display: "lock display", "lock screen", "lock mac"
+        if re.search(r'\b(?:lock\s+screen|lock\s+display|lock\s+mac|lock\0)\b|\b(?:lock\s+the\s+screen|sleep\s+display)\b', lower_text):
+            lock_display()
+            reply_msg = "Locking display, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "lock_screen"}
 
         # Voice AI Quant Chart Analysis: "analyze NAS100", "chart analysis", "what is the trend"
         if re.search(r'\b(?:analyze|analysis|chart\s+analysis|technical\s+analysis|what\s+is\s+the\s+trend|quant\s+analysis)\b', lower_text):

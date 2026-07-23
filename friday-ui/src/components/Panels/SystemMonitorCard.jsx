@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from 'framer-motion';
-import { Cpu, HardDrive, Battery, Zap, X, GripHorizontal, Activity } from 'lucide-react';
+import { Cpu, HardDrive, Battery, Zap, X, GripHorizontal, Activity, Sun, Moon, Volume2, VolumeX, Lock } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 
-const API = 'http://localhost:8000/api/system/stats';
+const API_STATS = 'http://localhost:8000/api/system/stats';
+const API_DISPLAY = 'http://localhost:8000/api/system/display';
 
 function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
     const isHigh = value > 85;
     const barColor = isHigh ? '#ef4444' : color;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94a3b8', fontWeight: 500 }}>
                     <Icon size={13} style={{ color: barColor }} />
@@ -20,7 +21,7 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
                     {value}{unit}
                 </span>
             </div>
-            <div style={{ height: 6, width: '100%', background: '#1e1b4b', borderRadius: 99, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ height: 5, width: '100%', background: '#1e1b4b', borderRadius: 99, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(100, Math.max(0, value))}%` }}
@@ -48,6 +49,13 @@ export default function SystemMonitorCard() {
         disk_percent: 0,
         battery_percent: 100,
         power_plugged: true
+    });
+
+    const [displayInfo, setDisplayInfo] = useState({
+        brightness: 75,
+        dark_mode: true,
+        volume: 70,
+        muted: false
     });
 
     const [isDragging, setIsDragging] = useState(false);
@@ -84,16 +92,67 @@ export default function SystemMonitorCard() {
 
     const fetchStats = async () => {
         try {
-            const res = await fetch(API);
+            const res = await fetch(API_STATS);
             if (res.ok) setStats(await res.json());
+        } catch (_) {}
+    };
+
+    const fetchDisplayInfo = async () => {
+        try {
+            const res = await fetch(API_DISPLAY);
+            if (res.ok) setDisplayInfo(await res.json());
         } catch (_) {}
     };
 
     useEffect(() => {
         fetchStats();
-        const iv = setInterval(fetchStats, 3000);
-        return () => clearInterval(iv);
+        fetchDisplayInfo();
+        const iv1 = setInterval(fetchStats, 3000);
+        const iv2 = setInterval(fetchDisplayInfo, 5000);
+        return () => { clearInterval(iv1); clearInterval(iv2); };
     }, []);
+
+    const handleBrightnessChange = (newVal) => {
+        setDisplayInfo(prev => ({ ...prev, brightness: newVal }));
+        fetch(`${API_DISPLAY}/brightness`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ level: newVal })
+        }).catch(() => {});
+    };
+
+    const handleToggleDarkMode = () => {
+        const target = !displayInfo.dark_mode;
+        setDisplayInfo(prev => ({ ...prev, dark_mode: target }));
+        fetch(`${API_DISPLAY}/dark-mode`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: target })
+        }).catch(() => {});
+    };
+
+    const handleVolumeChange = (newVal) => {
+        setDisplayInfo(prev => ({ ...prev, volume: newVal }));
+        fetch(`${API_DISPLAY}/volume`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ level: newVal })
+        }).catch(() => {});
+    };
+
+    const handleToggleMute = () => {
+        const target = !displayInfo.muted;
+        setDisplayInfo(prev => ({ ...prev, muted: target }));
+        fetch(`${API_DISPLAY}/mute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ muted: target })
+        }).catch(() => {});
+    };
+
+    const handleLockDisplay = () => {
+        fetch(`${API_DISPLAY}/lock`, { method: 'POST' }).catch(() => {});
+    };
 
     if (workspace === 'trading') return null;
 
@@ -143,7 +202,7 @@ export default function SystemMonitorCard() {
                 transition={{ type: 'spring', stiffness: 320, damping: 30 }}
                 style={{
                     position: 'fixed', top: 32, right: 40, zIndex: 40,
-                    width: 300,
+                    width: 310,
                     borderRadius: 16,
                     pointerEvents: 'auto',
                     userSelect: 'none',
@@ -163,7 +222,7 @@ export default function SystemMonitorCard() {
                     backfaceVisibility: 'hidden',
                 }}
             >
-                {/* Drag handle strips — 45px clear zone at top-right for X button */}
+                {/* Drag handle strips */}
                 <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, left: 0, right: 45, height: 10, cursor: 'grab', zIndex: 50 }} />
                 <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 10, cursor: 'grab', zIndex: 50 }} />
                 <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 35, bottom: 0, right: 0, width: 10, cursor: 'grab', zIndex: 50 }} />
@@ -211,7 +270,7 @@ export default function SystemMonitorCard() {
                     </button>
                 </div>
 
-                {/* Metrics */}
+                {/* Metrics & Hardware Controls */}
                 <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <MetricBar icon={Cpu} label="CPU Core" value={stats.cpu_percent} color="#22d3ee" />
                     <MetricBar icon={Activity} label={`RAM (${stats.ram_used_gb}/${stats.ram_total_gb} GB)`} value={stats.ram_percent} color="#818cf8" />
@@ -222,6 +281,97 @@ export default function SystemMonitorCard() {
                         value={stats.battery_percent}
                         color={stats.battery_percent <= 20 ? '#ef4444' : '#fbbf24'}
                     />
+
+                    {/* Divider */}
+                    <div style={{ height: 1, background: '#1e1b4b', margin: '2px 0' }} />
+
+                    {/* Hardware & Display Quick Controls */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                            Display & Audio
+                        </span>
+
+                        {/* Brightness Control */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94a3b8', fontSize: 11 }}>
+                                <Sun size={13} style={{ color: '#fbbf24' }} />
+                                <span>Brightness</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, maxWidth: 140 }}>
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="100"
+                                    value={displayInfo.brightness}
+                                    onChange={e => handleBrightnessChange(Number(e.target.value))}
+                                    style={{ flex: 1, accentColor: '#fbbf24', cursor: 'pointer', height: 4 }}
+                                />
+                                <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#fbbf24', width: 30, textAlign: 'right' }}>
+                                    {displayInfo.brightness}%
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Volume Control */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <button
+                                onClick={handleToggleMute}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, color: displayInfo.muted ? '#ef4444' : '#94a3b8', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                title={displayInfo.muted ? 'Unmute Volume' : 'Mute Volume'}
+                            >
+                                {displayInfo.muted ? <VolumeX size={13} style={{ color: '#ef4444' }} /> : <Volume2 size={13} style={{ color: '#67e8f9' }} />}
+                                <span>{displayInfo.muted ? 'Muted' : 'Volume'}</span>
+                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, maxWidth: 140 }}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={displayInfo.volume}
+                                    onChange={e => handleVolumeChange(Number(e.target.value))}
+                                    style={{ flex: 1, accentColor: '#67e8f9', cursor: 'pointer', height: 4 }}
+                                />
+                                <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#67e8f9', width: 30, textAlign: 'right' }}>
+                                    {displayInfo.volume}%
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Dark Mode & Lock Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                            <button
+                                onClick={handleToggleDarkMode}
+                                style={{
+                                    flex: 1,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    padding: '6px 10px', borderRadius: 8,
+                                    background: displayInfo.dark_mode ? 'rgba(34,211,238,0.12)' : 'rgba(255,255,255,0.06)',
+                                    border: displayInfo.dark_mode ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                                    color: displayInfo.dark_mode ? '#38bdf8' : '#94a3b8',
+                                    fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                            >
+                                <Moon size={13} />
+                                <span>{displayInfo.dark_mode ? 'Dark Mode' : 'Light Mode'}</span>
+                            </button>
+
+                            <button
+                                onClick={handleLockDisplay}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                    padding: '6px 12px', borderRadius: 8,
+                                    background: 'rgba(239,68,68,0.12)',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    color: '#f87171',
+                                    fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                                title="Lock macOS Display"
+                            >
+                                <Lock size={13} />
+                                <span>Lock</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </motion.div>
         </AnimatePresence>
