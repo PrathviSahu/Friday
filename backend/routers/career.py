@@ -246,7 +246,6 @@ def read_resume(resume_id: int):
 
 @router.delete("/resumes/{resume_id}")
 @router.post("/resumes/{resume_id}/delete")
-@router.post("/resumes/{resume_id}")
 def remove_resume(resume_id: str):
     from services.career_db import delete_resume
     res = delete_resume(resume_id)
@@ -419,7 +418,7 @@ async def upload_resume_file(file: UploadFile = File(...)):
 
     clean_title = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
     resume_id = create_resume(clean_title, sections)
-    log_activity("create", "resume", resume_id, f"Uploaded resume file: {filename}")
+    log_activity("resume_uploaded", f"Uploaded resume file: {filename}", f"Resume ID: {resume_id}")
 
     return {
         "status": "ok",
