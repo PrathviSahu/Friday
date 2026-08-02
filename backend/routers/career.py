@@ -356,18 +356,18 @@ async def upload_resume_file(file: UploadFile = File(...)):
         from services.career_intelligence import _llm
         system_prompt = (
             "You are an expert resume parser. Analyze the provided resume text and categorize its contents into JSON with EXACTLY these 7 keys:\n"
-            "- summary: Brief summary or contact/intro details\n"
-            "- skills: Technical skills, tools, languages, frameworks\n"
+            "- summary: Brief summary, title, or contact/intro details\n"
+            "- skills: Technical skills, tools, languages, frameworks, databases\n"
             "- experience: Work experience, company names, job titles, dates, achievements\n"
             "- education: Degrees, universities, graduation years, GPA/scores\n"
             "- projects: Project titles, descriptions, tech used, links\n"
             "- achievements: Awards, honors, competitive rankings, key accomplishments\n"
             "- certifications: Certifications, licenses, credentials\n\n"
-            "Return ONLY valid JSON matching this exact structure. Ensure each section contains relevant formatted text."
+            "DO NOT dump all text into summary! Divide content accurately. Return ONLY valid JSON."
         )
-        parsed_json = _llm(system_prompt, f"Resume Text:\n{extracted_text[:6000]}", json_mode=True)
-        if isinstance(parsed_json, dict) and any(parsed_json.values()):
-            sections = {
+        parsed_json = _llm(system_prompt, f"Resume Text:\n{extracted_text[:6500]}", json_mode=True)
+        if isinstance(parsed_json, dict):
+            sec = {
                 "summary": str(parsed_json.get("summary") or "").strip(),
                 "skills": str(parsed_json.get("skills") or "").strip(),
                 "experience": str(parsed_json.get("experience") or "").strip(),
@@ -376,38 +376,44 @@ async def upload_resume_file(file: UploadFile = File(...)):
                 "achievements": str(parsed_json.get("achievements") or "").strip(),
                 "certifications": str(parsed_json.get("certifications") or "").strip()
             }
+            if sum(1 for v in sec.values() if len(v) > 5) >= 2:
+                sections = sec
     except Exception as err:
         print("[Resume Upload Parser] LLM parsing fallback to regex:", err)
 
-    # Tier 2: Robust regex section parser fallback
+    # Tier 2: Strict line-based section matcher fallback
     if not sections or not any(sections.values()):
-        lines = [l.strip() for l in extracted_text.splitlines() if l.strip()]
-        sec_keywords = {
-            "skills": r"^(?:technical\s+)?skills|technologies|core\s+competencies|tech\s+stack|skills\s*&\s*tools",
-            "experience": r"^(?:work|professional|employment)\s+experience|work\s+history|career\s+history|experience",
-            "education": r"^education|academic\s+background|academic\s+qualifications|degrees",
-            "projects": r"^(?:key|personal|academic)?\s*projects",
-            "achievements": r"^achievements|awards|honors|accomplishments",
-            "certifications": r"^certifications|certificates|licenses",
-            "summary": r"^(?:professional\s+)?summary|profile|about\s+me|objective|overview"
-        }
+        sec_keywords = [
+            ("skills", [r"^technical\s+skills$", r"^skills\s*&\s*tools$", r"^core\s+competencies$", r"^skills$", r"^tech\s+stack$"]),
+            ("experience", [r"^work\s+experience$", r"^professional\s+experience$", r"^employment\s+history$", r"^experience$", r"^work\s+history$"]),
+            ("education", [r"^education$", r"^academic\s+background$", r"^academic\s+qualifications$", r"^degrees$"]),
+            ("projects", [r"^projects$", r"^key\s+projects$", r"^personal\s+projects$", r"^academic\s+projects$"]),
+            ("achievements", [r"^achievements$", r"^awards\s*&\s*achievements$", r"^honors$", r"^accomplishments$"]),
+            ("certifications", [r"^certifications$", r"^certificates$", r"^licenses$"]),
+            ("summary", [r"^summary$", r"^professional\s+summary$", r"^profile\s+summary$", r"^about\s+me$", r"^career\s+objective$"])
+        ]
 
-        current_sec = "summary"
+        lines = [l.strip() for l in extracted_text.splitlines() if l.strip()]
         sec_buffers = {
             "summary": [], "skills": [], "experience": [],
             "education": [], "projects": [], "achievements": [], "certifications": []
         }
 
+        current_sec = "summary"
         for line in lines:
-            matched = False
+            matched_sec = None
             clean_line = line.lower().strip(":#*- ")
-            if len(line) < 50:
-                for sec, pattern in sec_keywords.items():
-                    if re.search(pattern, clean_line, re.IGNORECASE):
-                        current_sec = sec
-                        matched = True
+            if len(line) < 40:
+                for sec_key, patterns in sec_keywords:
+                    for pat in patterns:
+                        if re.match(pat, clean_line, re.IGNORECASE):
+                            matched_sec = sec_key
+                            break
+                    if matched_sec:
                         break
-            if not matched:
+            if matched_sec:
+                current_sec = matched_sec
+            else:
                 sec_buffers[current_sec].append(line)
 
         sections = {sec: "\n".join(sec_buffers[sec]).strip() for sec in sec_buffers}
