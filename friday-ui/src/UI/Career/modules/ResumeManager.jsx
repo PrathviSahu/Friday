@@ -3,7 +3,15 @@ import { Plus, Upload, Copy, Archive, Star, Trash2 } from 'lucide-react';
 import { getResumes, createResume, uploadResume, updateResume, duplicateResume, recommendResume, deleteResume } from '../../../api/careerApi.js';
 import Skeleton from '../components/Skeleton.jsx';
 
-const SECTIONS = ['summary', 'skills', 'experience', 'education', 'projects', 'achievements', 'certifications'];
+const SECTION_META = [
+  { id: 'summary',        label: 'Professional Summary', icon: '📝', desc: 'Contact details, profile summary, and executive intro' },
+  { id: 'skills',         label: 'Technical Skills',     icon: '⚡', desc: 'Languages, frameworks, databases, tools, and platforms' },
+  { id: 'experience',     label: 'Work Experience',      icon: '💼', desc: 'Work history, job titles, companies, dates, and achievements' },
+  { id: 'education',      label: 'Education',            icon: '🎓', desc: 'Degrees, colleges, graduation year, and GPA' },
+  { id: 'projects',       label: 'Projects',             icon: '🚀', desc: 'Key projects, technical stack, architecture, and URLs' },
+  { id: 'achievements',   label: 'Achievements',         icon: '🏆', desc: 'Awards, honors, hackathon wins, and competitive rankings' },
+  { id: 'certifications', label: 'Certifications',       icon: '📜', desc: 'Professional certifications, credentials, and licenses' },
+];
 
 export default function ResumeManager() {
   const [resumes, setResumes]   = useState([]);
@@ -31,8 +39,17 @@ export default function ResumeManager() {
   const getContent = (resume) => { try { return JSON.parse(resume?.content_json || '{}'); } catch { return {}; } };
 
   const handleCreate = async () => {
-    await createResume(`Resume ${resumes.length + 1}`, {});
-    load();
+    const defaultTemplate = {
+      summary: "Prathvi Sahu | Full-Stack & AI Software Engineer\nprathvisahu31@gmail.com | Mumbai, India",
+      skills: "Java, Python, JavaScript, Spring Boot, FastAPI, React.js, MySQL, Redis, Docker, Git",
+      experience: "Software Developer Trainee — ZDL Pvt. Ltd. (Zepto Digital Labs)\n• Designed and built high-performance microservices and AI integrations.",
+      education: "Bachelor of Engineering in Computer Science and Design\nNew Horizon Institute of Technology and Management (2022 - 2026)",
+      projects: "F.R.I.D.A.Y. Desktop AI System\n• Built multi-agent AI assistant with voice control, Career OS, and live trading workstation.",
+      achievements: "• 1st Place — College Tech Innovation Hackathon (2025)\n• Top 5% Rank in Competitive Coding",
+      certifications: "• AWS Certified Solutions Architect Associate (In Progress)\n• Oracle Certified Professional Java SE"
+    };
+    const res = await createResume(`Resume ${resumes.length + 1}`, defaultTemplate);
+    load(res?.resume_id);
   };
 
   const handleFileChange = async (e) => {
@@ -298,19 +315,34 @@ export default function ResumeManager() {
             ) : null}
 
             {/* View 2: Sections List */}
-            {viewTab === 'sections' && SECTIONS.map(section => {
+            {viewTab === 'sections' && SECTION_META.map(meta => {
+              const section = meta.id;
               const isEditing = editing?.section === section;
               const value = selectedContent[section] || '';
               return (
-                <div key={section} style={{ marginBottom: 20, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <div key={section} style={{ marginBottom: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.4)', overflow: 'hidden' }}>
                   <div style={{
-                    padding: '12px 16px', background: 'rgba(255,255,255,0.02)',
+                    padding: '12px 18px', background: 'rgba(255,255,255,0.02)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    borderBottom: isEditing ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                    borderBottom: isEditing || value ? '1px solid rgba(255,255,255,0.06)' : 'none',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'capitalize' }}>{section}</span>
-                    <button onClick={() => setEditing(isEditing ? null : { section, content: value })} style={btnGhost}>
-                      {isEditing ? 'Cancel' : 'Edit'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 16 }}>{meta.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>{meta.label}</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>{meta.desc}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setEditing(isEditing ? null : { section, content: value })}
+                      style={{
+                        ...btnGhost,
+                        borderColor: !value ? 'rgba(99,102,241,0.3)' : undefined,
+                        color: !value ? '#818cf8' : undefined,
+                        background: !value ? 'rgba(99,102,241,0.1)' : undefined,
+                      }}
+                    >
+                      {isEditing ? 'Cancel' : !value ? `+ Add ${meta.label}` : 'Edit'}
                     </button>
                   </div>
                   {isEditing ? (
@@ -319,7 +351,7 @@ export default function ResumeManager() {
                         value={editing.content}
                         onChange={e => setEditing(ed => ({ ...ed, content: e.target.value }))}
                         rows={section === 'experience' || section === 'projects' ? 8 : 4}
-                        placeholder={`Enter your ${section}…`}
+                        placeholder={`Enter details for ${meta.label}…`}
                         style={{
                           width: '100%', padding: '10px 12px', borderRadius: 7, boxSizing: 'border-box',
                           background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
@@ -327,7 +359,7 @@ export default function ResumeManager() {
                         }} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                         <button onClick={() => handleSaveSection(section, editing.content)} disabled={saving} style={btnPrimary}>
-                          {saving ? 'Saving…' : 'Save'}
+                          {saving ? 'Saving…' : 'Save Section'}
                         </button>
                         <button onClick={() => setEditing(null)} style={btnGhost}>Cancel</button>
                       </div>
@@ -335,7 +367,9 @@ export default function ResumeManager() {
                   ) : (
                     <div style={{ padding: '14px 18px' }}>
                       {value ? renderFormattedSection(section, value) : (
-                        <p style={{ margin: 0, fontSize: 13, color: '#334155', fontStyle: 'italic' }}>Not filled in yet. Click Edit to add.</p>
+                        <p style={{ margin: 0, fontSize: 12, color: '#475569', fontStyle: 'italic' }}>
+                          No {meta.label.toLowerCase()} added yet. Click <strong>+ Add {meta.label}</strong> above.
+                        </p>
                       )}
                     </div>
                   )}
