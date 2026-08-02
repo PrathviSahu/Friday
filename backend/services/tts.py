@@ -12,7 +12,7 @@ SETTINGS_FILE = Path(__file__).parent.parent / 'data' / 'settings.json'
 
 def get_configured_voices():
     """Reads configured voices from settings.json with safe fallbacks."""
-    default_en = 'en-GB-SoniaNeural'
+    default_en = 'en-IN-NeerjaNeural'
     default_hi = 'hi-IN-SwaraNeural'
     try:
         if SETTINGS_FILE.exists():

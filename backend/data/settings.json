@@ -1,11 +1,10 @@
 {
   "voice": {
-    "english": "en-GB-SoniaNeural",
+    "english": "en-IN-NeerjaNeural",
     "hindi": "hi-IN-SwaraNeural",
     "available_voices": {
-      "Sonia (British)": "en-GB-SoniaNeural",
-      "Emily (US)": "en-US-EmilyNeural",
       "Neerja (Indian)": "en-IN-NeerjaNeural",
+      "Prabhat (Indian Male)": "en-IN-PrabhatNeural",
       "Swara (Hindi)": "hi-IN-SwaraNeural"
     }
   }

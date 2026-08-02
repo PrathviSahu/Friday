@@ -381,16 +381,16 @@ async def upload_resume_file(file: UploadFile = File(...)):
     except Exception as err:
         print("[Resume Upload Parser] LLM parsing fallback to regex:", err)
 
-    # Tier 2: Strict line-based section matcher fallback
+    # Tier 2: Enhanced smart section matcher fallback
     if not sections or not any(sections.values()):
         sec_keywords = [
-            ("skills", [r"^technical\s+skills$", r"^skills\s*&\s*tools$", r"^core\s+competencies$", r"^skills$", r"^tech\s+stack$"]),
-            ("experience", [r"^work\s+experience$", r"^professional\s+experience$", r"^employment\s+history$", r"^experience$", r"^work\s+history$"]),
-            ("education", [r"^education$", r"^academic\s+background$", r"^academic\s+qualifications$", r"^degrees$"]),
-            ("projects", [r"^projects$", r"^key\s+projects$", r"^personal\s+projects$", r"^academic\s+projects$"]),
-            ("achievements", [r"^achievements$", r"^awards\s*&\s*achievements$", r"^honors$", r"^accomplishments$"]),
-            ("certifications", [r"^certifications$", r"^certificates$", r"^licenses$"]),
-            ("summary", [r"^summary$", r"^professional\s+summary$", r"^profile\s+summary$", r"^about\s+me$", r"^career\s+objective$"])
+            ("skills", [r"technical\s+skills", r"skills\s*&\s*tools", r"core\s+competencies", r"skills", r"tech\s+stack", r"technologies", r"programming\s+languages"]),
+            ("experience", [r"work\s+experience", r"professional\s+experience", r"employment\s+history", r"experience", r"work\s+history", r"internships"]),
+            ("education", [r"education", r"academic\s+background", r"academic\s+qualifications", r"degrees", r"scholastic\s+achievements"]),
+            ("projects", [r"projects", r"key\s+projects", r"personal\s+projects", r"academic\s+projects", r"portfolio"]),
+            ("achievements", [r"achievements", r"awards\s*&\s*achievements", r"honors", r"accomplishments", r"awards", r"hackathons"]),
+            ("certifications", [r"certifications", r"certificates", r"licenses", r"credentials", r"courses\s*&\s*certifications"]),
+            ("summary", [r"summary", r"professional\s+summary", r"profile\s+summary", r"about\s+me", r"career\s+objective", r"overview", r"profile"])
         ]
 
         lines = [l.strip() for l in extracted_text.splitlines() if l.strip()]
@@ -403,16 +403,20 @@ async def upload_resume_file(file: UploadFile = File(...)):
         for line in lines:
             matched_sec = None
             clean_line = line.lower().strip(":#*- ")
-            if len(line) < 40:
-                for sec_key, patterns in sec_keywords:
-                    for pat in patterns:
-                        if re.match(pat, clean_line, re.IGNORECASE):
-                            matched_sec = sec_key
-                            break
-                    if matched_sec:
+            header_rest = ""
+            for sec_key, patterns in sec_keywords:
+                for pat in patterns:
+                    m = re.match(r"^" + pat + r"(?:\s*[:\-–—]\s*(.*))?$", clean_line, re.IGNORECASE)
+                    if m:
+                        matched_sec = sec_key
+                        header_rest = m.group(1) if m.lastindex and m.group(1) else ""
                         break
+                if matched_sec:
+                    break
             if matched_sec:
                 current_sec = matched_sec
+                if header_rest:
+                    sec_buffers[current_sec].append(header_rest)
             else:
                 sec_buffers[current_sec].append(line)
 

@@ -128,26 +128,22 @@ function fallbackWebSpeech(text, onEnd) {
   }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.pitch = 1.1; // Slightly higher pitch for female voice
-  utterance.rate = 1.05;
+  utterance.pitch = 1.0;
+  utterance.rate = 1.0;
 
   const voices = window.speechSynthesis.getVoices();
-  // Strictly target female voices (Samantha, Victoria, Karen, Moira, Fiona, Zira, Google UK Female)
-  // Exclude known male voices (Daniel, Alex, Fred, Oliver, George)
-  const femaleVoice = voices.find(v => {
+  // Target Indian English voices first (en-IN, Neerja, Rishi, Veena, Swara)
+  const indianVoice = voices.find(v => {
+    const lang = (v.lang || '').toLowerCase();
     const name = (v.name || '').toLowerCase();
-    const isFemaleName = name.includes('female') || name.includes('victoria') || name.includes('samantha') ||
-                         name.includes('karen') || name.includes('moira') || name.includes('fiona') ||
-                         name.includes('zira') || name.includes('siri') || name.includes('neerja');
-    const isMaleName = name.includes('daniel') || name.includes('alex') || name.includes('fred') ||
-                       name.includes('oliver') || name.includes('george') || name.includes('male');
-    return isFemaleName && !isMaleName;
+    return (lang.includes('en-in') || lang.includes('en_in') || name.includes('india') || name.includes('neerja') || name.includes('swara') || name.includes('veena') || name.includes('rishi'));
   }) || voices.find(v => {
+    const lang = (v.lang || '').toLowerCase();
     const name = (v.name || '').toLowerCase();
-    return !name.includes('daniel') && !name.includes('alex') && !name.includes('fred') && !name.includes('male');
+    return !lang.includes('en-gb') && !name.includes('uk') && !name.includes('british') && !name.includes('daniel');
   });
 
-  if (femaleVoice) utterance.voice = femaleVoice;
+  if (indianVoice) utterance.voice = indianVoice;
 
   utterance.onend = () => { if (onEnd) onEnd(); };
   utterance.onerror = () => { if (onEnd) onEnd(); };
