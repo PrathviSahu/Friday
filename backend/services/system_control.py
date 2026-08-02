@@ -84,33 +84,6 @@ def _get_spotify_client_token() -> str:
     return ""
 
 
-def _search_track_uri(token: str, query: str) -> str:
-    """Search Spotify catalog for `query`, return the top spotify:track:ID or ''."""
-    try:
-        url = "https://api.spotify.com/v1/search?" + urllib.parse.urlencode({
-            "q": query,
-            "type": "track",
-            "limit": 1,
-            "market": "IN",
-        })
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read().decode())
-        items = data.get("tracks", {}).get("items", [])
-        if not items:
-            print(f"[Spotify] No track found for: '{query}'")
-            return ""
-        track = items[0]
-        name = track.get("name", query)
-        artists = ", ".join(a["name"] for a in track.get("artists", []))
-        uri = track["uri"]
-        print(f"[Spotify] Found: '{name}' by {artists} → {uri}")
-        return uri
-    except Exception as err:
-        print(f"[Spotify] Search error: {err}")
-        return ""
-
-
 def _get_spotify_access_token() -> str:
     """Return a valid Spotify access token using the stored refresh token (user OAuth).
 
