@@ -189,6 +189,9 @@ export const getCoverLetters = (job_id = null) =>
 export const verifyAccount = (platformKey) =>
   api('POST', `/accounts/verify/${platformKey}`);
 
+export const connectAccountLiveBrowser = (platformKey) =>
+  api('POST', `/accounts/connect/${platformKey}`);
+
 export const getCandidateIntelligence = (resumeId) =>
   cached(`intelligence_${resumeId}`, () => api('GET', `/candidate-intelligence/${resumeId}`));
 

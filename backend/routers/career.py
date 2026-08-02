@@ -720,6 +720,22 @@ def get_skill_gap(resume_id: Optional[int] = None):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ACCOUNTS & SESSION VERIFICATION
+# ══════════════════════════════════════════════════════════════════════════════
+
+from services.platform_session import launch_real_browser_login, get_platform_session_status
+
+@router.post("/accounts/verify/{platform_key}")
+def verify_account_endpoint(platform_key: str):
+    """Returns verified session status and live profile metrics."""
+    return get_platform_session_status(platform_key)
+
+@router.post("/accounts/connect/{platform_key}")
+async def connect_account_live_browser(platform_key: str):
+    """Launches real browser (headless=False) so user can log in ONCE and capture session cookies."""
+    return await launch_real_browser_login(platform_key)
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ACTIVITY
 # ══════════════════════════════════════════════════════════════════════════════
 

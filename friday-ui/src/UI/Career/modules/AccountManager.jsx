@@ -1,7 +1,21 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Eye, EyeOff, X, Check, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
-import { getProfile, updateProfile, verifyAccount } from '../../../api/careerApi.js';
+import { KeyRound, Eye, EyeOff, X, Check, ShieldCheck, RefreshCw, Zap, ExternalLink } from 'lucide-react';
+import { getProfile, updateProfile, verifyAccount, connectAccountLiveBrowser } from '../../../api/careerApi.js';
 import { SkeletonCard } from '../components/Skeleton.jsx';
+
+// ... setup continues ...
+
+  const handleConnectBrowser = async (platformName, pKey) => {
+    setVerifying(v => ({ ...v, [pKey]: true }));
+    try {
+      const res = await connectAccountLiveBrowser(pKey);
+      setVerifiedInfo(info => ({ ...info, [pKey]: res }));
+    } catch (err) {
+      console.error("Connect browser error:", err);
+    } finally {
+      setVerifying(v => ({ ...v, [pKey]: false }));
+    }
+  };
 
 const PLATFORMS = [
   { key: 'linkedin_email',    pKey: 'linkedin',    label: 'LinkedIn',    icon: '💼', field_type: 'email' },
@@ -131,6 +145,21 @@ export default function AccountManager() {
                     Needs Login
                   </span>
                 )}
+
+                <button
+                  onClick={() => handleConnectBrowser(platformName, pKey)}
+                  disabled={isVerifyingThis}
+                  title="Launches real Chrome window to log in ONCE and capture authenticated session cookies safely"
+                  style={{
+                    padding: '4px 10px', borderRadius: 6,
+                    background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)',
+                    color: '#4ade80', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4
+                  }}
+                >
+                  <ExternalLink size={11} />
+                  Connect Session
+                </button>
 
                 <button
                   onClick={() => handleTestConnection(platformName, pKey)}
