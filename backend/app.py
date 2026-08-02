@@ -154,6 +154,18 @@ def save_memory_endpoint(req: SaveMemoryRequest):
     return {"status": "ok", "memories": get_all_memories()}
 
 
+class SpeechCorrectionRequest(BaseModel):
+    original_text: str
+    corrected_text: str
+
+@app.post("/api/speech/correct")
+def record_speech_correction(req: SpeechCorrectionRequest):
+    """Record a user speech correction permanently in personal vocabulary memory."""
+    from speech.personal_vocabulary import PersonalVocabularyEngine
+    ok = PersonalVocabularyEngine().record_correction(req.original_text, req.corrected_text)
+    return {"status": "ok" if ok else "error"}
+
+
 @app.post("/api/permission")
 def set_permission_endpoint(req: PermissionRequest):
     """Grant or revoke guest voice permission"""
