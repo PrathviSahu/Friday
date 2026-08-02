@@ -42,6 +42,7 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
 
 export default function SystemMonitorCard() {
     const { workspace } = useOrbState();
+    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [stats, setStats] = useState({
         cpu_percent: 0,

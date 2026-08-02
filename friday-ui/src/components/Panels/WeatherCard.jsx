@@ -33,6 +33,7 @@ function AnimatedWeatherIcon({ condition = '', icon = '🌤️', isDragging = fa
 
 export default function WeatherCard() {
     const { workspace } = useOrbState();
+    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [weather, setWeather] = useState({
         city: 'Locating…',

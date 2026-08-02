@@ -13,8 +13,11 @@ import WebSearchCard from './components/Panels/WebSearchCard';
 import { FridayProvider } from './context/FridayContext';
 import FridaySync from './context/FridaySync';
 import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
+import { useOrbState } from './hooks/useOrbState';
 
 function FridayCore() {
+    const { workspace } = useOrbState();
+    const isCareerWorkspace = workspace === 'career';
     const [proactiveToast, setProactiveToast] = useState(null);
     const pendingActionRef = useRef(null); // holds confirmPendingAction fn when action is pending
 
@@ -59,11 +62,12 @@ function FridayCore() {
             <FridaySync />
             <LockScreen />
             <Workspace />
+            {/* On Job Portal / Career OS, keep ONLY Spotify Card active and hide all other floating capsules */}
             <SpotifyCard />
-            <TodoCard />
-            <SystemMonitorCard />
-            <WeatherCard />
-            <WebSearchCard />
+            {!isCareerWorkspace && <TodoCard />}
+            {!isCareerWorkspace && <SystemMonitorCard />}
+            {!isCareerWorkspace && <WeatherCard />}
+            {!isCareerWorkspace && <WebSearchCard />}
             <DebugKeys />
 
             {/* ── Proactive Suggestion Toast ── */}

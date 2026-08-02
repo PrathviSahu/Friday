@@ -9,6 +9,7 @@ const API = API_ENDPOINTS.search;
 
 export default function WebSearchCard() {
     const { workspace } = useOrbState();
+    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [query, setQuery] = useState('');
     const [searching, setSearching] = useState(false);

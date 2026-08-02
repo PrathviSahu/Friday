@@ -15,7 +15,11 @@ const PRIORITY_META = {
     low: { color: '#6b7280', label: 'Low', dot: 'bg-gray-500' },
 };
 
+import { useOrbState } from '../../hooks/useOrbState';
+
 export default function TodoCard() {
+    const { workspace } = useOrbState();
+    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [todos, setTodos] = useState([]);
     const [input, setInput] = useState('');
