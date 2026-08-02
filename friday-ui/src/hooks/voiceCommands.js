@@ -1,9 +1,18 @@
 export function normalizeTranscript(value = '') {
-  return String(value)
+  let text = String(value)
     .toLowerCase()
     .replace(/[^a-z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  
+  // Strip leading and trailing wake words and filler words
+  text = text
+    .replace(/^(?:hey|ok|okay|hi|hello)?\s*friday\b\s*/gi, '')
+    .replace(/\s*\bfriday\b$/gi, '')
+    .replace(/^(?:please|could you|can you)\s+/gi, '')
+    .trim();
+    
+  return text;
 }
 
 

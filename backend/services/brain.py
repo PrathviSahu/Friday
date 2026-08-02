@@ -51,6 +51,16 @@ from services.mac_controls import (
 # Track last FRIDAY action context for correction detection
 _last_action_context: dict = {"query": "", "target": ""}
 
+def _clean_song_query(query: str) -> str:
+    """Strips wake words, filler phrases, and trailing app names from song search queries."""
+    clean = query.strip()
+    # Strip wake words and filler phrases at start or end
+    clean = re.sub(r'(?i)\b(friday|hey friday|ok friday|okay friday|please|could you|can you|play me|play song|gaana|chalao|bajao|song|track)\b', '', clean)
+    # Strip trailing "on spotify", "in spotify"
+    clean = re.sub(r'(?i)\b(on|in|by|via)\s+spotify\b', '', clean)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    return clean
+
 
 KNOWN_ACTIONS = [
     "dashboard", "trading", "career", "engineering", "vscode", "browser",
@@ -545,12 +555,12 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             return {"reply": msg, "action": "play_specific"}
 
         # 6. EXPLICIT "PLAY [SONG]" SHORTCUT
-        # FIX #2: Use regex extraction instead of substring .replace("play", "") to prevent mangling song titles
+        # FIX: Thoroughly sanitize query by removing wake words ("friday"), fillers ("please"), and trailing qualifiers
         play_match = re.search(r'\bplay\b\s+(.*)', lower_text)
         if play_match:
             raw_song = play_match.group(1)
-            cleaned_song = re.sub(r'\s*on spotify\s*$', '', raw_song).strip()
-            if cleaned_song and cleaned_song not in ["music", "the music", "some music", "my music", "spotify", "playlist", "hindi", "english", "volume", "sound", "it", "this", "next", "next song", "next track", "previous", "previous song", "previous track"]:
+            cleaned_song = _clean_song_query(raw_song)
+            if cleaned_song and cleaned_song.lower() not in ["music", "the music", "some music", "my music", "spotify", "playlist", "hindi", "english", "volume", "sound", "it", "this", "next", "next song", "next track", "previous", "previous song", "previous track"]:
                 execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
                 msg = "Ok." if not extracted_vol >= 0 else f"Ok. volume {extracted_vol}%."
                 log_conversation(role="assistant", message=msg)
