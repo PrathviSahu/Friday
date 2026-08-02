@@ -491,36 +491,31 @@ def _search_best_track_uri(token: str, query: str) -> dict:
         print(f"[Spotify API] ❌ No tracks found for '{search_q}'")
         return {"uri": "", "title": "", "artist": ""}
 
-    best_track = None
-    best_score = -999.0
-
+    # Sort candidates by match score
+    scored_candidates = []
     for item in items:
         name = item.get("name", "")
         artists = ", ".join(art["name"] for art in item.get("artists", []))
         pop = item.get("popularity", 50)
         score = _score_track_match(clean_q, name, artists, pop)
-        print(f"[Spotify Scorer] Candidate: '{name}' by {artists} (pop {pop}) -> Score {score:.1f}")
-        if score > best_score:
-            best_score = score
-            best_track = item
+        scored_candidates.append({
+            "uri": item["uri"],
+            "title": name,
+            "artist": artists,
+            "popularity": pop,
+            "score": score
+        })
 
-    if best_track:
-        artists = ", ".join(art["name"] for art in best_track.get("artists", []))
-        uri = best_track["uri"]
-        title = best_track.get("name", "")
-        print(f"[Spotify API] ✅ Best match: '{title}' by {artists} (Score {best_score:.1f}) -> {uri}")
-        # Log top-5 candidates for debugging
-        candidates = sorted(
-            [(item.get("name", ""), ", ".join(a["name"] for a in item.get("artists", [])),
-              _score_track_match(clean_q, item.get("name", ""),
-                ", ".join(a["name"] for a in item.get("artists", [])),
-                item.get("popularity", 50)))
-             for item in items[:5]], key=lambda x: x[2], reverse=True)
-        for c_name, c_artist, c_score in candidates[:3]:
-            print(f"[Spotify Scorer] Top candidate: '{c_name}' by {c_artist} (Score {c_score:.1f})")
-        return {"uri": uri, "title": title, "artist": artists}
+    scored_candidates.sort(key=lambda x: x["score"], reverse=True)
+    best_track = scored_candidates[0] if scored_candidates else {"uri": "", "title": "", "artist": ""}
+    print(f"[Spotify API] ✅ Top match: '{best_track.get('title')}' by {best_track.get('artist')} -> {best_track.get('uri')}")
 
-    return {"uri": "", "title": "", "artist": ""}
+    return {
+        "uri": best_track.get("uri", ""),
+        "title": best_track.get("title", ""),
+        "artist": best_track.get("artist", ""),
+        "candidates": scored_candidates[:5]
+    }
 
 
 def _execute_applescript_silent(script_body: str) -> subprocess.CompletedProcess:
@@ -595,41 +590,19 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
 
 
 def play_spotify_uri(uri: str) -> bool:
-    """Load and play a Spotify URI. For search URIs, uses AppleScript UI keystrokes to search and play top result."""
+    """Loads and plays a Spotify URI directly via AppleScript or Web API without UI keystrokes."""
     if not uri:
         return False
     try:
         if IS_MAC:
-            if uri.startswith("spotify:search:"):
-                raw_q = urllib.parse.unquote(uri.replace("spotify:search:", ""))
-                # Replace double quotes for AppleScript safety
-                safe_q = raw_q.replace('"', '\\"')
-                script = f'''
-                tell application "Spotify" to activate
-                delay 0.3
-                tell application "System Events"
-                    tell process "Spotify"
-                        keystroke "l" using command down
-                        delay 0.2
-                        keystroke "{safe_q}"
-                        delay 0.5
-                        key code 36
-                        delay 0.8
-                        key code 36
-                    end tell
-                end tell
-                tell application "Spotify" to play
-                '''
-                _execute_applescript_silent(script)
-            else:
-                _execute_applescript_silent(f'tell application "Spotify" to play track "{uri}"')
-            print(f"[Spotify] ✅ Background URI play executed: {uri}")
+            _execute_applescript_silent(f'tell application "Spotify" to play track "{uri}"')
+            print(f"[Spotify Direct Play] ✅ Direct URI playback triggered: {uri}")
             return True
         else:
             subprocess.run(["osascript", "-e", f'tell application "Spotify" to play track "{uri}"'], timeout=5, capture_output=True)
             return True
     except Exception as err:
-        print(f"[Spotify] URI play error: {err}")
+        print(f"[Spotify Direct Play] URI play error: {err}")
         return False
 
 
@@ -706,81 +679,34 @@ def search_and_play_spotify(song_query: str) -> bool:
         result_meta = _find_spotify_track_uri_web(song_query.strip())
         track_uri = result_meta.get("uri", "")
 
-    if not track_uri:
-        print(f"[Spotify] ❌ Could not resolve track URI for '{song_query}'")
-        return False
+    candidates = result_meta.get("candidates", [])
+    if not candidates and track_uri:
+        candidates = [{"uri": track_uri, "title": expected_title, "artist": expected_artist}]
 
-    print("TRACK URI:", track_uri)
-    print("TOKEN TYPE:", token_type)
+    for idx, cand in enumerate(candidates):
+        cand_uri = cand.get("uri", "")
+        cand_title = cand.get("title", expected_title)
+        cand_artist = cand.get("artist", expected_artist)
 
-    played_ok = False
-    if user_token and track_uri and not track_uri.startswith("spotify:search:"):
-        try:
-            devices_url = "https://api.spotify.com/v1/me/player/devices"
-            dev_req = urllib.request.Request(devices_url, headers={"Authorization": f"Bearer {user_token}"})
-            device_id = ""
-            try:
-                with urllib.request.urlopen(dev_req, timeout=4) as dev_resp:
-                    dev_data = json.loads(dev_resp.read().decode())
-                    devices = dev_data.get("devices", [])
-                    for d in devices:
-                        if d.get("is_active"):
-                            device_id = d.get("id", "")
-                            break
-                    if not device_id and devices:
-                        device_id = devices[0].get("id", "")
-            except Exception:
-                pass
+        if not cand_uri or cand_uri.startswith("spotify:search:"):
+            continue
 
-            play_endpoint = "https://api.spotify.com/v1/me/player/play"
-            if device_id:
-                play_endpoint += f"?device_id={device_id}"
+        print(f"[Verification Loop] 🔄 Trying candidate #{idx + 1}: '{cand_title}' by {cand_artist} ({cand_uri})...")
+        play_ok = play_spotify_uri(cand_uri)
 
-            play_data = json.dumps({"uris": [track_uri]}).encode()
-            play_req = urllib.request.Request(
-                play_endpoint,
-                data=play_data,
-                headers={
-                    "Authorization": f"Bearer {user_token}",
-                    "Content-Type": "application/json",
-                },
-                method="PUT",
-            )
-            with urllib.request.urlopen(play_req, timeout=6) as r:
-                if r.status in (200, 204):
-                    print(f"[Spotify] ✅ Successfully triggered playback via Web API")
-                    played_ok = True
-        except Exception as err:
-            print(f"[Spotify] Web API playback error: {err}")
-
-    if not played_ok:
-        print(f"[Spotify] 🚀 Playing track URI via AppleScript fallback: {track_uri}")
-        play_spotify_uri(track_uri)
-
-    # Validate playback against expected track title/artist
-    is_search_uri = track_uri.startswith("spotify:search:")
-    alt_search_uris = result_meta.get("_alt_search_uris", [])
-    if verify_spotify_playback(expected_title=expected_title, expected_artist=expected_artist, is_search_uri=is_search_uri):
-        if track_uri and not track_uri.startswith("spotify:search:"):
-            print(f"[Spotify Cache] ✅ Verification passed — caching '{norm_q}' -> {track_uri}")
-            cache[norm_q] = track_uri
-            _save_spotify_cache(cache)
-        else:
-            print(f"[Spotify Cache] ℹ️ Played via generic search URI — skipping cache write for '{norm_q}'")
-        return True
-
-    # If search URI approach played the wrong track, try alternative queries
-    if is_search_uri and alt_search_uris:
-        print(f"[Spotify] ❌ First search URI played wrong track — trying {len(alt_search_uris)} alternatives...")
-        for alt_uri in alt_search_uris:
-            print(f"[Spotify] 🔄 Trying alternative: {alt_uri}")
-            play_spotify_uri(alt_uri)
-            time.sleep(2.0)
-            if verify_spotify_playback(expected_title=expected_title, expected_artist=expected_artist, is_search_uri=True):
-                print(f"[Spotify] ✅ Alternative URI matched!")
+        if play_ok:
+            time.sleep(1.0)
+            if verify_spotify_playback(expected_title=cand_title, expected_artist=cand_artist):
+                print(f"[Verification Loop] ✅ Verified candidate #{idx + 1} matches requested song!")
+                cache[norm_q] = cand_uri
+                _save_spotify_cache(cache)
                 return True
+            else:
+                print(f"[Verification Loop] ❌ Candidate #{idx + 1} failed verification — stopping playback and trying candidate #{idx + 2}...")
+                _execute_applescript_silent('tell application "Spotify" to pause')
+                time.sleep(0.5)
 
-    print(f"[Spotify] ❌ Verification failed for '{song_query}' — skipping cache write.")
+    print(f"[Spotify] ❌ All candidate verifications failed for '{song_query}'")
     return False
 
 

@@ -18,6 +18,7 @@ def init_song_memory_db():
                 song_name TEXT NOT NULL,
                 artist TEXT,
                 spotify_uri TEXT,
+                source TEXT DEFAULT 'user_confirmed',
                 created_at REAL NOT NULL,
                 last_used REAL,
                 use_count INTEGER DEFAULT 1
@@ -25,19 +26,25 @@ def init_song_memory_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_song_memory_alias ON song_memory(alias);")
         
+        # Migration: Ensure 'source' column exists if table was previously created
+        try:
+            conn.execute("ALTER TABLE song_memory ADD COLUMN source TEXT DEFAULT 'user_confirmed';")
+        except Exception:
+            pass  # Column already exists
+
         # Seed initial default song aliases if database is empty
         cursor = conn.execute("SELECT COUNT(*) FROM song_memory")
         if cursor.fetchone()[0] == 0:
             now = time.time()
             defaults = [
-                (uuid.uuid4().hex, "gym song", "Believer", "Imagine Dragons", "spotify:track:08m1DywosR42BDT0kYOFyB", now, now, 1),
-                (uuid.uuid4().hex, "my gym song", "Believer", "Imagine Dragons", "spotify:track:08m1DywosR42BDT0kYOFyB", now, now, 1),
-                (uuid.uuid4().hex, "coding music", "Interstellar Main Theme", "Hans Zimmer", "spotify:track:6ybVivXRLIyC3XjWyAM2ft", now, now, 1),
-                (uuid.uuid4().hex, "breakup song", "Bekhayali (Arijit Singh Version)", "Arijit Singh", "spotify:track:18D6852nLcvJ7L80rU7uH1", now, now, 1),
-                (uuid.uuid4().hex, "relaxing song", "Kesariya", "Arijit Singh", "spotify:track:6VhuP93xyzc5eT0v55Ww84", now, now, 1),
+                (uuid.uuid4().hex, "gym song", "Believer", "Imagine Dragons", "spotify:track:08m1DywosR42BDT0kYOFyB", "user_confirmed", now, now, 1),
+                (uuid.uuid4().hex, "my gym song", "Believer", "Imagine Dragons", "spotify:track:08m1DywosR42BDT0kYOFyB", "user_confirmed", now, now, 1),
+                (uuid.uuid4().hex, "coding music", "Interstellar Main Theme", "Hans Zimmer", "spotify:track:6ybVivXRLIyC3XjWyAM2ft", "user_confirmed", now, now, 1),
+                (uuid.uuid4().hex, "breakup song", "Bekhayali (Arijit Singh Version)", "Arijit Singh", "spotify:track:18D6852nLcvJ7L80rU7uH1", "user_confirmed", now, now, 1),
+                (uuid.uuid4().hex, "relaxing song", "Kesariya", "Arijit Singh", "spotify:track:6VhuP93xyzc5eT0v55Ww84", "user_confirmed", now, now, 1),
             ]
             conn.executemany(
-                "INSERT INTO song_memory (id, alias, song_name, artist, spotify_uri, created_at, last_used, use_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO song_memory (id, alias, song_name, artist, spotify_uri, source, created_at, last_used, use_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 defaults
             )
         conn.commit()
@@ -46,8 +53,8 @@ class SongMemoryRepository:
     def __init__(self):
         init_song_memory_db()
 
-    def save_alias(self, alias: str, song_name: str, artist: str = "", spotify_uri: str = "") -> Dict[str, Any]:
-        """Saves or updates a custom song alias."""
+    def save_alias(self, alias: str, song_name: str, artist: str = "", spotify_uri: str = "", source: str = "user_confirmed") -> Dict[str, Any]:
+        """Saves or updates a custom song alias with source tracking."""
         clean_alias = alias.strip().lower()
         now = time.time()
         mem_id = uuid.uuid4().hex
@@ -55,16 +62,17 @@ class SongMemoryRepository:
         with get_db_connection() as conn:
             conn.execute(
                 """
-                INSERT INTO song_memory (id, alias, song_name, artist, spotify_uri, created_at, last_used, use_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                INSERT INTO song_memory (id, alias, song_name, artist, spotify_uri, source, created_at, last_used, use_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
                 ON CONFLICT(alias) DO UPDATE SET
                     song_name = excluded.song_name,
                     artist = excluded.artist,
                     spotify_uri = excluded.spotify_uri,
+                    source = excluded.source,
                     last_used = excluded.last_used,
                     use_count = song_memory.use_count + 1
                 """,
-                (mem_id, clean_alias, song_name.strip(), artist.strip(), spotify_uri.strip(), now, now)
+                (mem_id, clean_alias, song_name.strip(), artist.strip(), spotify_uri.strip(), source, now, now)
             )
             conn.commit()
 
@@ -72,7 +80,8 @@ class SongMemoryRepository:
             "alias": clean_alias,
             "song_name": song_name,
             "artist": artist,
-            "spotify_uri": spotify_uri
+            "spotify_uri": spotify_uri,
+            "source": source
         }
 
     def lookup_alias(self, alias_query: str) -> Optional[Dict[str, Any]]:
