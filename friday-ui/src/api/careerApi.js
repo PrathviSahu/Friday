@@ -175,6 +175,9 @@ export const generateCoverLetter = (job_id, resume_id = null, tone = 'profession
 export const getCoverLetters = (job_id = null) =>
   api('GET', `/cover-letters${job_id ? `?job_id=${job_id}` : ''}`);
 
+export const verifyAccount = (platformKey) =>
+  api('POST', `/accounts/verify/${platformKey}`);
+
 export const getCandidateIntelligence = (resumeId) =>
   cached(`intelligence_${resumeId}`, () => api('GET', `/candidate-intelligence/${resumeId}`));
 
