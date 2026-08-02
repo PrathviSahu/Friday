@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Upload, Copy, Archive, Star } from 'lucide-react';
-import { getResumes, createResume, uploadResume, updateResume, duplicateResume, recommendResume } from '../../../api/careerApi.js';
+import { Plus, Upload, Copy, Archive, Star, Trash2 } from 'lucide-react';
+import { getResumes, createResume, uploadResume, updateResume, duplicateResume, recommendResume, deleteResume } from '../../../api/careerApi.js';
 import Skeleton from '../components/Skeleton.jsx';
 
 const SECTIONS = ['summary', 'skills', 'experience', 'education', 'projects', 'achievements', 'certifications'];
@@ -64,6 +64,14 @@ export default function ResumeManager() {
     await updateResume(id, { is_archived: 1 });
     setSelected(null);
     load();
+  };
+
+  const handleDeleteResume = async (id, title) => {
+    if (window.confirm(`Are you sure you want to permanently delete '${title}'? This action cannot be undone.`)) {
+      await deleteResume(id);
+      setSelected(null);
+      load();
+    }
   };
 
   const handleRecommend = async (id) => {
@@ -176,8 +184,11 @@ export default function ResumeManager() {
                 <button onClick={() => handleDuplicate(selected.id)} style={btnGhost}>
                   <Copy size={14} /> Copy
                 </button>
-                <button onClick={() => handleArchive(selected.id)} style={{ ...btnGhost, color: '#ef4444' }}>
+                <button onClick={() => handleArchive(selected.id)} style={btnGhost}>
                   <Archive size={14} /> Archive
+                </button>
+                <button onClick={() => handleDeleteResume(selected.id, selected.title)} style={{ ...btnGhost, color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}>
+                  <Trash2 size={14} /> Delete
                 </button>
               </div>
             </div>

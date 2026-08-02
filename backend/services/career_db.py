@@ -301,6 +301,14 @@ def set_recommended_resume(resume_id: int):
         conn.commit()
 
 
+def delete_resume(resume_id: int) -> bool:
+    with _db() as conn:
+        conn.execute("DELETE FROM career_resumes WHERE id = ?", (resume_id,))
+        conn.commit()
+    log_activity("resume_deleted", f"Resume ID {resume_id} deleted")
+    return True
+
+
 # ── Jobs ───────────────────────────────────────────────────────────────────────
 
 def get_jobs(status: Optional[str] = None, min_score: float = 0, source: Optional[str] = None) -> list:

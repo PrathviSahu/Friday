@@ -237,14 +237,22 @@ def list_resumes(include_archived: bool = False):
 
 
 @router.get("/resumes/{resume_id}")
-def read_resume(resume_id: str):
+def read_resume(resume_id: int):
     r = get_resume(resume_id)
     if not r:
         raise HTTPException(status_code=404, detail="Resume not found")
     return {"status": "ok", "resume": r}
 
 
+@router.delete("/resumes/{resume_id}")
+def remove_resume(resume_id: int):
+    from services.career_db import delete_resume
+    res = delete_resume(resume_id)
+    return {"status": "ok", "deleted": res}
+
+
 @router.post("/accounts/verify/{platform_key}")
+@router.get("/accounts/verify/{platform_key}")
 def verify_platform_account(platform_key: str):
     """Performs live account verification and health check for a connected career platform."""
     profile = get_profile()

@@ -119,6 +119,12 @@ export const recommendResume = async (id) => {
   return result;
 };
 
+export const deleteResume = async (id) => {
+  const result = await api('DELETE', `/resumes/${id}`);
+  invalidate('resumes_false', 'resumes_true');
+  return result;
+};
+
 // ── Jobs / Opportunities ──────────────────────────────────────────────────────
 export const getJobs = (params = {}) => {
   const { status, min_score = 0, source } = params;
