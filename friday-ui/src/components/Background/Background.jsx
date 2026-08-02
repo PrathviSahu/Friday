@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import Particles from "./Particles";
 
 export default function Background() {
   const canvasRef = useRef(null);
@@ -37,19 +38,6 @@ export default function Background() {
       r: Math.random() * 1.3,
       alpha: Math.random(),
       speed: Math.random() * 0.015,
-    }));
-
-    //------------------------
-    // FLOATING PARTICLES
-    //------------------------
-
-    const particles = Array.from({ length: 120 }, () => ({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.2,
-      vy: -Math.random() * 0.2,
-      size: Math.random() * 2,
-      alpha: Math.random() * 0.5,
     }));
 
     let t = 0;
@@ -198,12 +186,22 @@ export default function Background() {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
-      style={{
-        zIndex: 0,
-      }}
-    />
+    <div className="absolute inset-0 w-full h-full" style={{ zIndex: 0 }}>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+      />
+      <Particles
+        particleColors={["#00B7FF", "#FF8C00", "#DFFAFF"]}
+        particleCount={180}
+        particleSpread={20}
+        speed={0.1}
+        particleBaseSize={90}
+        moveParticlesOnHover={true}
+        alphaParticles={true}
+        disableRotation={false}
+        pixelRatio={1}
+      />
+    </div>
   );
 }
