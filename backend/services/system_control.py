@@ -292,49 +292,36 @@ def _score_track_match(query: str, track_name: str, artist_name: str, popularity
     score = 0.0
 
     # ── Title containment (core signal) ──────────────────────────────────────
-    # Perfect match?
+    # Perfect match gets massive priority (+150 pts) so popularity can never override it
     if q == clean_t:
-        score += 70.0 + 45.0  # 115 base
+        score += 150.0
     elif q in clean_t:
-        # Query is a substring of the track title — strong signal
-        score += 55.0 + 15.0  # 70 base
-        # Bonus if the query starts the title (not buried mid-name)
+        score += 90.0
         if clean_t.startswith(q):
-            score += 15.0
+            score += 30.0
     elif clean_t in q:
-        # Track title is contained in query (e.g. user said "kesariya song")
-        score += 45.0
+        score += 70.0
     else:
-        # Fuzzy ratio as fallback
+        # SequenceMatcher fallback
         ratio = difflib.SequenceMatcher(None, q, clean_t).ratio()
-        score += ratio * 50.0
+        score += ratio * 40.0
 
-    # ── Word-completeness bonus: every word in the query appears in the title ─
+    # ── Word-completeness bonus: every word in query appears in title ───────
     q_words = [w for w in q.split() if len(w) > 2]
     if q_words and all(w in clean_t for w in q_words):
-        score += 20.0
+        score += 30.0
 
-    # ── Popularity (up to 15 pts) ────────────────────────────────────────────
-    pop_score = (min(100, max(0, popularity)) / 100.0) * 15.0
-    score += pop_score
-
-    # ── Artist relevance bonus (up to 10 pts) ────────────────────────────────
-    # Only meaningful when the query looks like it names an artist (contains a
-    # known common name marker or the full query appears in artist field)
+    # ── Artist relevance bonus (up to 50 pts) ────────────────────────────────
     q_lower = q
-    if q_lower in a:
-        score += 10.0
-    # Check if any query word matches any part of ANY artist name (split by &/,)
     for artist_part in re.split(r'[,&]', a):
         artist_part = artist_part.strip()
-        for w in q_words:
-            if w in artist_part and len(w) > 2:
-                score += 5.0
-                break
+        if artist_part and artist_part in q_lower:
+            score += 50.0
+            break
 
-    # ── Featured / collaboration penalty ─────────────────────────────────────
-    if ('feat' in t or 'with' in t) and 'feat' not in q and 'with' not in q:
-        score -= 20.0
+    # ── Popularity bonus (capped at max 10 pts so it NEVER overrides title/artist match) ──
+    pop_score = (min(100, max(0, popularity)) / 100.0) * 10.0
+    score += pop_score
 
     # ── Heavy penalties for derivative/remix versions ────────────────────────
     penalties = [
@@ -344,7 +331,7 @@ def _score_track_match(query: str, track_name: str, artist_name: str, popularity
     ]
     for kw in penalties:
         if kw in t and kw not in q:
-            score -= 45.0
+            score -= 60.0
 
     return score
 
@@ -633,12 +620,27 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
 
 
 def play_spotify_uri(uri: str) -> bool:
-    """Load and play a Spotify URI synchronously in the background without stealing window focus."""
+    """Load and play a Spotify URI. For search URIs, sends key code 36 (Return) to auto-play top match."""
     if not uri:
         return False
     try:
         if IS_MAC:
-            _execute_applescript_silent(f'tell application "Spotify" to play track "{uri}"')
+            if uri.startswith("spotify:search:"):
+                script = f'''
+                tell application "Spotify"
+                    activate
+                    open location "{uri}"
+                end tell
+                delay 0.4
+                tell application "System Events"
+                    tell process "Spotify"
+                        key code 36
+                    end tell
+                end tell
+                '''
+                _execute_applescript_silent(script)
+            else:
+                _execute_applescript_silent(f'tell application "Spotify" to play track "{uri}"')
             print(f"[Spotify] ✅ Background URI play executed: {uri}")
             return True
         else:
