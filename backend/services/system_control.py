@@ -650,7 +650,26 @@ def search_and_play_spotify(song_query: str) -> bool:
     norm_q = song_query.strip().lower()
     print(f"[Spotify] 🎵 Received request to play: '{song_query.strip()}'")
 
-    # Local Cache Lookup
+    # ── 1. Song Memory Alias Lookup ("my gym song", "breakup song", "coding music") ──
+    try:
+        from database.repositories.song_memory_repo import SongMemoryRepository
+        alias_match = SongMemoryRepository().lookup_alias(norm_q)
+        if alias_match:
+            song_name = alias_match.get("song_name", "")
+            artist = alias_match.get("artist", "")
+            saved_uri = alias_match.get("spotify_uri", "")
+            print(f"[Song Memory] 🧠 Recognized alias '{norm_q}' -> '{song_name}' by {artist} (URI: {saved_uri})")
+            wait_until_spotify_running()
+            if saved_uri and not saved_uri.startswith("spotify:search:"):
+                play_spotify_uri(saved_uri)
+                return True
+            else:
+                song_query = f"{song_name} {artist}".strip()
+                norm_q = song_query.lower()
+    except Exception as err:
+        print(f"[Song Memory] Lookup notice: {err}")
+
+    # ── 2. Local Cache Lookup ──
     cache = _load_spotify_cache()
     cached_uri = cache.get(norm_q)
     if cached_uri:

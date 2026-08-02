@@ -445,6 +445,20 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "none"}
 
+        # SONG ALIAS MEMORY (e.g., "whenever I say X I mean Y", "remember that my gym song is Believer")
+        alias_match = re.search(r'\b(?:whenever i say|remember that|set alias|remember|my)\s+(.+?)\s+(?:i mean|means|is)\s+(.+)', lower_text)
+        if alias_match and ("song" in lower_text or "music" in lower_text or "playlist" in lower_text or "track" in lower_text):
+            alias = alias_match.group(1).replace("remember", "").replace("that", "").strip()
+            song = alias_match.group(2).strip()
+            try:
+                from database.repositories.song_memory_repo import SongMemoryRepository
+                SongMemoryRepository().save_alias(alias=alias, song_name=song)
+                reply_msg = f"Understood, Boss. Saved '{alias}' as '{song}' in song memory."
+                log_conversation(role="assistant", message=reply_msg)
+                return {"reply": reply_msg, "action": "none"}
+            except Exception as e:
+                print(f"[Brain] Song alias memory error: {e}")
+
         # 0. SET VOLUME TO SPECIFIC PERCENTAGE (e.g. "volume 30%", "set volume to 100", "70 percent")
         # Must have a valid percentage AND a clear volume-setting intent (not a song play request)
         # extracted_vol already parsed unconditionally above — no duplicate match needed here
