@@ -299,35 +299,71 @@ def _strip_qualifiers(title: str) -> str:
 
 
 def _score_track_match(query: str, track_name: str, artist_name: str, popularity: int = 50) -> float:
-    """Calculate similarity score (0.0 to 100.0) based on 15-point architectural spec:
+    """Calculate similarity score (0.0 to 150.0) for matching a user query to a Spotify track.
 
-    - 70% Title Match
-    - 15% Artist Match
-    - 15% Popularity Score
-    - Heavy penalties for unwanted Remix, Cover, Karaoke, LoFi, Sped Up, or Live tracks.
+    Scoring breakdown:
+    - Title containment / overlap (up to 70 pts)
+    - Exact title match bonus (+45 pts)
+    - Word-completeness bonus (+20 pts — all query words appear in clean title)
+    - Substring bonus (+15 pts — entire query is a substring of the title)
+    - Popularity score (up to 15 pts)
+    - Artist relevance bonus (up to 10 pts)
+    - Heavy penalties (‑45 each) for Remix, Cover, Karaoke, LoFi, Sped Up, Live, etc.
+    - Featured-track penalty (‑20) if query doesn't mention 'feat'
     """
     q = query.lower().strip()
     t = track_name.lower().strip()
     a = artist_name.lower().strip()
     clean_t = _strip_qualifiers(t).lower()
 
-    title_score = difflib.SequenceMatcher(None, q, clean_t).ratio() * 70.0
-    artist_score = difflib.SequenceMatcher(None, q, a).ratio() * 15.0 if a else 0.0
-    pop_score = (min(100, max(0, popularity)) / 100.0) * 15.0
+    score = 0.0
 
-    score = title_score + artist_score + pop_score
-
-    # Exact title or clean title substring bonus
+    # ── Title containment (core signal) ──────────────────────────────────────
+    # Perfect match?
     if q == clean_t:
-        score += 35.0
+        score += 70.0 + 45.0  # 115 base
     elif q in clean_t:
+        # Query is a substring of the track title — strong signal
+        score += 55.0 + 15.0  # 70 base
+        # Bonus if the query starts the title (not buried mid-name)
+        if clean_t.startswith(q):
+            score += 15.0
+    elif clean_t in q:
+        # Track title is contained in query (e.g. user said "kesariya song")
+        score += 45.0
+    else:
+        # Fuzzy ratio as fallback
+        ratio = difflib.SequenceMatcher(None, q, clean_t).ratio()
+        score += ratio * 50.0
+
+    # ── Word-completeness bonus: every word in the query appears in the title ─
+    q_words = [w for w in q.split() if len(w) > 2]
+    if q_words and all(w in clean_t for w in q_words):
         score += 20.0
 
-    # If query does not mention 'feat' or 'with', penalize featured/collaboration titles slightly
-    if ('feat' in t or 'with' in t) and 'feat' not in q and 'with' not in q:
-        score -= 15.0
+    # ── Popularity (up to 15 pts) ────────────────────────────────────────────
+    pop_score = (min(100, max(0, popularity)) / 100.0) * 15.0
+    score += pop_score
 
-    # Heavy penalties for derivative/remix versions
+    # ── Artist relevance bonus (up to 10 pts) ────────────────────────────────
+    # Only meaningful when the query looks like it names an artist (contains a
+    # known common name marker or the full query appears in artist field)
+    q_lower = q
+    if q_lower in a:
+        score += 10.0
+    # Check if any query word matches any part of ANY artist name (split by &/,)
+    for artist_part in re.split(r'[,&]', a):
+        artist_part = artist_part.strip()
+        for w in q_words:
+            if w in artist_part and len(w) > 2:
+                score += 5.0
+                break
+
+    # ── Featured / collaboration penalty ─────────────────────────────────────
+    if ('feat' in t or 'with' in t) and 'feat' not in q and 'with' not in q:
+        score -= 20.0
+
+    # ── Heavy penalties for derivative/remix versions ────────────────────────
     penalties = [
         "remix", "cover", "karaoke", "lofi", "lo-fi", "instrumental", "acoustic", "live",
         "slowed", "reverbed", "sped up", "sped-up", "nightcore", "8d audio", "8d",
@@ -335,22 +371,35 @@ def _score_track_match(query: str, track_name: str, artist_name: str, popularity
     ]
     for kw in penalties:
         if kw in t and kw not in q:
-            score -= 40.0
+            score -= 45.0
 
     return score
 
 
 def _find_spotify_track_uri_web(song_query: str) -> dict:
-    """Direct native Spotify Desktop URI search resolver with zero-auth metadata resolution.
+    """Zero-auth track URI resolver using iTunes metadata + multi-strategy search.
 
-    Queries iTunes zero-auth API to extract exact track title & primary artist name,
-    eliminating generic search ambiguity so Spotify Desktop plays original songs instead of trending remixes.
+    Strategy:
+    1. Query iTunes API to resolve the exact track name & artist
+    2. Build multiple Spotify search URIs — full title (with album qualifiers) + artist
+       → This is far more precise than using the stripped bare title
+    3. Try API search (if by chance a token is available)
+    4. Verify playback after playing and retry if wrong
     """
     clean_q = song_query.strip()
     if not clean_q:
         return {"uri": "", "title": "", "artist": ""}
 
-    url = f"https://itunes.apple.com/search?term={urllib.parse.quote(clean_q)}&entity=song&limit=10"
+    # Try anonymous Spotify web token for a proper API search (may fail → silent)
+    anon_token = _get_spotify_web_anon_token()
+    if anon_token:
+        api_result = _search_best_track_uri(anon_token, clean_q)
+        if api_result.get("uri"):
+            print(f"[Spotify Zero-Auth] ✅ Anon API resolved '{clean_q}' → '{api_result['title']}' by {api_result['artist']}")
+            return api_result
+
+    # iTunes zero-auth API to resolve exact track metadata
+    url = f"https://itunes.apple.com/search?term={urllib.parse.quote(clean_q)}&entity=song&limit=10&country=IN"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     results = []
     try:
@@ -375,22 +424,67 @@ def _find_spotify_track_uri_web(song_query: str) -> dict:
         track_title = best_match.get("trackName", clean_q)
         artist_name  = best_match.get("artistName", "")
         album_name   = best_match.get("collectionName", "")
-
-        # Use only the FIRST artist (before first comma or &) to keep the search URI clean.
-        # iTunes often returns "Artist A, Artist B & Artist C" which breaks Spotify search.
+        # Extract only the primary (first) artist for a cleaner search
         primary_artist = re.split(r"[,&]", artist_name)[0].strip()
 
-        # Clean track title — strip qualifiers like (Reprise), (Remix), [Extended] etc.
+        # CRITICAL: Use the FULL track title including album qualifiers like
+        # "(From "Brahmastra")" — these qualifiers DISTINGUISH the original
+        # track from remixes/covers/alternate versions on Spotify.
+        # Previously we stripped them, which made the search ambiguous!
+        spotify_search_queries = []
+
+        # Strategy 1: Full title + primary artist (most precise)
+        spotify_search_queries.append(f"{track_title} {primary_artist}")
+
+        # Strategy 2: Full title + album name (helps disambiguate)
+        if album_name and album_name.lower() not in track_title.lower():
+            spotify_search_queries.append(f"{track_title} {album_name}")
+
+        # Strategy 3: Full title alone
+        if track_title != clean_q:
+            spotify_search_queries.append(track_title)
+
+        # Strategy 4: Clean title + artist (fallback)
         clean_title = _strip_qualifiers(track_title)
+        if clean_title.lower() != track_title.lower():
+            spotify_search_queries.append(f"{clean_title} {primary_artist}")
 
-        # Minimal precise query: just "<Track Title> <Primary Artist>"
-        # This is the most reliable format for Spotify's native search
-        spotify_search_q = f"{clean_title} {primary_artist}".strip()
-        native_search_uri = f"spotify:search:{urllib.parse.quote(spotify_search_q)}"
-        print(f"[Spotify Metadata Resolver] ⚡ Resolved '{clean_q}' → Track: '{track_title}' by {artist_name} (Score {best_score:.1f})")
-        print(f"[Spotify Direct Search] 🚀 URI: {native_search_uri}")
-        return {"uri": native_search_uri, "title": track_title, "artist": primary_artist}
+        # Strategy 5: Bare query (last resort)
+        if clean_q not in ' '.join(spotify_search_queries).lower():
+            spotify_search_queries.append(clean_q)
 
+        native_search_uri = f"spotify:search:{urllib.parse.quote(spotify_search_queries[0])}"
+        print(f"[Spotify Metadata Resolver] ⚡ iTunes resolved '{clean_q}' → '{track_title}' by {artist_name} (Score {best_score:.1f})")
+        print(f"[Spotify Metadata Resolver] 🔍 Search strategies:")
+        for i, q in enumerate(spotify_search_queries):
+            print(f"    {i+1}. spotify:search:{urllib.parse.quote(q)}")
+        print(f"[Spotify Direct Search] 🚀 Using: {native_search_uri}")
+
+        # Also try the anonymous token with a precise title+artist search
+        if anon_token:
+            precise_q = f"track:\"{track_title}\" artist:{primary_artist}"
+            anon_url = "https://api.spotify.com/v1/search?" + urllib.parse.urlencode({
+                "q": precise_q, "type": "track", "limit": 1, "market": "IN"
+            })
+            try:
+                anon_req = urllib.request.Request(anon_url, headers={"Authorization": f"Bearer {anon_token}"})
+                with urllib.request.urlopen(anon_req, timeout=4) as anon_resp:
+                    anon_data = json.loads(anon_resp.read().decode())
+                anon_items = anon_data.get("tracks", {}).get("items", [])
+                if anon_items:
+                    uri = anon_items[0]["uri"]
+                    name = anon_items[0].get("name", "")
+                    artists = ", ".join(a["name"] for a in anon_items[0].get("artists", []))
+                    print(f"[Spotify Metadata Resolver] ✅ Precise API match: '{name}' by {artists} → {uri}")
+                    return {"uri": uri, "title": name, "artist": artists}
+            except Exception as err:
+                print(f"[Spotify Metadata Resolver] Precise API search failed: {err}")
+
+        # Return the first search URI with the FULL track title + artist
+        return {"uri": native_search_uri, "title": track_title, "artist": primary_artist,
+                "_alt_search_uris": [f"spotify:search:{urllib.parse.quote(q)}" for q in spotify_search_queries[1:]]}
+
+    # Absolute last resort: bare search URI
     native_search_uri = f"spotify:search:{urllib.parse.quote(clean_q)}"
     print(f"[Spotify Direct Search] ⚡ Fallback native search: {native_search_uri}")
     return {"uri": native_search_uri, "title": clean_q, "artist": ""}
@@ -398,20 +492,23 @@ def _find_spotify_track_uri_web(song_query: str) -> dict:
 
 
 def _search_best_track_uri(token: str, query: str) -> dict:
-    """Search Spotify API with limit=10, structured track:X artist:Y formatting, and score ranking. Returns dict."""
+    """Search Spotify API with limit=20, structured track:X query, and smarter score ranking. Returns dict."""
     clean_q = query.strip()
     if not clean_q or not token:
         return {"uri": "", "title": "", "artist": ""}
 
     market = os.getenv("SPOTIFY_MARKET", "").strip()
+    if not market:
+        market = "IN"  # Default to Indian market for Bollywood accuracy
 
-    search_q = clean_q
+    # Always use track:X filter so Spotify restricts matches to track names
+    search_q = f"track:{clean_q}"
     if " by " in clean_q.lower():
         parts = re.split(r'\s+by\s+', clean_q, flags=re.I)
         if len(parts) == 2:
             search_q = f"track:{parts[0].strip()} artist:{parts[1].strip()}"
 
-    params = {"q": search_q, "type": "track", "limit": 10}
+    params = {"q": search_q, "type": "track", "limit": 20}
     if market:
         params["market"] = market
 
@@ -452,6 +549,15 @@ def _search_best_track_uri(token: str, query: str) -> dict:
         uri = best_track["uri"]
         title = best_track.get("name", "")
         print(f"[Spotify API] ✅ Best match: '{title}' by {artists} (Score {best_score:.1f}) -> {uri}")
+        # Log top-5 candidates for debugging
+        candidates = sorted(
+            [(item.get("name", ""), ", ".join(a["name"] for a in item.get("artists", [])),
+              _score_track_match(clean_q, item.get("name", ""),
+                ", ".join(a["name"] for a in item.get("artists", [])),
+                item.get("popularity", 50)))
+             for item in items[:5]], key=lambda x: x[2], reverse=True)
+        for c_name, c_artist, c_score in candidates[:3]:
+            print(f"[Spotify Scorer] Top candidate: '{c_name}' by {c_artist} (Score {c_score:.1f})")
         return {"uri": uri, "title": title, "artist": artists}
 
     return {"uri": "", "title": "", "artist": ""}
@@ -482,8 +588,8 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
     Args:
         expected_title: Title we expected to play (from API search result)
         expected_artist: Artist we expected (from API search result)
-        is_search_uri: If True, we used a generic spotify:search: URI — skip strict title match,
-                       just confirm something is actively playing.
+        is_search_uri: If True, we used a generic spotify:search: URI — check that at
+                       least the PLAYING track title contains query keywords.
     """
     if not IS_MAC or not is_spotify_running():
         print("[Spotify Verification] ❌ Spotify is not running.")
@@ -499,8 +605,20 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
             actual_title = info.get("title", "").strip()
             actual_artist = info.get("artist", "").strip()
 
-            # If we used a generic spotify:search: URI, just confirm something is playing
+            # For search URIs, check that the expected title keywords appear in
+            # the currently playing track
             if is_search_uri:
+                expected_lower = expected_title.lower()
+                actual_lower = actual_title.lower()
+                # Extract key words from expected title (ignore short/common words)
+                key_words = [w for w in expected_lower.split() if len(w) > 3]
+                # Check if any key words from expected title appear in actual track
+                word_match = any(w in actual_lower for w in key_words) if key_words else (expected_lower in actual_lower or actual_lower in expected_lower)
+                sim = difflib.SequenceMatcher(None, expected_lower, actual_lower).ratio() if not word_match else 1.0
+
+                if not word_match and sim < 0.3:
+                    print(f"[Spotify Verification] ❌ Search URI: playing '{actual_title}' — expected keywords from '{expected_title}' (sim: {sim:.2f})")
+                    return False
                 print(f"[Spotify Verification] ✅ Search URI playback confirmed: '{actual_title}' by {actual_artist}")
                 return True
 
@@ -665,8 +783,8 @@ def search_and_play_spotify(song_query: str) -> bool:
 
     # Validate playback against expected track title/artist
     is_search_uri = track_uri.startswith("spotify:search:")
+    alt_search_uris = result_meta.get("_alt_search_uris", [])
     if verify_spotify_playback(expected_title=expected_title, expected_artist=expected_artist, is_search_uri=is_search_uri):
-
         if track_uri and not track_uri.startswith("spotify:search:"):
             print(f"[Spotify Cache] ✅ Verification passed — caching '{norm_q}' -> {track_uri}")
             cache[norm_q] = track_uri
@@ -674,6 +792,17 @@ def search_and_play_spotify(song_query: str) -> bool:
         else:
             print(f"[Spotify Cache] ℹ️ Played via generic search URI — skipping cache write for '{norm_q}'")
         return True
+
+    # If search URI approach played the wrong track, try alternative queries
+    if is_search_uri and alt_search_uris:
+        print(f"[Spotify] ❌ First search URI played wrong track — trying {len(alt_search_uris)} alternatives...")
+        for alt_uri in alt_search_uris:
+            print(f"[Spotify] 🔄 Trying alternative: {alt_uri}")
+            play_spotify_uri(alt_uri)
+            time.sleep(2.0)
+            if verify_spotify_playback(expected_title=expected_title, expected_artist=expected_artist, is_search_uri=True):
+                print(f"[Spotify] ✅ Alternative URI matched!")
+                return True
 
     print(f"[Spotify] ❌ Verification failed for '{song_query}' — skipping cache write.")
     return False

@@ -53,7 +53,7 @@ _last_action_context: dict = {"query": "", "target": ""}
 
 
 KNOWN_ACTIONS = [
-    "dashboard", "trading", "engineering", "vscode", "browser",
+    "dashboard", "trading", "career", "engineering", "vscode", "browser",
     "lock", "allow_guest", "revoke_guest", "remember",
     "open_spotify", "close_spotify", "play_hindi_playlist", "play_english_playlist",
     "play_specific", "play_music", "pause_music", "toggle_music", "next_track", "previous_track",
@@ -303,6 +303,12 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     # GATED MEDIA SHORTCUTS (Checked BEFORE LLM call)
     if authorized:
         # 0.0 TIME, SCREENSHOT, REMINDER & TRADING SHORTCUTS (English & Hinglish)
+        if re.search(r'\b(?:open|show|launch|start|enter|go\s+to)?\s*(?:the\s+)?(?:career|job\s*portal|portal|jobs|job\s*board|career\s*os|opportunities)\b', lower_text):
+            log_user_action("career")
+            reply_msg = "Opening Career Intelligence Center, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "career"}
+
         if re.search(r'\b(?:open|show|launch|start|enter)\s+(?:the\s+)?(?:trading|trading\s+panel|trading\s+dashboard|trading\s+workstation|charts)\b|\b(?:trading\s+mode|trading\s+workstation|open\s+charts)\b|\btrading\b', lower_text):
             log_user_action("trading")
             reply_msg = "Trading Workstation, Prem."
@@ -546,7 +552,7 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             cleaned_song = re.sub(r'\s*on spotify\s*$', '', raw_song).strip()
             if cleaned_song and cleaned_song not in ["music", "the music", "some music", "my music", "spotify", "playlist", "hindi", "english", "volume", "sound", "it", "this", "next", "next song", "next track", "previous", "previous song", "previous track"]:
                 execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
-                msg = f"Playing '{cleaned_song}'." + (f" Volume at {extracted_vol}%." if extracted_vol >= 0 else "")
+                msg = "Ok." if not extracted_vol >= 0 else f"Ok. volume {extracted_vol}%."
                 log_conversation(role="assistant", message=msg)
                 _last_action_context.update({"query": lower_text, "target": cleaned_song})
                 log_user_action("play_music")

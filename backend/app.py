@@ -16,7 +16,7 @@ from services.brain import respond, get_proactive_suggestion
 from services.tts import generate_speech
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import get_all_memories, save_fact
-from services.system_control import get_spotify_current_track, set_spotify_position, duck_spotify_volume, unduck_spotify_volume
+from services.system_control import get_spotify_current_track, set_spotify_position, duck_spotify_volume, unduck_spotify_volume, open_app, close_app
 
 from services.todos import get_todos, add_todo, toggle_todo, delete_todo, clear_done, update_todo_text
 from services.system_stats import get_system_stats
@@ -35,6 +35,9 @@ from services.mac_controls import (
 # Ensure temp_audio directory exists
 AUDIO_DIR = Path('temp_audio')
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+# Career OS router
+from routers.career import router as career_router
 
 app = FastAPI(title="FRIDAY AI Core", version="2.0.0")
 
@@ -55,6 +58,9 @@ app.add_middleware(
 )
 
 app.mount('/temp_audio', StaticFiles(directory='temp_audio'), name='temp_audio')
+
+# Register Career OS router
+app.include_router(career_router)
 
 
 class ChatTextRequest(BaseModel):
@@ -183,6 +189,22 @@ def spotify_unduck_endpoint():
     """Restore Spotify volume after FRIDAY finishes speaking."""
     ok = unduck_spotify_volume()
     return {"status": "ok" if ok else "ignored"}
+
+
+class AppRequest(BaseModel):
+    app: str
+
+@app.post("/api/open-app")
+def open_app_endpoint(req: AppRequest):
+    """Open a macOS application."""
+    ok = open_app(req.app)
+    return {"status": "ok" if ok else "error", "app": req.app}
+
+@app.post("/api/close-app")
+def close_app_endpoint(req: AppRequest):
+    """Close a macOS application."""
+    ok = close_app(req.app)
+    return {"status": "ok" if ok else "error", "app": req.app}
 
 
 # ── macOS Display & Hardware Controls ─────────────────────────────────────────

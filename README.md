@@ -1,71 +1,99 @@
-# ⚡ F.R.I.D.A.Y. — Voice-Controlled AI Operating System & Quantum Trading Workstation
+# ⚡ F.R.I.D.A.Y. — Voice-Controlled AI Operating System & Career Intelligence Center
 
-> **F.R.I.D.A.Y.** is a full-stack, voice-controlled AI desktop operating system inspired by Iron Man's J.A.R.V.I.S., built using **React 18**, **Vite**, **Python FastAPI**, **Groq (Llama 3.3 70B)**, and **Google Gemini 2.5**.
+> **F.R.I.D.A.Y.** is a full-stack, voice-controlled AI desktop operating system inspired by Iron Man's J.A.R.V.I.S., built using **React 19**, **Vite 8**, **Python FastAPI**, **Groq (Llama 3.3 70B)**, and **Google Gemini 2.5**.
 
 ---
 
 ## 📖 Overview
 
-**F.R.I.D.A.Y.** is a comprehensive personal AI assistant designed to streamline trading, daily productivity, media control, and macOS system automation. 
+**F.R.I.D.A.Y.** is a comprehensive personal AI assistant designed to streamline career management, trading, daily productivity, media control, and macOS system automation.
 
 Key architectural pillars:
 - **Dual-Engine Hybrid AI Brain**: Sub-150ms voice interactions via Groq Llama 3.3 70B + complex reasoning & fallbacks via Google Gemini 2.5.
-- **Strict Female Voice Engine**: Microsoft Edge-TTS neural voices (`en-IN-NeerjaNeural` / `hi-IN-SwaraNeural`) paired with a browser fallback filter that strictly enforces female voice selection (e.g. Samantha, Victoria, Karen, Zira) while excluding male voices.
-- **Quantum Trading Workstation**: TradingView Lightweight Charts canvas engine with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, and a drag-and-drop watchlist backed by SQLite database persistence.
-- **Zero-Config Spotify Automation**: Control music playback, track search, volume, and progress seek bar (`/api/spotify/seek`) via an anonymous web player token without manual OAuth setup.
-- **macOS Automation & Hardware Telemetry**: Voice-driven application management (`open`/`close`), system volume control, and real-time CPU, RAM, Disk, and Power monitoring.
-- **Autonomous AI Job Portal Agent *(Roadmap / In Development)***: AI job search aggregator across LinkedIn, Naukri, and Internshala with match scoring, owner review queue, and voice-authorized auto-apply agent.
+- **Strict Female Voice Engine**: Microsoft Edge-TTS neural voice (`en-GB-SoniaNeural`) with a browser fallback filter that strictly enforces female voice selection (e.g. Samantha, Victoria, Karen, Zira) while excluding male voices.
+- **Career Intelligence Center (Career OS)**: A fully operational AI-powered career operating system — not a job portal. Analyzes opportunities, drafts cover letters, tracks interviews, manages resumes, and learns your preferences. Never submits without your final approval.
+- **Quantum Trading Workstation**: TradingView Lightweight Charts with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, and a drag-and-drop watchlist backed by SQLite persistence.
+- **Zero-Config Spotify Automation**: Control music playback, track search, volume, and progress seek bar via an anonymous web player token without manual OAuth setup.
+- **macOS Automation & Hardware Telemetry**: Voice-driven application management, system volume control, and real-time CPU, RAM, Disk, and Power monitoring.
 
 ---
 
 ## ✨ Full Feature Breakdown
 
 ### 🧠 1. Adaptive Self-Learning AI Brain & Memory Core (`learning_engine.py`)
-- **Sub-150ms Dual-Engine LLM**: Groq Llama 3.3 70B primary engine (~150ms) + Google Gemini 2.5 failover.
+- **Sub-150ms Dual-Engine LLM**: Groq Llama 3.3 70B primary (~150ms) + Google Gemini 2.5 failover.
 - **Unified SQLite Brain Database (`friday_brain.db`)**:
-  - `memories`: Permanent facts & user preferences about Prem.
-  - `conversation_history`: Short-term context & RAG keyword-token semantic memory search across past conversation turns.
-  - `user_action_habits`: High-value habit tracking (trading, music, weather, job search) by hour & day-of-week with proactive verbal suggestions when confidence $S_{habit} \ge 0.70$.
-  - `user_corrections`: Automatic voice correction detection (*"wrong song"*, *"not that remix"*, *"yeh nahi"*) applying a **-40.0 soft penalty weight** to rejected targets.
-  - `job_profile`, `resume_data`, `job_applications`: Full career profile memory with automatic signal extraction (*"I am a Java developer"* → saves role, skills, experience).
-- **Dynamic Brevity Controller**: Auto-adjusts response length based on query complexity (≤8 words → 1 short phrase; questions → max 2 sentences).
-- **Voice Fingerprint & Security**: Dedicated owner authorization ("Prem") with gated guest permission controls (`"allow guest"` / `"revoke guest"`).
+  - `memories`: Permanent facts & user preferences.
+  - `conversation_history`: Short-term context & RAG keyword-token semantic memory.
+  - `user_action_habits`: Habit tracking with proactive suggestions when confidence ≥ 0.70.
+  - `user_corrections`: Voice correction detection with -40.0 soft penalty weights.
+  - 10 Career OS tables — see §6 below.
+- **Dynamic Brevity Controller**: Auto-adjusts response length based on query complexity.
+- **Voice Fingerprint & Security**: Owner authorization ("Prem") with guest permission gating.
 
 ### 🎵 2. Zero-Config Spotify Automation & Smart Audio Ducking
-- **Zero-OAuth Web Player Token Engine**: Anonymous token resolver for instant song & playlist playback without manual API credentials.
-- **Automatic Audio Ducking**: Spotify music volume automatically dips to 20% whenever FRIDAY speaks and restores instantly when she finishes, ensuring crisp speech clarity over music.
-- **Voice Media Control**: *"play Kesariya"*, *"volume down"*, *"mute"*, *"set volume to 70%"*, *"next track"*, *"pause"*, *"play English playlist"*.
-- **Now Playing Telemetry**: Live track title, artist, artwork, position timer, and click-to-seek progress bar (`/api/spotify/seek`).
+- **Zero-OAuth Token Engine**: Anonymous token resolver for instant playback without credentials.
+- **Automatic Audio Ducking**: Spotify dips to 20% when F.R.I.D.A.Y. speaks, restores after.
+- **Voice Media Control**: "play Kesariya", "volume down", "next track", "pause", "mute".
+- **Now Playing Telemetry**: Live track title, artist, artwork, position timer, click-to-seek.
 
 ### 📈 3. Quantum Trading Workstation
-- **Authentic TradingView Widget Engine**: Full left drawing toolbar (Trendlines, Rays, Fibonacci Retracements, Long/Short Position Calculators, Ruler, Brush, Boxes) + all technical indicators (RSI, MACD, Moving Averages, Order Blocks) and chart styles (Candles, Heikin Ashi, Line, Bars).
-- **Live 24/5 Global Data Feeds**: Default pairs for Forex majors (`FX:EURUSD`, `GBPUSD`, `USDJPY`), Gold (`OANDA:XAUUSD`), Bitcoin (`BINANCE:BTCUSDT`), Nasdaq (`OANDA:NAS100USD`), and DXY.
-- **Multi-Chart Layouts**: Toggle seamlessly between 1x1 single view, 2x1 dual split view, and 2x2 quad grid view.
-- **Custom Resizable Watchlist**: Dynamic resizable width with draggable divider, header Close button (`X`), and sidebar toggle icon (`Clock`).
-- **Risk & Lot Size Calculator**: Interactive position size calculator for account balance, risk %, and stop loss pips.
-- **SQLite Auto-Save**: Silent background sync every 5 seconds to persist chart layout & drawings in `friday_brain.db`.
+- **TradingView Widget Engine**: Full drawing toolbar + technical indicators + all chart styles.
+- **Live 24/5 Global Data Feeds**: Forex, Gold, Bitcoin, Nasdaq, DXY default pairs.
+- **Multi-Chart Layouts**: 1x1 / 2x1 / 2x2 grid views.
+- **Custom Resizable Watchlist**: Drag-and-drop, SQLite-persisted, 5000+ instruments.
+- **Risk & Lot Size Calculator**: Position size calc for account balance, risk %, stop loss pips.
+- **SQLite Auto-Save**: Silent background sync every 5 seconds to `friday_trading_db.sqlite`.
 
 ### 💻 4. macOS System Automation & Telemetry (`mac_controls.py`)
-- **Zero-Latency Display Brightness**: Dual-engine C-bindings using macOS `DisplayServices` private framework + keycode hardware simulation for exact 100%, 10%, 50% brightness control across Retina & external displays.
-- **System Dark Mode Toggle**: Instant AppleScript switching between Dark Mode and Light Mode.
-- **Master Audio & Mute Controls**: Voice and slider control for system output volume and mute status.
-- **Lock Display Execution**: Instant screen locking (`pmset displaysleepnow`) via voice or UI HUD.
-- **Voice Application Control**: Open and quit macOS applications (`Brave`, `VS Code`, `Spotify`, `Terminal`, `Finder`) via sanitized AppleScript wrappers.
-- **System Telemetry**: Real-time CPU usage %, RAM GB/%, SSD Disk %, and Battery power monitoring via `psutil`.
+- **Zero-Latency Display Brightness**: macOS `DisplayServices` + keycode hardware simulation.
+- **System Dark Mode Toggle**: Instant AppleScript switching between Dark / Light Mode.
+- **Master Audio & Mute Controls**: Voice and slider control for system output and mute.
+- **Lock Display**: Instant screen locking via voice or UI HUD.
+- **Voice Application Control**: Open/quit macOS apps via sanitized AppleScript wrappers.
+- **System Telemetry**: Real-time CPU %, RAM, SSD, and Battery monitoring via `psutil`.
 
 ### 📋 5. HUD Dashboard & Widgets
-- **Spotify Card**: Floating player with album art, position seek bar, and playback toggles.
-- **Todo Card**: Task manager with priority tags (`High`, `Normal`, `Low`), status filters (`All`, `Active`, `Completed`), inline editing, and voice-to-todo creation.
-- **Weather Card**: Live weather via Open-Meteo API with auto IP geolocation and city voice search.
+- **Spotify Card**: Floating player with album art, seek bar, and playback controls.
+- **Todo Card**: Task manager with priority tags, status filters, inline editing, voice creation.
+- **Weather Card**: Live weather via Open-Meteo API with auto IP geolocation.
 - **System Monitor Card**: Real-time hardware telemetry charts.
 - **Web Search Card**: Inline web search widget.
 - **Ambient Lock Screen**: Glassmorphism UI with GLSL shader orb animation.
+- **Career OS Button**: One-click access to Career Intelligence Center from the Dashboard HUD.
 
-### 💼 6. Autonomous AI Job Portal *(Roadmap / In Development)*
-- **AI Job Scraper**: Automatically aggregates relevant developer & engineering job listings from LinkedIn, Naukri, and Internshala.
-- **Match Scoring Engine**: LLM ranks opportunities based on skills, salary, location, and company repute.
-- **Human-in-the-Loop Review Queue**: Surfaced in FRIDAY UI / Voice for explicit owner approval (`"Approve"` / `"Reject"`).
-- **Auto-Apply Agent**: Automated browser agent populating resume details and submitting job applications upon voice authorization.
+### 💼 6. Career Intelligence Center (Career OS) — ✅ LIVE & FULLY OPERATIONAL
+
+> *"Never build a CRUD dashboard. Build an AI employee that manages my career."*
+
+F.R.I.D.A.Y.'s Career OS is a fully operational AI career operating system with 12 modules:
+
+| Module | Description |
+|---|---|
+| **Dashboard** | Daily AI briefing, pipeline stats, recommendations, activity feed |
+| **Opportunities** | Job board with source/status/score filters, AI match analysis |
+| **Applications** | Kanban board + table — drag-and-drop pipeline (`saved → offer`) |
+| **Resume Manager** | Multi-version editor with ATS scoring, section editing, duplication |
+| **Interview Center** | Schedule, track, generate AI prep questions, log outcomes |
+| **Analytics** | SVG charts — monthly apps, pipeline funnel, resume performance |
+| **Learning Center** | Skill gap analysis + AI-generated learning roadmap |
+| **Preferences** | Tag-based prefs + natural language learning ("Tell F.R.I.D.A.Y.") |
+| **Personal Vault** | Encrypted local storage for personal info & application auto-fill |
+| **Companies** | Company tracker with blacklist/block functionality |
+| **Recruiters** | Recruiter CRM with contact history, notes, last contact tracking |
+| **Account Manager** | Secure credential vault for LinkedIn, Naukri, Wellfound, Indeed |
+
+**Core AI capabilities (Groq Llama 3.3 70B)**:
+- Job match scoring with detailed reasoning & salary/growth assessment
+- Cover letter generation tailored per job + resume
+- Interview question generation per role
+- Natural language preference learning
+- Skill gap analysis & learning roadmap generation
+- Daily career briefing & proactive recommendations
+
+**Backend**: `career_db.py` (10 SQLite tables in `friday_brain.db`) + `career_intelligence.py` (AI engine) + `routers/career.py` (37 REST endpoints at `/api/career/*`).
+
+**Voice**: Say `"career"` → F.R.I.D.A.Y. navigates to Career OS.
 
 ---
 
@@ -73,11 +101,12 @@ Key architectural pillars:
 
 | Domain | Technologies |
 |---|---|
-| **Frontend UI** | React 18, Vite, Tailwind CSS, Framer Motion, TradingView Lightweight Charts, Web Speech API, WebGL GLSL Shaders |
-| **Backend API** | Python 3.11, FastAPI, Uvicorn, SQLite, yfinance, psutil, asyncio |
+| **Frontend UI** | React 19, Vite 8, Tailwind CSS, Framer Motion, Inter (Google Fonts), TradingView Lightweight Charts, Web Speech API, WebGL GLSL Shaders |
+| **Backend API** | Python 3.14, FastAPI, Uvicorn, SQLite (WAL mode), yfinance, psutil, asyncio |
 | **AI Models** | Groq (Llama 3.3 70B Versatile), Google Gemini 2.5 |
-| **Audio / Speech** | Web Speech API (STT), Microsoft Edge-TTS (Neural TTS) |
+| **Audio / Speech** | Web Speech API (STT), Microsoft Edge-TTS `en-GB-SoniaNeural` (Neural TTS) |
 | **Integrations** | Spotify Web Player API, Open-Meteo, Google Drive API, AppleScript (`osascript`) |
+| **Career OS** | Groq Llama 3.3 70B (scoring, letters, skill gap), SQLite WAL (10 career tables) |
 
 ---
 
@@ -85,28 +114,80 @@ Key architectural pillars:
 
 ```
 FRIDAY/
-├── README.md                      # <--- Main & Single Comprehensive Documentation
-├── architecture.md                # Technical Architecture & System Design Document
-├── backend/                       # Python FastAPI Backend
-│   ├── app.py                     # Main FastAPI server (:8000)
-│   ├── database/                  # SQLite database wrappers (watchlist_db.py)
-│   ├── data/                      # Persistent JSON/SQLite data (todos.json, memory.db)
-│   ├── services/                  # Business logic services
-│   │   ├── brain.py               # Groq/Gemini LLM dual-engine
-│   │   ├── system_control.py      # macOS AppleScript & Spotify automation
-│   │   ├── market_data.py         # Live prices & Yahoo Finance OHLCV generator
-│   │   ├── todos.py               # Task CRUD service
-│   │   ├── system_stats.py        # psutil system telemetry
-│   │   ├── weather.py             # Open-Meteo API wrapper
-│   │   └── memory.py              # Long-term memory store
-│   └── requirements.txt
-└── friday-ui/                     # React Frontend (Vite)
-    ├── src/
-    │   ├── components/            # LockScreen, Panels (SpotifyCard, TodoCard, SystemHUD, WeatherCard)
-    │   ├── hooks/                 # useSpeech.js, useOrbState.jsx, useProactiveSuggestions.js
-    │   ├── UI/TradingWorkstation/ # Quantum Trading Workstation & Lightweight Charts
-    │   └── services/              # ttsService.js
-    └── package.json
+├── README.md                          # Main documentation (this file)
+├── architecture.md                    # Technical architecture & system design
+├── next_phase_architecture.md         # Phase 1 AI learning engine specification
+├── start.sh                           # One-command launcher (backend + frontend)
+├── stop.sh                            # Graceful shutdown script
+│
+├── backend/                           # Python FastAPI Backend (:8000)
+│   ├── app.py                         # Main FastAPI server + router registration
+│   ├── requirements.txt               # Python dependencies
+│   ├── data/                          # Persistent databases & JSON
+│   │   ├── friday_brain.db            # Unified SQLite DB (AI memory + Career OS tables)
+│   │   ├── friday_trading_db.sqlite   # Trading watchlist & chart state
+│   │   ├── todos.json                 # Persistent task list
+│   │   └── reminders.json            # Persistent reminders
+│   ├── routers/
+│   │   └── career.py                  # 37 Career OS REST endpoints (/api/career/*)
+│   └── services/
+│       ├── brain.py                   # Groq/Gemini LLM dual-engine + intent routing
+│       ├── learning_engine.py         # Adaptive self-learning, habit tracking, RAG memory
+│       ├── career_db.py               # Career OS DB layer (10 SQLite tables)
+│       ├── career_intelligence.py     # Career OS AI engine (Groq: scoring/letters/gaps)
+│       ├── system_control.py          # macOS AppleScript & Spotify automation
+│       ├── mac_controls.py            # Brightness, Dark Mode, volume hardware control
+│       ├── market_data.py             # Live prices & Yahoo Finance OHLCV generator
+│       ├── indian_market_data.py      # NSE/BSE market data adapter
+│       ├── todos.py                   # Task CRUD service
+│       ├── reminders.py               # Reminders service
+│       ├── system_stats.py            # psutil system telemetry
+│       ├── weather.py                 # Open-Meteo API wrapper
+│       ├── web_search.py              # Web search service
+│       ├── memory.py                  # Long-term memory store
+│       ├── tts.py                     # Edge-TTS en-GB-SoniaNeural text-to-speech
+│       ├── stt.py                     # Speech-to-text service
+│       ├── voice_auth.py              # Voice fingerprint & owner authentication
+│       ├── formatter.py               # Response formatting utilities
+│       ├── gdrive_api.py              # Google Drive API integration
+│       └── gdrive_sync.py             # Google Drive sync service
+│
+└── friday-ui/                         # React 19 Frontend (Vite 8, :5173)
+    ├── index.html                     # Inter font, SEO meta
+    ├── package.json
+    └── src/
+        ├── api/
+        │   └── careerApi.js           # Career OS typed API client (cache + invalidate)
+        ├── components/                # LockScreen, Panels (SpotifyCard, TodoCard, etc.)
+        ├── hooks/
+        │   ├── useOrbState.jsx        # Global workspace state + voice command routing
+        │   ├── useSpeech.js           # Web Speech API STT hook
+        │   └── useProactiveSuggestions.js
+        ├── services/
+        │   └── ttsService.js          # Edge-TTS audio queue & female voice enforcement
+        └── UI/
+            ├── Workspace.jsx          # Workspace router (dashboard / trading / career)
+            ├── Dashboard/
+            │   └── Dashboard.jsx      # HUD dashboard with Career OS launch button
+            ├── TradingWorkstation/    # Quantum Trading Workstation
+            ├── Settings/
+            ├── Buttons/
+            └── Career/                # Career Intelligence Center (Career OS)
+                ├── CareerOS.jsx       # Shell: sidebar nav + lazy-loaded module routing
+                ├── components/        # 10 shared Career UI components
+                └── modules/           # 12 fully functional Career OS modules
+                    ├── Dashboard.jsx
+                    ├── Opportunities.jsx
+                    ├── Applications.jsx
+                    ├── ResumeManager.jsx
+                    ├── InterviewCenter.jsx
+                    ├── Analytics.jsx
+                    ├── LearningCenter.jsx
+                    ├── Preferences.jsx
+                    ├── PersonalVault.jsx
+                    ├── Companies.jsx
+                    ├── Recruiters.jsx
+                    └── AccountManager.jsx
 ```
 
 ---
@@ -118,7 +199,17 @@ FRIDAY/
 - Python (v3.11+)
 - macOS (for AppleScript automation & system telemetry)
 
-### 1. Launch Backend Server
+### One-Command Launch (Recommended)
+```bash
+cd FRIDAY
+bash start.sh
+```
+
+Open `http://localhost:5173` in your browser.
+
+### Manual Launch
+
+**Backend:**
 ```bash
 cd backend
 python3 -m venv venv
@@ -127,22 +218,27 @@ pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-### 2. Launch Frontend UI
+**Frontend:**
 ```bash
 cd friday-ui
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+### Accessing Career OS
+1. Unlock F.R.I.D.A.Y. → go to Dashboard → click **"Career OS"** button in the HUD header, or
+2. Say **"career"** via voice command.
 
 ---
 
 ## 🔒 Security Policy
-- **CORS Isolation**: API endpoints are strictly restricted to local frontend origins (`http://localhost:5173`, `http://127.0.0.1:5173`).
-- **Input Sanitization**: Application control and AppleScript triggers enforce strict alphanumeric regex sanitization (`re.sub(r'[^a-zA-Z0-9\s._\-]', '', app_name)`) to prevent command injection.
-- **Defensive Data Handling**: Safe dictionary lookup patterns (`dict.get()`) used across data models to prevent unexpected runtime crashes.
+- **CORS Isolation**: API restricted to `http://localhost:5173`, `http://127.0.0.1:5173`.
+- **Input Sanitization**: AppleScript triggers use strict regex sanitization to prevent injection.
+- **Career Vault**: Credentials stored in local `friday_brain.db` — never sent externally.
+- **No Blind Submissions**: Career OS never submits an application without explicit user confirmation.
+- **Defensive Data Handling**: All DB & dictionary operations use safe fallback getters (`dict.get()`).
 
 ---
 
 *Author / Lead Architect:* **Prem (Prathvi Sahu)** & **F.R.I.D.A.Y.**
+*Last Updated:* August 2026

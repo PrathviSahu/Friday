@@ -237,7 +237,21 @@ pulse 2.8s ease-in-out infinite;
 /* State-driven overrides (scoped under .ai-core.state-*) */
 .ai-core.state-listening .ring{opacity:0.8;filter:drop-shadow(0 0 12px rgba(0,230,255,0.35))}
 .ai-core.state-listening .ring1{stroke-width:1.8}
-.ai-core.state-listening .energy-pulse{animation-duration:3s;opacity:0.9}
+.ai-core.state-listening .energy-pulse{
+    animation-duration:3s;
+    opacity:0.9;
+    /* Audio-reactive: ring pulses stronger with mic input */
+    transform: translate(-50%, -50%) scale(calc(0.8 + var(--audio-level, 0.06) * 8));
+    box-shadow: 0 0 calc(20px + var(--audio-level, 0.06) * 300px) rgba(0,220,255,0.6);
+    transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.ai-core.state-listening .plasma{
+    box-shadow:
+        0 0 calc(15px + var(--audio-level, 0.06) * 100px) #52efff,
+        0 0 calc(40px + var(--audio-level, 0.06) * 200px) #23dfff,
+        0 0 calc(80px + var(--audio-level, 0.06) * 300px) rgba(0,220,255,.6);
+    transition: box-shadow 80ms ease-out;
+}
 
 .ai-core.state-thinking .plasma{animation:pulse 1.6s ease-in-out infinite}
 .ai-core.state-thinking .white-core{transform:translate(-50%,-50%) scale(1.1);transition:transform 180ms}

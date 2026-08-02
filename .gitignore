@@ -30,6 +30,11 @@ backend/temp_audio/
 
 # Logs
 *.log
+logs/
+
+# DB temporary files
+*.db-wal
+*.db-shm
 
 # Graphify cache & local output
 graphify-out/

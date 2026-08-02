@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function Clock() {
+export default function Clock({ large = false }) {
     const [now, setNow] = useState(new Date());
     useEffect(() => {
         const id = setInterval(() => setNow(new Date()), 1000);
@@ -21,6 +21,35 @@ export default function Clock() {
     const R   = 22, cx = 26, cy = 26;
     const arc = 2 * Math.PI * R;
     const dash = pct * arc;
+
+    // Large ambient mode
+    if (large) {
+        return (
+            <div className="flex flex-col items-center gap-2 font-orbitron">
+                <div className="text-[4rem] font-bold text-[#DFFAFF] tracking-[0.15em] leading-none drop-shadow-[0_0_20px_rgba(0,183,255,0.5)]">
+                    {h}:{m}
+                    <span className="text-2xl text-[#00B7FF] ml-3">{ampm}</span>
+                </div>
+                <div className="text-[11px] text-[#00B7FF]/60 tracking-[0.35em] uppercase">{dateStr}</div>
+                <div className="mt-1 flex items-center gap-2">
+                    <svg width="36" height="36">
+                        <circle cx={18} cy={18} r={14} fill="none" stroke="rgba(0,183,255,0.15)" strokeWidth="1.5" />
+                        <circle
+                            cx={18} cy={18} r={14} fill="none"
+                            stroke="#00B7FF" strokeWidth="1.5"
+                            strokeDasharray={`${pct * 2 * Math.PI * 14} ${2 * Math.PI * 14}`}
+                            strokeLinecap="round"
+                            transform="rotate(-90 18 18)"
+                            style={{ filter: 'drop-shadow(0 0 4px #00B7FF)' }}
+                        />
+                        <text x={18} y={22} textAnchor="middle" fill="#00B7FF" fontSize="7" fontFamily="Orbitron">
+                            {String(s).padStart(2, '0')}
+                        </text>
+                    </svg>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex items-center gap-3 font-orbitron text-right">

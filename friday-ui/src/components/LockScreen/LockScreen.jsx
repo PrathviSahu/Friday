@@ -10,11 +10,15 @@ import Clock from '../Clock/Clock';
 import { useOrbState } from '../../hooks/useOrbState';
 import { useSpeech } from '../../hooks/useSpeech';
 import { useFriday } from '../../context/FridayContext';
+import { useFitScale } from '../../hooks/useFitScale';
+import { speak, stopSpeaking } from '../../services/ttsService';
 
 export default function LockScreen() {
     const orb = useOrbState();
     const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled } = useFriday();
+    const scale = useFitScale();
+    const isAmbient = !locked && workspace === 'unlocked';
 
     // FRIDAY's conversation loop: show text on screen when speech is returned.
     const handleConversation = React.useCallback(({ reply, action }) => {
@@ -22,11 +26,115 @@ export default function LockScreen() {
             setResponseMessage?.(reply);
         }
         if (action && action !== 'none' && !locked) {
-            if (action === 'trading') setWorkspace?.('trading');
+            if (action === 'trading')   setWorkspace?.('trading');
             else if (action === 'dashboard') setWorkspace?.('dashboard');
+            else if (action === 'career')    setWorkspace?.('career');
             else if (action === 'lock') lockNow?.();
         }
     }, [setResponseMessage, setWorkspace, locked, lockNow]);
+
+    // ── Local command handler (time, date, what's playing, stop, open/close app)
+    const handleLocalCommand = React.useCallback(async (cmd) => {
+        // Stop TTS
+        if (cmd === 'stop') {
+            stopSpeaking();
+            setResponseMessage?.('');
+            return;
+        }
+
+        // Current time
+        if (cmd === 'time') {
+            const now = new Date();
+            const h = now.getHours() % 12 || 12;
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            const msg = `It's ${h}:${m} ${ampm}.`;
+            setResponseMessage?.(msg);
+            try { await speak(msg); } catch (_) {}
+            setTimeout(() => setResponseMessage?.(''), 5000);
+            return;
+        }
+
+        // Current date
+        if (cmd === 'date') {
+            const now = new Date();
+            const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const month = now.toLocaleDateString('en-US', { month: 'long' });
+            const date = now.getDate();
+            const msg = `Today is ${day}, ${month} ${date}.`;
+            setResponseMessage?.(msg);
+            try { await speak(msg); } catch (_) {}
+            setTimeout(() => setResponseMessage?.(''), 5000);
+            return;
+        }
+
+        // What's playing on Spotify
+        if (cmd === 'what_playing') {
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/spotify/current-track');
+                const data = await res.json();
+                if (data.title) {
+                    const msg = `Now playing: ${data.title} by ${data.artist}.`;
+                    setResponseMessage?.(msg);
+                    try { await speak(msg); } catch (_) {}
+                } else {
+                    const msg = 'Nothing is playing on Spotify right now.';
+                    setResponseMessage?.(msg);
+                    try { await speak(msg); } catch (_) {}
+                }
+                setTimeout(() => setResponseMessage?.(''), 5000);
+            } catch (_) {
+                setResponseMessage?.('Could not check Spotify.');
+                setTimeout(() => setResponseMessage?.(''), 3000);
+            }
+            return;
+        }
+
+        // Open app
+        if (cmd && typeof cmd === 'object' && cmd.type === 'open_app') {
+            const appName = cmd.app;
+            try {
+                await fetch('http://127.0.0.1:8000/api/open-app', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app: appName }),
+                });
+                const msg = `Opening ${appName}.`;
+                setResponseMessage?.(msg);
+                try { await speak(msg); } catch (_) {}
+                setTimeout(() => setResponseMessage?.(''), 3000);
+            } catch (_) {
+                setResponseMessage?.(`Failed to open ${appName}.`);
+                setTimeout(() => setResponseMessage?.(''), 3000);
+            }
+            return;
+        }
+
+        // Close app
+        if (cmd && typeof cmd === 'object' && cmd.type === 'close_app') {
+            const appName = cmd.app;
+            try {
+                await fetch('http://127.0.0.1:8000/api/close-app', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ app: appName }),
+                });
+                const msg = `Closing ${appName}.`;
+                setResponseMessage?.(msg);
+                try { await speak(msg); } catch (_) {}
+                setTimeout(() => setResponseMessage?.(''), 3000);
+            } catch (_) {
+                setResponseMessage?.(`Failed to close ${appName}.`);
+                setTimeout(() => setResponseMessage?.(''), 3000);
+            }
+            return;
+        }
+
+        // Workspace commands
+        if (cmd === 'trading') setWorkspace?.('trading');
+        else if (cmd === 'dashboard') setWorkspace?.('dashboard');
+        else if (cmd === 'lock') lockNow?.();
+    }, [setResponseMessage, setWorkspace, lockNow]);
 
     // Handle fingerprint unlock
     const [fingerprintState, setFingerprintState] = useState('idle');
@@ -53,14 +161,7 @@ export default function LockScreen() {
         locked,
         workspace,
         enabled: micEnabled,
-        onCommand: (cmd) => {
-            if (cmd === 'lock') {
-                lockNow?.();
-            } else if (!locked) {
-                if (cmd === 'trading') setWorkspace?.('trading');
-                else if (cmd === 'dashboard') setWorkspace?.('dashboard');
-            }
-        },
+        onCommand: handleLocalCommand,
         onConversation: handleConversation,
         enabled: micEnabled,
         locked: locked,
@@ -70,7 +171,10 @@ export default function LockScreen() {
         <div className="w-screen h-screen relative overflow-hidden select-none bg-[#02030A]">
             <Background />
 
-            <div className="absolute inset-0 px-10 py-6 flex flex-col justify-between" style={{ zIndex: 20, pointerEvents: 'none' }}>
+            <div
+                className="absolute inset-0 px-10 py-6 flex flex-col justify-between"
+                style={{ zIndex: 20, pointerEvents: 'none', transform: `scale(${scale})`, transformOrigin: 'center center' }}
+            >
                 <div className="flex items-center justify-between">
                     <div className="font-orbitron text-[8px] tracking-[0.45em] text-[#00B7FF]/45 uppercase flex items-center gap-3">
                         <span className="inline-block w-6 h-px bg-[#00B7FF]/40" />
@@ -220,6 +324,8 @@ export default function LockScreen() {
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 10 }}>
                 <HudOrb size={340} />
             </div>
+
+
 
             {!audioEnabled ? (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#02030A]/95 px-6 py-10" style={{ pointerEvents: 'auto' }}>

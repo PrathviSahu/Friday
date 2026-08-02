@@ -252,6 +252,12 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       try {
         const localCommand = matchVoiceCommand(cmd);
         if (localCommand) {
+          // Handle object commands (open_app, close_app)
+          if (typeof localCommand === 'object') {
+            onCommandRef.current?.(localCommand);
+            return;
+          }
+
           const workspaceCommands = ['trading', 'dashboard', 'engineering', 'vscode', 'browser'];
           if (lockedRef.current && workspaceCommands.includes(localCommand)) {
             const lockedReply = 'System is locked, Boss. Please unlock first.';

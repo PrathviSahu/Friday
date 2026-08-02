@@ -1,8 +1,12 @@
 # 📐 F.R.I.D.A.Y. Phase 1 & Adaptive Learning Engine — Complete Technical Specification
 
-> **Document Purpose**: Authoritative architectural specification for AI models, developers, and system integration.  
-> **Target Modules**: **Adaptive Self-Learning AI Engine (FIRST PRIORITY)**, macOS System Controls, Brave YouTube Controller, Apple Calendar Engine, and WhatsApp & Mail Agent.  
-> **Primary Technology Stack**: Python 3.11, FastAPI, SQLite, macOS AppleScript (`osascript`), Quartz Display Services, Web Speech API, React 18.
+> **Document Purpose**: Authoritative architectural specification for AI models, developers, and system integration.
+> **Target Modules**: **Adaptive Self-Learning AI Engine (FIRST PRIORITY)**, macOS System Controls, Brave YouTube Controller, Apple Calendar Engine, and WhatsApp & Mail Agent.
+> **Primary Technology Stack**: Python 3.14, FastAPI, SQLite (`friday_brain.db`), macOS AppleScript (`osascript`), Quartz Display Services, Web Speech API, React 19.
+
+> [!NOTE]
+> **Career OS (Career Intelligence Center)** was added as a separate module and is fully operational as of August 2026.
+> See `architecture.md` and `README.md` for Career OS documentation.
 
 ---
 
@@ -32,7 +36,7 @@
 |  1. Fast-Path Regex & Shortcut Evaluator (0ms latency execution)                      |
 |  2. LLM Engine (Groq Llama 3.3 70B Primary -> Gemini 2.5 Failover)                     |
 |  3. Self-Learning Memory & Preference Injector                                        |
-|     - Queries user_corrections & user_action_habits in friday_learning.db             |
+|     - Queries user_corrections & user_action_habits in friday_brain.db               |
 |     - Proactive verbal habit suggestions (S_habit >= 0.70)                            |
 |     - Soft penalty weight (-40.0) applied to candidate targets                        |
 |     - RAG semantic vector memory search across past conversation turns                |
@@ -44,11 +48,12 @@
                     v                                             v
 +---------------------------------------+     +---------------------------------------+
 |       SYSTEM & CONTROL SERVICES       |     |         PERSISTENCE & STORAGE         |
-|  - mac_controls.py  (Brightness/Shift)|     |  - friday_learning.db (FIRST PRIORITY)|
-|  - brave_youtube.py (Brave YouTube)   |     |  - friday_hub.sqlite (Calendar/Logs)  |
-|  - mac_calendar.py  (Apple Calendar)  |     |  - friday_trading_db.sqlite (Stocks)  |
-|  - mac_communications.py (WhatsApp/Mail)|   |  - todos.json (Persistent Tasks)      |
-+---------------------------------------+     +---------------------------------------+
+|  - mac_controls.py  (Brightness/Shift)|     |  - friday_brain.db (FIRST PRIORITY)   |
+|  - brave_youtube.py (Brave YouTube)   |     |    (habits, corrections, memory,      |
+|  - mac_calendar.py  (Apple Calendar)  |     |     career tables — all unified)      |
+|  - mac_communications.py (WhatsApp)  |     |  - friday_trading_db.sqlite (Stocks)  |
++---------------------------------------+     |  - todos.json (Persistent Tasks)      |
+                                              +---------------------------------------+
                     |
                     v
 +---------------------------------------------------------------------------------------+
@@ -114,7 +119,9 @@ $$R_{candidate} = S_{title} + S_{artist} + S_{pop} + B_{exact} - P_{derivative} 
 
 ## 🗄️ 3. Complete Database Schemas (SQLite DDL)
 
-### A. ★ FIRST PRIORITY: Learning Database (`friday_learning.db`)
+> **Implementation Note**: All tables below are stored in the unified `friday_brain.db` database (WAL mode). The filenames `friday_learning.db` and `friday_hub.sqlite` below are the original Phase 1 spec names; they are consolidated in the live implementation.
+
+### A. ★ FIRST PRIORITY: Learning Tables (live in `friday_brain.db`)
 
 ```sql
 -- 1. Action Habits Table
@@ -151,7 +158,7 @@ CREATE TABLE IF NOT EXISTS conversation_memories (
 
 ---
 
-### B. Hub & System Database (`friday_hub.sqlite`)
+### B. Hub & System Tables (live in `friday_brain.db`)
 
 ```sql
 -- 1. Calendar Events Table
@@ -304,6 +311,7 @@ CREATE TABLE IF NOT EXISTS communication_logs (
 5. **Phase 1.5**: `mac_communications.py` & Messaging HUD Card (WhatsApp Web & Apple Mail).
 
 ---
-*Document Version*: 3.0.0 (FIRST PRIORITY: AI BRAIN & LEARNING ENGINE)  
-*Target Environment*: macOS Desktop System  
+*Document Version*: 3.1.0 (Phase 1 AI Brain + Career OS added August 2026)
+*Target Environment*: macOS Desktop System
 *Authors & Lead Architects*: **Prem (Prathvi Sahu)** & **F.R.I.D.A.Y.**
+*DB Note*: `friday_learning.db` and `friday_hub.sqlite` referenced in earlier revisions are consolidated into the single unified `friday_brain.db` database.

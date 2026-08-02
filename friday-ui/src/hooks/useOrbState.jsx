@@ -588,6 +588,7 @@ export function OrbProvider({ children }) {
             vscode: 'Opening Visual Studio Code.',
             browser: 'Opening your browser.',
             dashboard: 'Displaying the dashboard.',
+            career: 'Opening your Career Intelligence Center, Boss.',
         };
 
         const sarcasticResponses = [
@@ -673,9 +674,9 @@ export function OrbProvider({ children }) {
                 setLabel('OPENING BROWSER');
             }, 600);
         }
-        if (command === 'dashboard') {
+        if (command === 'dashboard' || command === 'career') {
             scheduleTimer(() => {
-                setLabel('DISPLAYING DASHBOARD');
+                setLabel('OPENING CAREER PORTAL');
             }, 600);
         }
 
@@ -686,8 +687,8 @@ export function OrbProvider({ children }) {
             setConversationMode('idle');
             // Route to the requested workspace view once the auth animation ends.
             if (command === 'trading') setWorkspace('trading');
-            else if (command === 'dashboard') setWorkspace('dashboard');
-            else setWorkspace('unlocked');
+            else if (command === 'career' || command === 'dashboard') setWorkspace('career');
+            else setWorkspace('career');
         }, maxDelay + 600);
     }, [transitionTo, speakText, audioEnabled, setWorkspace]);
 
@@ -696,11 +697,15 @@ export function OrbProvider({ children }) {
         let raf;
         const animate = () => {
             const t = Date.now() * 0.001;
-            
+
             // Read actual mic input from hook, fall back to subtle sine wave if zero/denied
             const micLevel = audioLevelRef.current;
             const fallbackMic = 0.06 + 0.04 * Math.sin(t * 2.5);
-            uniforms.current.audioLevel = micLevel > 0.01 ? micLevel : fallbackMic;
+            const level = micLevel > 0.01 ? micLevel : fallbackMic;
+            uniforms.current.audioLevel = level;
+
+            // Expose audio level as CSS variable for reactive visuals
+            document.documentElement.style.setProperty('--audio-level', level.toFixed(3));
 
             // Breathing scale: 1.0 → 1.03 → 1.0 over ~3s
             uniforms.current.breathScale = 1.0 + 0.03 * Math.sin(t * 2.1);

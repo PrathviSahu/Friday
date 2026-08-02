@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion';
 import AnimatedCard from '../../components/Panels/AnimatedCard';
 import Clock from '../../components/Clock/Clock';
+import { useOrbState } from '../../hooks/useOrbState';
 
 export default function Dashboard({ onLock }) {
+    const { setWorkspace } = useOrbState();
     return (
         <div className="absolute inset-0 w-full h-full flex flex-col justify-between px-8 py-6 pointer-events-auto" style={{ zIndex: 25 }}>
             
@@ -12,6 +14,13 @@ export default function Dashboard({ onLock }) {
                     <span className="font-orbitron text-[9px] tracking-[0.25em] text-[#00B7FF]/40 uppercase">
                         STARK INDUSTRIES /
                     </span>
+                    <button 
+                        onClick={() => setWorkspace('career')}
+                        className="border border-[#6366f1]/30 bg-[#6366f1]/5 hover:bg-[#6366f1]/15 px-3 py-1 rounded text-[8px] font-orbitron tracking-widest text-[#818cf8] transition-all uppercase cursor-pointer"
+                        style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.15)' }}
+                    >
+                        Career OS
+                    </button>
                     <button 
                         onClick={onLock}
                         className="border border-[#ff4444]/30 bg-[#ff4444]/5 hover:bg-[#ff4444]/15 px-3 py-1 rounded text-[8px] font-orbitron tracking-widest text-[#ff6666] transition-all uppercase cursor-pointer"
