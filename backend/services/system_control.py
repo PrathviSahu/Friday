@@ -565,44 +565,19 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
             actual_title = info.get("title", "").strip()
             actual_artist = info.get("artist", "").strip()
 
-            # For search URIs, check that the expected title keywords appear in
-            # the currently playing track
-            if is_search_uri:
-                expected_lower = expected_title.lower()
-                actual_lower = actual_title.lower()
-                # Extract key words from expected title (ignore short/common words)
-                key_words = [w for w in expected_lower.split() if len(w) > 3]
-                # Check if any key words from expected title appear in actual track
-                word_match = any(w in actual_lower for w in key_words) if key_words else (expected_lower in actual_lower or actual_lower in expected_lower)
-                sim = difflib.SequenceMatcher(None, expected_lower, actual_lower).ratio() if not word_match else 1.0
+            # Strict title verification
+            clean_exp = _strip_qualifiers(expected_title).lower()
+            clean_act = _strip_qualifiers(actual_title).lower()
+            q_words = [w for w in clean_exp.split() if len(w) > 2]
+            
+            word_match = any(w in clean_act for w in q_words) if q_words else (clean_exp in clean_act or clean_act in clean_exp)
+            sim = difflib.SequenceMatcher(None, clean_exp, clean_act).ratio()
 
-                if not word_match and sim < 0.3:
-                    print(f"[Spotify Verification] ❌ Search URI: playing '{actual_title}' — expected keywords from '{expected_title}' (sim: {sim:.2f})")
-                    return False
-                print(f"[Spotify Verification] ✅ Search URI playback confirmed: '{actual_title}' by {actual_artist}")
-                return True
+            if not word_match and sim < 0.55:
+                print(f"[Spotify Verification] ❌ Title mismatch: Playing '{actual_title}' — Expected '{expected_title}' (Sim: {sim:.2f})")
+                return False
 
-            if expected_title:
-                actual_comb = f"{actual_title} {actual_artist}".lower()
-                expected_comb = f"{expected_title} {expected_artist}".lower()
-                sim = difflib.SequenceMatcher(None, expected_comb, actual_comb).ratio()
-
-                clean_exp = _strip_qualifiers(expected_title).lower()
-                clean_act = _strip_qualifiers(actual_title).lower()
-
-                # More lenient: 0.35 similarity OR keyword overlap in title
-                match_ok = (
-                    sim >= 0.35
-                    or (clean_exp and clean_exp in clean_act)
-                    or (clean_act and clean_act in clean_exp)
-                    or any(w in clean_act for w in clean_exp.split() if len(w) > 3)
-                )
-
-                if not match_ok:
-                    print(f"[Spotify Verification] ❌ Title mismatch: Playing '{actual_title}' — Expected '{expected_title}' (Sim: {sim:.2f})")
-                    return False
-
-            print(f"[Spotify Verification] ✅ Verified: '{actual_title}' by {actual_artist}")
+            print(f"[Spotify Verification] ✅ Verified playing: '{actual_title}' by {actual_artist}")
             return True
 
         print(f"[Spotify Verification] ⚠️ Attempt {attempt}: Not playing yet — sending play command...")
@@ -620,23 +595,30 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
 
 
 def play_spotify_uri(uri: str) -> bool:
-    """Load and play a Spotify URI. For search URIs, sends key code 36 (Return) to auto-play top match."""
+    """Load and play a Spotify URI. For search URIs, uses AppleScript UI keystrokes to search and play top result."""
     if not uri:
         return False
     try:
         if IS_MAC:
             if uri.startswith("spotify:search:"):
+                raw_q = urllib.parse.unquote(uri.replace("spotify:search:", ""))
+                # Replace double quotes for AppleScript safety
+                safe_q = raw_q.replace('"', '\\"')
                 script = f'''
-                tell application "Spotify"
-                    activate
-                    open location "{uri}"
-                end tell
-                delay 0.4
+                tell application "Spotify" to activate
+                delay 0.3
                 tell application "System Events"
                     tell process "Spotify"
+                        keystroke "l" using command down
+                        delay 0.2
+                        keystroke "{safe_q}"
+                        delay 0.5
+                        key code 36
+                        delay 0.8
                         key code 36
                     end tell
                 end tell
+                tell application "Spotify" to play
                 '''
                 _execute_applescript_silent(script)
             else:
