@@ -34,7 +34,7 @@ echo "  [2/3] Starting backend (port 8000)..."
 cd "$BACKEND"
 ./venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000 > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
-sleep 2
+sleep 4
 
 if lsof -i:8000 | grep -q LISTEN; then
     echo "  ✅ Backend running  → http://localhost:8000  (PID: $BACKEND_PID)"
@@ -48,7 +48,7 @@ echo "  [3/3] Starting frontend (port 5173)..."
 cd "$FRONTEND"
 npm run dev > "$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
-sleep 2
+sleep 4
 
 if lsof -i:5173 | grep -q LISTEN; then
     echo "  ✅ Frontend running → http://localhost:5173  (PID: $FRONTEND_PID)"
