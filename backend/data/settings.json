@@ -1,0 +1,12 @@
+{
+  "voice": {
+    "english": "en-GB-SoniaNeural",
+    "hindi": "hi-IN-SwaraNeural",
+    "available_voices": {
+      "Sonia (British)": "en-GB-SoniaNeural",
+      "Emily (US)": "en-US-EmilyNeural",
+      "Neerja (Indian)": "en-IN-NeerjaNeural",
+      "Swara (Hindi)": "hi-IN-SwaraNeural"
+    }
+  }
+}
