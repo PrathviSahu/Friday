@@ -37,6 +37,9 @@ def init_song_memory_db():
         if cursor.fetchone()[0] == 0:
             now = time.time()
             defaults = [
+                (uuid.uuid4().hex, "bekhayali", "Bekhayali (Arijit Singh Version)", "Arijit Singh", "spotify:track:18D6852nLcvJ7L80rU7uH1", "user_confirmed", now, now, 1),
+                (uuid.uuid4().hex, "kesariya", "Kesariya", "Arijit Singh", "spotify:track:6VhuP93xyzc5eT0v55Ww84", "user_confirmed", now, now, 1),
+                (uuid.uuid4().hex, "like i do", "Like I Do", "Fireboy DML", "spotify:track:0bV19Jb0a2f4rT5f9m8y3x", "user_confirmed", now, now, 1),
                 (uuid.uuid4().hex, "gym song", "Believer", "Imagine Dragons", "spotify:track:08m1DywosR42BDT0kYOFyB", "user_confirmed", now, now, 1),
                 (uuid.uuid4().hex, "my gym song", "Believer", "Imagine Dragons", "spotify:track:08m1DywosR42BDT0kYOFyB", "user_confirmed", now, now, 1),
                 (uuid.uuid4().hex, "coding music", "Interstellar Main Theme", "Hans Zimmer", "spotify:track:6ybVivXRLIyC3XjWyAM2ft", "user_confirmed", now, now, 1),

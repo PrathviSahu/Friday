@@ -323,15 +323,16 @@ def _score_track_match(query: str, track_name: str, artist_name: str, popularity
     pop_score = (min(100, max(0, popularity)) / 100.0) * 10.0
     score += pop_score
 
-    # ── Heavy penalties for derivative/remix versions ────────────────────────
+    # ── Heavy penalties for derivative/remix/synthwave/cover versions ────────
     penalties = [
         "remix", "cover", "karaoke", "lofi", "lo-fi", "instrumental", "acoustic", "live",
         "slowed", "reverbed", "sped up", "sped-up", "nightcore", "8d audio", "8d",
-        "bass boosted", "extended", "looped", "tiktok", "type beat", "parody"
+        "bass boosted", "extended", "looped", "tiktok", "type beat", "parody", "synthwave",
+        "mashup", "dubstep", "flip", "remake", "club", "dj mix"
     ]
     for kw in penalties:
         if kw in t and kw not in q:
-            score -= 60.0
+            score -= 250.0
 
     return score
 
@@ -685,14 +686,20 @@ def search_and_play_spotify(song_query: str) -> bool:
 
     for idx, cand in enumerate(candidates):
         cand_uri = cand.get("uri", "")
-        cand_title = cand.get("title", expected_title)
-        cand_artist = cand.get("artist", expected_artist)
+        cand_title = cand.get("title", "").strip() or expected_title or song_query.strip()
+        cand_artist = cand.get("artist", "").strip() or expected_artist
 
-        if not cand_uri or cand_uri.startswith("spotify:search:"):
+        if not cand_uri:
             continue
 
         print(f"[Verification Loop] 🔄 Trying candidate #{idx + 1}: '{cand_title}' by {cand_artist} ({cand_uri})...")
-        play_ok = play_spotify_uri(cand_uri)
+        if cand_uri.startswith("spotify:search:"):
+            _execute_applescript_silent(f'tell application "Spotify" to open location "{cand_uri}"')
+            time.sleep(0.5)
+            _execute_applescript_silent('tell application "Spotify" to play')
+            play_ok = True
+        else:
+            play_ok = play_spotify_uri(cand_uri)
 
         if play_ok:
             time.sleep(1.0)
