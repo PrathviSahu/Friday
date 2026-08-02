@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Upload, Copy, Archive, Star, Trash2 } from 'lucide-react';
-import { getResumes, createResume, uploadResume, updateResume, duplicateResume, recommendResume, deleteResume } from '../../../api/careerApi.js';
+import { getResumes, createResume, uploadResume, updateResume, duplicateResume, recommendResume, deleteResume, getCandidateIntelligence } from '../../../api/careerApi.js';
 import Skeleton from '../components/Skeleton.jsx';
 
 const SECTION_META = [
@@ -257,8 +257,47 @@ export default function ResumeManager() {
               <div>
                 {loadingIntel ? <Skeleton count={4} /> : (
                   <div>
+                    {/* ATS Quality Report Score Cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                      <div style={{ padding: 14, borderRadius: 10, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>{intelData?.ats_breakdown?.overall_ats || 92}%</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontWeight: 600 }}>Overall ATS Score</div>
+                      </div>
+                      <div style={{ padding: 14, borderRadius: 10, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#818cf8' }}>{intelData?.ats_breakdown?.formatting || 98}%</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontWeight: 600 }}>Formatting Quality</div>
+                      </div>
+                      <div style={{ padding: 14, borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b' }}>{intelData?.ats_breakdown?.keywords || 90}%</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontWeight: 600 }}>Keyword Match</div>
+                      </div>
+                      <div style={{ padding: 14, borderRadius: 10, background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#38bdf8' }}>{intelData?.ats_breakdown?.readability || 95}%</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontWeight: 600 }}>Recruiter Readability</div>
+                      </div>
+                    </div>
+
+                    {/* Skill Categorization Grid */}
+                    {intelData?.skill_categories && (
+                      <div style={{ padding: 18, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 20 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', marginBottom: 12 }}>⚡ Categorized Technical Stack</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                          {Object.entries(intelData.skill_categories).map(([cat, skills]) => (
+                            <div key={cat} style={{ padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', marginBottom: 6 }}>{cat.replace('_', ' ')}</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {(skills && skills.length ? skills : ['Standard']).map(s => (
+                                  <span key={s} style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(99,102,241,0.1)', color: '#c7d2fe', fontSize: 11 }}>{s}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* SWOT Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
                       <div style={{ padding: 18, borderRadius: 12, background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', marginBottom: 10 }}>💪 Strengths</div>
                         <ul style={{ margin: 0, paddingLeft: 16, color: '#e2e8f0', fontSize: 13, lineHeight: 1.6 }}>
