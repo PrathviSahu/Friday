@@ -4,6 +4,7 @@ import {
   Building2, Users, CalendarCheck, BarChart3,
   GraduationCap, SlidersHorizontal, Shield, KeyRound, X, ChevronLeft, Mic, MicOff,
 } from 'lucide-react';
+import { useFriday } from '../../context/FridayContext';
 import Skeleton from './components/Skeleton.jsx';
 
 // Lazy-loaded modules — each module is its own chunk
@@ -50,7 +51,8 @@ const MODULE_MAP = {
 export default function CareerOS({ onClose }) {
   const [active, setActive]       = useState('opportunities');
   const [collapsed, setCollapsed] = useState(false);
-  const [isMuted, setIsMuted]     = useState(false);
+  const { micEnabled, setMicEnabled } = useFriday();
+  const isMuted = !micEnabled;
 
   const ActiveModule = MODULE_MAP[active] || Opportunities;
   const activeNav    = NAV.find(n => n.id === active);
@@ -90,7 +92,7 @@ export default function CareerOS({ onClose }) {
 
         {/* Voice Mute / Mic Off Button */}
         <button
-          onClick={() => setIsMuted(m => !m)}
+          onClick={() => setMicEnabled(prev => !prev)}
           title={isMuted ? "FRIDAY Voice Muted — Click to Enable Microphone" : "FRIDAY Active — Click to Mute Microphone"}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,

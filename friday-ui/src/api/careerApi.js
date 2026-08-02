@@ -120,7 +120,12 @@ export const recommendResume = async (id) => {
 };
 
 export const deleteResume = async (id) => {
-  const result = await api('DELETE', `/resumes/${id}`);
+  let result;
+  try {
+    result = await api('DELETE', `/resumes/${id}`);
+  } catch (err) {
+    result = await api('POST', `/resumes/${id}/delete`);
+  }
   invalidate('resumes_false', 'resumes_true');
   return result;
 };

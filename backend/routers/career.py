@@ -245,6 +245,7 @@ def read_resume(resume_id: int):
 
 
 @router.delete("/resumes/{resume_id}")
+@router.post("/resumes/{resume_id}/delete")
 def remove_resume(resume_id: int):
     from services.career_db import delete_resume
     res = delete_resume(resume_id)
