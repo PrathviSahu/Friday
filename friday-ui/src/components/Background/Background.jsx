@@ -192,13 +192,13 @@ export default function Background() {
         className="absolute inset-0 w-full h-full"
       />
       <Particles
-        particleColors={["#00B7FF", "#FF8C00", "#DFFAFF"]}
-        particleCount={180}
+        particleColors={["#ffffff"]}
+        particleCount={100}
         particleSpread={20}
         speed={0.1}
-        particleBaseSize={90}
-        moveParticlesOnHover={true}
-        alphaParticles={true}
+        particleBaseSize={100}
+        moveParticlesOnHover={false}
+        alphaParticles={false}
         disableRotation={false}
         pixelRatio={1}
       />
