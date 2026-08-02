@@ -237,16 +237,29 @@ def list_resumes(include_archived: bool = False):
 
 
 @router.get("/resumes/{resume_id}")
-def get_resume_detail(resume_id: int):
+def read_resume(resume_id: str):
     r = get_resume(resume_id)
     if not r:
-        raise HTTPException(404, "Resume not found")
-    # Parse content_json
-    try:
-        r["content"] = json.loads(r.get("content_json") or "{}")
-    except Exception:
-        r["content"] = {}
-    return {"resume": r}
+        raise HTTPException(status_code=404, detail="Resume not found")
+    return {"status": "ok", "resume": r}
+
+
+@router.get("/candidate-intelligence/{resume_id}")
+def get_candidate_intelligence_endpoint(resume_id: str):
+    """Retrieve complete Candidate Intelligence report for a specific resume."""
+    resume = get_resume(resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    
+    content = resume.get("content", {})
+    raw_text = resume.get("raw_text", "") or json.dumps(content)
+    
+    from services.candidate_intelligence import analyze_candidate_profile
+    return {
+        "status": "ok",
+        "resume_id": resume_id,
+        "intelligence": analyze_candidate_profile(raw_text, content)
+    }
 
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form

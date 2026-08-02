@@ -82,6 +82,20 @@ export default function ResumeManager() {
     load();
   };
 
+  const [viewTab, setViewTab]     = useState('sections'); // 'sections' | 'intelligence'
+  const [intelData, setIntelData] = useState(null);
+  const [loadingIntel, setLoadingIntel] = useState(false);
+
+  useEffect(() => {
+    if (selected && viewTab === 'intelligence') {
+      setLoadingIntel(true);
+      getCandidateIntelligence(selected.id)
+        .then(d => setIntelData(d.intelligence || {}))
+        .catch(err => console.warn("Intel load notice:", err))
+        .finally(() => setLoadingIntel(false));
+    }
+  }, [selected, viewTab]);
+
   const selectedContent = selected ? getContent(selected) : {};
 
   if (loading) return <div style={{ padding: 32 }}><Skeleton count={5} /></div>;
@@ -138,7 +152,7 @@ export default function ResumeManager() {
         ))}
       </div>
 
-      {/* ── Resume Editor ────────────────────────────────────────────────────── */}
+      {/* ── Resume Editor / Candidate Intelligence View ──────────────────────── */}
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         {!selected ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60%', color: '#334155', gap: 12 }}>
@@ -148,7 +162,7 @@ export default function ResumeManager() {
         ) : (
           <>
             {/* Resume header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>{selected.title}</h2>
                 <p style={{ fontSize: 13, color: '#475569', margin: '6px 0 0' }}>
@@ -168,8 +182,94 @@ export default function ResumeManager() {
               </div>
             </div>
 
-            {/* Sections */}
-            {SECTIONS.map(section => {
+            {/* Mode Switcher Tabs: Resume Sections vs Candidate Intelligence */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 12 }}>
+              <button
+                onClick={() => setViewTab('sections')}
+                style={{
+                  padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  background: viewTab === 'sections' ? 'rgba(99,102,241,0.15)' : 'transparent',
+                  color: viewTab === 'sections' ? '#818cf8' : '#64748b'
+                }}
+              >
+                📄 Resume Content & Sections
+              </button>
+              <button
+                onClick={() => setViewTab('intelligence')}
+                style={{
+                  padding: '7px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  background: viewTab === 'intelligence' ? 'rgba(99,102,241,0.15)' : 'transparent',
+                  color: viewTab === 'intelligence' ? '#818cf8' : '#64748b'
+                }}
+              >
+                🧠 Candidate Intelligence Engine
+              </button>
+            </div>
+
+            {/* View 1: Candidate Intelligence Dashboard */}
+            {viewTab === 'intelligence' ? (
+              <div>
+                {loadingIntel ? <Skeleton count={4} /> : (
+                  <div>
+                    {/* SWOT Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 24 }}>
+                      <div style={{ padding: 18, borderRadius: 12, background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', marginBottom: 10 }}>💪 Strengths</div>
+                        <ul style={{ margin: 0, paddingLeft: 16, color: '#e2e8f0', fontSize: 13, lineHeight: 1.6 }}>
+                          {(intelData?.swot?.strengths || ["Solid technical foundation"]).map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                      <div style={{ padding: 18, borderRadius: 12, background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', marginBottom: 10 }}>⚠️ Weaknesses</div>
+                        <ul style={{ margin: 0, paddingLeft: 16, color: '#e2e8f0', fontSize: 13, lineHeight: 1.6 }}>
+                          {(intelData?.swot?.weaknesses || ["Add production metrics"]).map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                      <div style={{ padding: 18, borderRadius: 12, background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#818cf8', textTransform: 'uppercase', marginBottom: 10 }}>🚀 Opportunities</div>
+                        <ul style={{ margin: 0, paddingLeft: 16, color: '#e2e8f0', fontSize: 13, lineHeight: 1.6 }}>
+                          {(intelData?.swot?.opportunities || ["AWS Certification"]).map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                      <div style={{ padding: 18, borderRadius: 12, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#f87171', textTransform: 'uppercase', marginBottom: 10 }}>🛑 Risks</div>
+                        <ul style={{ margin: 0, paddingLeft: 16, color: '#e2e8f0', fontSize: 13, lineHeight: 1.6 }}>
+                          {(intelData?.swot?.risks || ["Missing quantified outcomes"]).map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Skill Gap Roadmap */}
+                    <div style={{ padding: 20, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 24 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', marginBottom: 6 }}>
+                        🎯 Skill Gap Roadmap — {intelData?.skill_gap?.target_role || "Java & AI Backend Developer"}
+                      </div>
+                      <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, color: '#22c55e', fontWeight: 600, marginBottom: 8 }}>✅ Already Have</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {(intelData?.skill_gap?.already_have || ["Java", "Python", "React"]).map(s => (
+                              <span key={s} style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', color: '#4ade80', fontSize: 12 }}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, color: '#f87171', fontWeight: 600, marginBottom: 8 }}>⚡ Recommended to Learn</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {(intelData?.skill_gap?.needed || ["Docker", "Redis", "Kafka"]).map(s => (
+                              <span key={s} style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: 12 }}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* View 2: Sections List */}
+            {viewTab === 'sections' && SECTIONS.map(section => {
               const isEditing = editing?.section === section;
               const value = selectedContent[section] || '';
               return (
