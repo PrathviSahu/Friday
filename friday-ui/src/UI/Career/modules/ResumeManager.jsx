@@ -204,10 +204,8 @@ export default function ResumeManager() {
                       </div>
                     </div>
                   ) : (
-                    <div style={{ padding: '12px 16px' }}>
-                      {value ? (
-                        <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{value}</p>
-                      ) : (
+                    <div style={{ padding: '14px 18px' }}>
+                      {value ? renderFormattedSection(section, value) : (
                         <p style={{ margin: 0, fontSize: 13, color: '#334155', fontStyle: 'italic' }}>Not filled in yet. Click Edit to add.</p>
                       )}
                     </div>
@@ -221,6 +219,61 @@ export default function ResumeManager() {
     </div>
   );
 }
+const renderFormattedSection = (section, value) => {
+  if (!value) return null;
+  const strValue = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+
+  // 1. Tag Pills for Skills / Languages / Certifications
+  if (['skills', 'languages', 'certifications'].includes(section.toLowerCase())) {
+    const tags = strValue
+      .split(/[,;\n•\-\*]+/)
+      .map(t => t.trim())
+      .filter(t => t.length > 0);
+
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {tags.map((tag, idx) => (
+          <span key={idx} style={{
+            padding: '5px 12px', borderRadius: 6,
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            color: '#a5b4fc', fontSize: 12, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 6
+          }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#6366f1' }} />
+            {tag}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  // 2. Structured Bullet Points for Experience / Education / Projects / Achievements / Summary
+  const lines = strValue.split('\n').filter(l => l.trim().length > 0);
+
+  return (
+    <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {lines.map((line, idx) => {
+        const cleanLine = line.replace(/^[\s•\-\*\d\.\)\:]+/, '').trim();
+        const isHeader = line.includes(':') || (line.length < 35 && line === line.toUpperCase());
+
+        return (
+          <li key={idx} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            fontSize: 13, color: isHeader ? '#f1f5f9' : '#94a3b8',
+            fontWeight: isHeader ? 600 : 400, lineHeight: 1.6
+          }}>
+            {!isHeader && (
+              <span style={{ color: '#6366f1', fontSize: 14, lineHeight: 1, marginTop: 4 }}>•</span>
+            )}
+            <span style={{ flex: 1 }}>{cleanLine || line}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
 const btnPrimary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 7, background: '#6366f1', border: 'none', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
 const btnSecondary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 7, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
 const btnGhost = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 12, fontWeight: 500, cursor: 'pointer' };

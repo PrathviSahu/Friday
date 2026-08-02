@@ -2,7 +2,7 @@ import { useState, Suspense, lazy } from 'react';
 import {
   LayoutDashboard, Briefcase, FileText, ListChecks,
   Building2, Users, CalendarCheck, BarChart3,
-  GraduationCap, SlidersHorizontal, Shield, KeyRound, X, ChevronLeft,
+  GraduationCap, SlidersHorizontal, Shield, KeyRound, X, ChevronLeft, Mic, MicOff,
 } from 'lucide-react';
 import Skeleton from './components/Skeleton.jsx';
 
@@ -50,6 +50,7 @@ const MODULE_MAP = {
 export default function CareerOS({ onClose }) {
   const [active, setActive]       = useState('opportunities');
   const [collapsed, setCollapsed] = useState(false);
+  const [isMuted, setIsMuted]     = useState(false);
 
   const ActiveModule = MODULE_MAP[active] || Opportunities;
   const activeNav    = NAV.find(n => n.id === active);
@@ -86,6 +87,23 @@ export default function CareerOS({ onClose }) {
             {activeNav?.label}
           </span>
         </div>
+
+        {/* Voice Mute / Mic Off Button */}
+        <button
+          onClick={() => setIsMuted(m => !m)}
+          title={isMuted ? "FRIDAY Voice Muted — Click to Enable Microphone" : "FRIDAY Active — Click to Mute Microphone"}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 12px', borderRadius: 999,
+            background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+            border: isMuted ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(99, 102, 241, 0.35)',
+            color: isMuted ? '#f87171' : '#818cf8',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms',
+          }}
+        >
+          {isMuted ? <MicOff size={13} /> : <Mic size={13} />}
+          <span>{isMuted ? 'MIC OFF' : 'MIC ON'}</span>
+        </button>
 
         {/* Status pill */}
         <div style={{
