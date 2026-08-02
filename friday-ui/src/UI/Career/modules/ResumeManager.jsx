@@ -66,11 +66,18 @@ export default function ResumeManager() {
     load();
   };
 
-  const handleDeleteResume = async (id, title) => {
+  const handleDeleteResume = async (id, title, e) => {
+    if (e) e.stopPropagation();
     if (window.confirm(`Are you sure you want to permanently delete '${title}'? This action cannot be undone.`)) {
-      await deleteResume(id);
-      setSelected(null);
-      load();
+      setResumes(prev => prev.filter(r => r.id !== id));
+      if (selected?.id === id) setSelected(null);
+      try {
+        await deleteResume(id);
+      } catch (err) {
+        console.error("Delete resume error:", err);
+      } finally {
+        load();
+      }
     }
   };
 
@@ -143,7 +150,18 @@ export default function ResumeManager() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{r.title}</span>
-              {r.is_recommended ? <Star size={12} style={{ color: '#f59e0b', fill: '#f59e0b' }} /> : null}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {r.is_recommended ? <Star size={12} style={{ color: '#f59e0b', fill: '#f59e0b' }} /> : null}
+                <button
+                  onClick={(e) => handleDeleteResume(r.id, r.title, e)}
+                  title="Delete Resume"
+                  style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 2 }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#64748b'}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             </div>
             {r.ats_score > 0 && (
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>

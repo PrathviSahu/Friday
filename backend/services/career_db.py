@@ -301,9 +301,15 @@ def set_recommended_resume(resume_id: int):
         conn.commit()
 
 
-def delete_resume(resume_id: int) -> bool:
+def delete_resume(resume_id) -> bool:
     with _db() as conn:
-        conn.execute("DELETE FROM career_resumes WHERE id = ?", (resume_id,))
+        try:
+            r_id = int(resume_id)
+            conn.execute("UPDATE career_applications SET resume_id = NULL WHERE resume_id = ?", (r_id,))
+            conn.execute("DELETE FROM career_resumes WHERE id = ?", (r_id,))
+        except (ValueError, TypeError):
+            conn.execute("UPDATE career_applications SET resume_id = NULL WHERE resume_id = ?", (str(resume_id),))
+            conn.execute("DELETE FROM career_resumes WHERE id = ?", (str(resume_id),))
         conn.commit()
     log_activity("resume_deleted", f"Resume ID {resume_id} deleted")
     return True
