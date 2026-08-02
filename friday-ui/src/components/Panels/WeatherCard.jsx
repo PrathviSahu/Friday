@@ -3,7 +3,9 @@ import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } f
 import { Sun, CloudRain, Cloud, Wind, Droplets, MapPin, X, GripHorizontal } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 
-const API = 'http://localhost:8000/api/weather';
+import { API_ENDPOINTS } from '../../api/config.js';
+
+const API = API_ENDPOINTS.weather;
 
 function AnimatedWeatherIcon({ condition = '', icon = '🌤️', isDragging = false }) {
     const condLower = (condition || '').toLowerCase();

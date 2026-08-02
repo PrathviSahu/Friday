@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useFriday } from '../../../context/FridayContext';
+import { API_ENDPOINTS } from '../../../api/config.js';
 import { 
     Search, Plus, Trash2, ChevronDown, ChevronRight, Clock, Layers, MessageSquare, 
     Bell, Calendar, Rss, Grid, HelpCircle, X
@@ -323,7 +325,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         saveWatchlist(updated);
         setShowAddModal(false);
         try {
-            await fetch('http://localhost:8000/api/watchlist', {
+            await fetch(API_ENDPOINTS.watchlist, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -347,7 +349,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         const updated = watchlistItems.filter(i => i.symbol !== symbolToDelete);
         saveWatchlist(updated);
         try {
-            await fetch(`http://localhost:8000/api/watchlist/${encodeURIComponent(symbolToDelete)}`, {
+            await fetch(`${API_ENDPOINTS.watchlist}/${encodeURIComponent(symbolToDelete)}`, {
                 method: 'DELETE',
             });
         } catch (_) { /* offline: optimistic state already applied */ }
@@ -357,7 +359,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
     useEffect(() => {
         const fetchLivePrices = async () => {
             try {
-                const res = await fetch('http://localhost:8000/api/trading/live-prices');
+                const res = await fetch(`${API_ENDPOINTS.trading}/live-prices`);
                 if (res.ok) setLiveData(await res.json());
             } catch (_) {}
         };
@@ -418,7 +420,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         const timer = setTimeout(async () => {
             setIsSearchingRemote(true);
             try {
-                const res = await fetch(`http://localhost:8000/api/trading/search?q=${encodeURIComponent(q)}`);
+                const res = await fetch(`${API_ENDPOINTS.trading}/search?q=${encodeURIComponent(q)}`);
                 if (res.ok) {
                     const data = await res.json();
                     setRemoteResults(data.results || []);

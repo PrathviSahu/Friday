@@ -186,7 +186,7 @@ export default function LockScreen() {
                     </div>
                 </div>
 
-                <div className="relative flex flex-col items-center mt-4">
+                <div className="relative flex flex-col items-center" style={{ transform: 'translateY(-140px)' }}>
                     <motion.div
                         className="text-center"
                         initial={{ opacity: 0, y: -16 }}

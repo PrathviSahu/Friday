@@ -3,7 +3,9 @@
  * All requests go to http://localhost:8000/api/career/*
  */
 
-const BASE = 'http://localhost:8000/api/career';
+import { API_ENDPOINTS } from './config.js';
+
+const BASE = API_ENDPOINTS.career;
 
 // ── Simple in-memory cache ────────────────────────────────────────────────────
 const _cache = new Map();

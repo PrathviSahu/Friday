@@ -3,7 +3,9 @@ import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } f
 import { Search, Globe, X, GripHorizontal, ArrowRight, ExternalLink } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 
-const API = 'http://localhost:8000/api/search';
+import { API_ENDPOINTS } from '../../api/config.js';
+
+const API = API_ENDPOINTS.search;
 
 export default function WebSearchCard() {
     const { workspace } = useOrbState();

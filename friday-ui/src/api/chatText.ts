@@ -1,10 +1,12 @@
+import { API_ENDPOINTS } from './config.js';
+
 /**
  * Calls the text-only chat endpoint (/api/chat/text) which does LLM-only processing.
- * Connected to backend FastAPI server on port 8000.
+ * Connected to backend FastAPI server via centralized API_ENDPOINTS.
  */
 export async function fetchChatText(text: string, silenceTts: boolean = false): Promise<{ reply: string; action: string; silence_tts?: boolean }> {
   try {
-    const res = await fetch('http://localhost:8000/api/chat/text', {
+    const res = await fetch(API_ENDPOINTS.chatText, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, silence_tts: silenceTts }),

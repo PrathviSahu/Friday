@@ -3,8 +3,10 @@ import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } f
 import { Cpu, HardDrive, Battery, Zap, X, GripHorizontal, Activity, Sun, Moon, Volume2, VolumeX, Lock } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 
-const API_STATS = 'http://localhost:8000/api/system/stats';
-const API_DISPLAY = 'http://localhost:8000/api/system/display';
+import { API_ENDPOINTS } from '../../api/config.js';
+
+const API_STATS = `${API_ENDPOINTS.system}/stats`;
+const API_DISPLAY = `${API_ENDPOINTS.system}/display`;
 
 function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
     const isHigh = value > 85;

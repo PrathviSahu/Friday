@@ -11,12 +11,12 @@ export default function Rings({ state = 'idle' }) {
   };
   const m = multiplierMap[state] ?? 1;
   const strokeMap = {
-    idle: '#4eeeff',
-    listening: '#82f5ff',
-    thinking: '#f0c362',
-    speaking: '#feffff',
-    verified: '#a5ffe0',
-    alert: '#ff8a70',
+    idle: '#ff8c00',
+    listening: '#ff8c00',
+    thinking: '#ffaa00',
+    speaking: '#ffa500',
+    verified: '#ff8c00',
+    alert: '#ff4444',
   };
 
   return (

@@ -5,7 +5,9 @@ import {
     GripHorizontal, Flag, ChevronDown, ClipboardList, Pencil
 } from 'lucide-react';
 
-const API = 'http://localhost:8000/api/todos';
+import { API_ENDPOINTS } from '../../api/config.js';
+
+const API = API_ENDPOINTS.todos;
 
 const PRIORITY_META = {
     high: { color: '#ef4444', label: 'High', dot: 'bg-red-500' },

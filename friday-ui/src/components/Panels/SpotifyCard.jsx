@@ -8,6 +8,7 @@ import {
     Maximize2, Plus, ListPlus, Sparkles, Music
 } from 'lucide-react';
 import { fetchChatText } from '../../api/chatText';
+import { API_ENDPOINTS } from '../../api/config.js';
 
 const SpotifyIcon = ({ size = 20 }) => (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="#1DB954">
@@ -131,7 +132,7 @@ export default function SpotifyCard() {
         try {
             await fetchChatText(`play ${query}`, true);
             setTimeout(async () => {
-                const res = await fetch('http://localhost:8000/api/spotify/current-track');
+                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
                 if (res.ok) {
                     const data = await res.json();
                     setSpotifyTrack(data);
@@ -151,7 +152,7 @@ export default function SpotifyCard() {
         try {
             await fetchChatText(cmd, true);
             setTimeout(async () => {
-                const res = await fetch('http://localhost:8000/api/spotify/current-track');
+                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
                 if (res.ok) {
                     const data = await res.json();
                     setSpotifyTrack(data);
@@ -180,7 +181,7 @@ export default function SpotifyCard() {
             setShowCreatePlaylist(false);
             setNewPlaylistName('');
             setTimeout(async () => {
-                const res = await fetch('http://localhost:8000/api/spotify/current-track');
+                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
                 if (res.ok) {
                     const data = await res.json();
                     setSpotifyTrack(data);
@@ -204,7 +205,7 @@ export default function SpotifyCard() {
     useEffect(() => {
         const fetchTrack = async () => {
             try {
-                const res = await fetch('http://localhost:8000/api/spotify/current-track');
+                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
                 if (res.ok) {
                     const data = await res.json();
                     setSpotifyTrack(data);
@@ -235,7 +236,7 @@ export default function SpotifyCard() {
         const newSecs = Math.round(pct * totalSecs);
         setProgress(newSecs);
         try {
-            await fetch('http://localhost:8000/api/spotify/seek', {
+            await fetch(`${API_ENDPOINTS.spotify}/seek`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ seconds: newSecs })

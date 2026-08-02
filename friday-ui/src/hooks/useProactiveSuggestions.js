@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { speak } from '../services/ttsService';
 import { fetchChatText } from '../api/chatText';
+import { API_ENDPOINTS } from '../api/config.js';
 
 const PROACTIVE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const INITIAL_DELAY_MS       = 10 * 1000;      // 10 seconds after mount
@@ -58,7 +59,7 @@ export function useProactiveSuggestions({ enabled = true, onSuggestion, onPendin
     const check = async () => {
       if (!enabledRef.current) return;
       try {
-        const res = await fetch('http://localhost:8000/api/proactive');
+        const res = await fetch(API_ENDPOINTS.proactive);
         if (!res.ok) return;
         const data = await res.json();
 
