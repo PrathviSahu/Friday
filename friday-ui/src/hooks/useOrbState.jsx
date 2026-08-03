@@ -683,14 +683,18 @@ export function OrbProvider({ children }) {
         scheduleTimer(() => {
             setAuthStep(null);
             setResponseMessage('');
-            transitionTo('IDLE');
+            if (micEnabled && !lockedRef.current) {
+                transitionTo('LISTENING');
+            } else {
+                transitionTo('IDLE');
+            }
             setConversationMode('idle');
             // Route to the requested workspace view once the auth animation ends.
             if (command === 'trading') setWorkspace('trading');
             else if (command === 'career' || command === 'dashboard') setWorkspace('career');
             else setWorkspace('career');
         }, maxDelay + 600);
-    }, [transitionTo, speakText, audioEnabled, setWorkspace]);
+    }, [transitionTo, speakText, audioEnabled, setWorkspace, micEnabled]);
 
     // ── Micro level + breathing loop ─────────────────────────────────────────
     useEffect(() => {
@@ -719,14 +723,19 @@ export function OrbProvider({ children }) {
 
     useEffect(() => {
         if (!startMic || !stopMic) return;
-        if (appState === 'LISTENING' && micEnabled) {
-            // attempt to unlock audio before starting mic to satisfy autoplay policies
+        if (!locked && micEnabled) {
+            if (appState !== 'THINKING' && appState !== 'SPEAKING') {
+                transitionTo('LISTENING');
+            }
             unlockAudio();
             startMic().catch(() => {});
-        } else {
+        } else if (!micEnabled) {
+            if (appState === 'LISTENING') {
+                transitionTo('IDLE');
+            }
             stopMic();
         }
-    }, [appState, micEnabled, startMic, stopMic]);
+    }, [locked, micEnabled, startMic, stopMic, transitionTo, appState]);
 
     // ── Boot sequence ────────────────────────────────────────────────────────
     useEffect(() => {
