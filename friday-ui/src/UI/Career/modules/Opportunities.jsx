@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Zap, ExternalLink, X } from 'lucide-react';
+import { Search, Plus, Zap, ExternalLink, X, RotateCw } from 'lucide-react';
 import { getJobs, addJob, updateJobStatus, analyzeJob, createApplication, fetchLinkedinJobs } from '../../../api/careerApi.js';
 import JobCard from '../components/JobCard.jsx';
 import MatchScoreRing from '../components/MatchScoreRing.jsx';
@@ -127,16 +127,19 @@ export default function Opportunities() {
       <div style={{ width: 360, borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         {/* Toolbar */}
         <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search opportunities…" style={inputStyle({ paddingLeft: 32 })} />
             </div>
-            <button onClick={handleFetchLinkedin} disabled={fetchingLinkedin} style={{ ...btnPrimary, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
+            <button onClick={() => loadJobs()} title="Refresh Opportunities list" style={{ ...btnPrimary, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '6px 9px' }}>
+              <RotateCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+            <button onClick={() => handleFetchLinkedin()} disabled={fetchingLinkedin} style={{ ...btnPrimary, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', padding: '6px 10px' }}>
               <Zap size={13} style={{ animation: fetchingLinkedin ? 'spin 1s linear infinite' : 'none' }} /> {fetchingLinkedin ? 'Fetching…' : 'LinkedIn'}
             </button>
-            <button onClick={() => setShowAddJob(true)} style={btnPrimary}>
+            <button onClick={() => setShowAddJob(true)} style={{ ...btnPrimary, padding: '6px 10px' }}>
               <Plus size={14} /> Add
             </button>
           </div>

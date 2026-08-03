@@ -2,7 +2,7 @@ import { useState, Suspense, lazy } from 'react';
 import {
   LayoutDashboard, Briefcase, FileText, ListChecks,
   Building2, Users, CalendarCheck, BarChart3,
-  GraduationCap, SlidersHorizontal, Shield, KeyRound, X, ChevronLeft, Mic, MicOff,
+  GraduationCap, SlidersHorizontal, Shield, KeyRound, X, ChevronLeft, Mic, MicOff, RotateCw
 } from 'lucide-react';
 import { useFriday } from '../../context/FridayContext';
 import Skeleton from './components/Skeleton.jsx';
@@ -51,8 +51,14 @@ const MODULE_MAP = {
 export default function CareerOS({ onClose }) {
   const [active, setActive]       = useState('opportunities');
   const [collapsed, setCollapsed] = useState(false);
-  const { micEnabled, setMicEnabled } = useFriday();
-  const isMuted = !micEnabled;
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshKey(k => k + 1);
+    setTimeout(() => setRefreshing(false), 600);
+  };
 
   const ActiveModule = MODULE_MAP[active] || Opportunities;
   const activeNav    = NAV.find(n => n.id === active);
@@ -89,6 +95,23 @@ export default function CareerOS({ onClose }) {
             {activeNav?.label}
           </span>
         </div>
+
+        {/* Refresh Button */}
+        <button
+          onClick={handleRefresh}
+          title="Refresh Job Portal Data"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 12px', borderRadius: 999,
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: '#94a3b8',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms',
+          }}
+        >
+          <RotateCw size={13} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+          <span>REFRESH</span>
+        </button>
 
         {/* Voice Mute / Mic Off Button */}
         <button
@@ -166,7 +189,7 @@ export default function CareerOS({ onClose }) {
             </div>
           }>
             <ActiveModule
-              key={active}
+              key={`${active}_${refreshKey}`}
               onNavigate={setActive}
             />
           </Suspense>
