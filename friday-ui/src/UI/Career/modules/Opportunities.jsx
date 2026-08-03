@@ -18,6 +18,17 @@ const EXP_OPTIONS = [
   { id: 'any',     label: '🌐 Any Exp'           },
 ];
 
+const LOCATION_OPTIONS = [
+  { id: 'India',        label: '🇮🇳 India (Any)' },
+  { id: 'Remote',       label: '💻 Remote' },
+  { id: 'Bengaluru',    label: '🏙️ Bengaluru' },
+  { id: 'Hyderabad',    label: '🌆 Hyderabad' },
+  { id: 'Pune',         label: '🌇 Pune' },
+  { id: 'Mumbai',       label: '🏙️ Mumbai / Thane' },
+  { id: 'Gurgaon',      label: '🏛️ Delhi NCR / Gurgaon' },
+  { id: 'Worldwide',    label: '🌍 Global Remote' },
+];
+
 export default function Opportunities() {
   const [jobs, setJobs]             = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -25,6 +36,7 @@ export default function Opportunities() {
   const [source, setSource]         = useState('All');
   const [statusFilter, setStatus]   = useState('All');
   const [expLevel, setExpLevel]     = useState('fresher');
+  const [locationPref, setLocationPref] = useState('India');
   const [search, setSearch]         = useState('');
   const [minScore, setMinScore]     = useState(0);
   const [analyzing, setAnalyzing]   = useState(false);
@@ -45,10 +57,10 @@ export default function Opportunities() {
 
   useEffect(loadJobs, [source, statusFilter, minScore]);
 
-  const handleFetchLinkedin = async (overrideExp = expLevel) => {
+  const handleFetchLinkedin = async (overrideExp = expLevel, overrideLoc = locationPref) => {
     setFetchingLinkedin(true);
     try {
-      await fetchLinkedinJobs('Java Software Engineer', 'India', overrideExp);
+      await fetchLinkedinJobs('Java Software Engineer', overrideLoc, overrideExp);
       loadJobs();
     } catch (err) {
       console.error("Fetch LinkedIn jobs error:", err);
@@ -148,30 +160,54 @@ export default function Opportunities() {
               }}>{s}</button>
             ))}
           </div>
-          {/* Experience & Score filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: 11, color: '#475569', whiteSpace: 'nowrap' }}>Exp:</span>
-            <select
-              value={expLevel}
-              onChange={e => {
-                const val = e.target.value;
-                setExpLevel(val);
-                handleFetchLinkedin(val);
-              }}
-              style={{
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                color: '#818cf8', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                outline: 'none', cursor: 'pointer'
-              }}
-            >
-              {EXP_OPTIONS.map(opt => (
-                <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <span style={{ fontSize: 11, color: '#475569', marginLeft: 'auto', whiteSpace: 'nowrap' }}>Min: {minScore}%</span>
-            <input type="range" min={0} max={90} step={10} value={minScore} onChange={e => setMinScore(+e.target.value)} style={{ width: 55, accentColor: '#6366f1' }} />
+          {/* Experience, Location & Score filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: '#475569', width: 28 }}>Exp:</span>
+              <select
+                value={expLevel}
+                onChange={e => {
+                  const val = e.target.value;
+                  setExpLevel(val);
+                  handleFetchLinkedin(val, locationPref);
+                }}
+                style={{
+                  flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#818cf8', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+                  outline: 'none', cursor: 'pointer'
+                }}
+              >
+                {EXP_OPTIONS.map(opt => (
+                  <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: '#475569', width: 28 }}>Loc:</span>
+              <select
+                value={locationPref}
+                onChange={e => {
+                  const val = e.target.value;
+                  setLocationPref(val);
+                  handleFetchLinkedin(expLevel, val);
+                }}
+                style={{
+                  flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#34d399', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+                  outline: 'none', cursor: 'pointer'
+                }}
+              >
+                {LOCATION_OPTIONS.map(opt => (
+                  <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: 11, color: '#475569', marginLeft: 2, whiteSpace: 'nowrap' }}>Min: {minScore}%</span>
+              <input type="range" min={0} max={90} step={10} value={minScore} onChange={e => setMinScore(+e.target.value)} style={{ width: 45, accentColor: '#6366f1' }} />
+            </div>
           </div>
         </div>
 

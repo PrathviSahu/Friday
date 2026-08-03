@@ -57,9 +57,8 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         pass
 
     cfg = EXP_CONFIG.get(exp_level, EXP_CONFIG["fresher"])
-    prefix = cfg["query_prefix"]
     
-    clean_query = f"{prefix} {query}".strip() if prefix and prefix.lower() not in query.lower() else query
+    clean_query = query
     encoded_query = urllib.parse.quote(clean_query)
     encoded_loc = urllib.parse.quote(location)
     
