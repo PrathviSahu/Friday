@@ -3,20 +3,6 @@ import { KeyRound, Eye, EyeOff, X, Check, ShieldCheck, RefreshCw, Zap, ExternalL
 import { getProfile, updateProfile, verifyAccount, connectAccountLiveBrowser } from '../../../api/careerApi.js';
 import { SkeletonCard } from '../components/Skeleton.jsx';
 
-// ... setup continues ...
-
-  const handleConnectBrowser = async (platformName, pKey) => {
-    setVerifying(v => ({ ...v, [pKey]: true }));
-    try {
-      const res = await connectAccountLiveBrowser(pKey);
-      setVerifiedInfo(info => ({ ...info, [pKey]: res }));
-    } catch (err) {
-      console.error("Connect browser error:", err);
-    } finally {
-      setVerifying(v => ({ ...v, [pKey]: false }));
-    }
-  };
-
 const PLATFORMS = [
   { key: 'linkedin_email',    pKey: 'linkedin',    label: 'LinkedIn',    icon: '💼', field_type: 'email' },
   { key: 'linkedin_password', pKey: 'linkedin',    label: 'LinkedIn',    icon: '💼', field_type: 'password' },
@@ -79,6 +65,18 @@ export default function AccountManager() {
       setVerifiedInfo(info => ({ ...info, [pKey]: res }));
     } catch (err) {
       console.error("Test connection error:", err);
+    } finally {
+      setVerifying(v => ({ ...v, [pKey]: false }));
+    }
+  };
+
+  const handleConnectBrowser = async (platformName, pKey) => {
+    setVerifying(v => ({ ...v, [pKey]: true }));
+    try {
+      const res = await connectAccountLiveBrowser(pKey);
+      setVerifiedInfo(info => ({ ...info, [pKey]: res }));
+    } catch (err) {
+      console.error("Connect browser error:", err);
     } finally {
       setVerifying(v => ({ ...v, [pKey]: false }));
     }
