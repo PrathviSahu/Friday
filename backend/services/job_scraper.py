@@ -8,22 +8,63 @@ from services.career_intelligence import analyze_job_match
 
 DB_FILE = Path(__file__).parent.parent / "data" / "career.db"
 
-# Automatically save Fresher preference into DB
-try:
-    upsert_preference("experience_level", "fresher", "user")
-    upsert_preference("experience_max_years", 1, "user")
-except Exception:
-    pass
+EXP_CONFIG = {
+    "fresher": {
+        "query_prefix": "Fresher",
+        "f_E": "1,2",
+        "label": "0-1 years (Fresher)",
+        "exclude": ["senior", "lead", "principal", "staff", "manager", "architect", "5+", "6+", "7+"],
+        "salary": "₹4,50,000 - ₹9,50,000 / year (Fresher Standard)"
+    },
+    "junior": {
+        "query_prefix": "Junior",
+        "f_E": "2,3",
+        "label": "1-3 years (Junior)",
+        "exclude": ["lead", "principal", "staff", "architect", "7+"],
+        "salary": "₹8,00,000 - ₹15,00,000 / year"
+    },
+    "mid": {
+        "query_prefix": "Software Engineer",
+        "f_E": "4",
+        "label": "3-5 years (Mid-Level)",
+        "exclude": ["fresher", "intern", "trainee"],
+        "salary": "₹16,00,000 - ₹28,00,000 / year"
+    },
+    "senior": {
+        "query_prefix": "Senior Engineer",
+        "f_E": "5,6",
+        "label": "5+ years (Senior)",
+        "exclude": ["fresher", "intern", "junior", "trainee"],
+        "salary": "₹30,00,000 - ₹55,00,000 / year"
+    },
+    "any": {
+        "query_prefix": "",
+        "f_E": "",
+        "label": "Any Experience",
+        "exclude": [],
+        "salary": "Competitive Market Standard"
+    }
+}
 
-async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", location: str = "India"):
+async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", location: str = "India", exp_level: str = "fresher"):
     """
-    Scrapes 100% REAL live FRESHER & ENTRY-LEVEL job postings from LinkedIn (0-1 yrs exp only).
-    Enforces LinkedIn's f_E=1,2 (Internship & Entry-Level) filter.
+    Scrapes 100% REAL live job postings from LinkedIn filtered dynamically by experience level
+    ('fresher', 'junior', 'mid', 'senior', 'any').
     """
-    encoded_query = urllib.parse.quote(query)
+    try:
+        upsert_preference("experience_level", exp_level, "user")
+    except Exception:
+        pass
+
+    cfg = EXP_CONFIG.get(exp_level, EXP_CONFIG["fresher"])
+    prefix = cfg["query_prefix"]
+    
+    clean_query = f"{prefix} {query}".strip() if prefix and prefix.lower() not in query.lower() else query
+    encoded_query = urllib.parse.quote(clean_query)
     encoded_loc = urllib.parse.quote(location)
-    # f_E=1,2 forces LinkedIn to show ONLY Internship & Entry-Level / Fresher jobs!
-    target_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_query}&location={encoded_loc}&f_E=1,2"
+    
+    f_E_param = f"&f_E={cfg['f_E']}" if cfg['f_E'] else ""
+    target_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_query}&location={encoded_loc}{f_E_param}"
 
     cookies = []
     try:
@@ -54,11 +95,11 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
             await page.goto(target_url, timeout=30000)
             await page.wait_for_timeout(3000)
 
-            raw_cards = await page.evaluate('''() => {
+            exclude_list = cfg["exclude"]
+            raw_cards = await page.evaluate('''(excludeList) => {
                 const cards = Array.from(document.querySelectorAll('ul.jobs-search__results-list li, .job-search-card, .base-card'));
                 const seen = new Set();
                 const results = [];
-                const EXCLUDE = ['senior', 'lead', 'principal', 'staff', 'manager', 'architect', '5+', '6+', '7+'];
                 for (const c of cards) {
                     const title = c.querySelector('h3, .base-card__title, .job-search-card__title')?.innerText?.trim() || '';
                     const company = c.querySelector('h4, .base-card__subtitle, .job-search-card__subtitle')?.innerText?.trim() || '';
@@ -67,18 +108,18 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
                     const key = title + '||' + company;
 
                     const titleLower = title.toLowerCase();
-                    const isSenior = EXCLUDE.some(term => titleLower.includes(term));
+                    const isExcluded = excludeList.some(term => titleLower.includes(term));
 
-                    if (title && company && !seen.has(key) && !isSenior) {
+                    if (title && company && !seen.has(key) && !isExcluded) {
                         seen.add(key);
                         results.push({ title, company, location: loc, url: link });
                     }
                 }
                 return results;
-            }''')
+            }''', exclude_list)
             extracted_jobs = raw_cards
         except Exception as err:
-            print("[LinkedIn Fresher Scraper Error]:", err)
+            print("[LinkedIn Scraper Error]:", err)
         finally:
             await browser.close()
 
@@ -95,20 +136,20 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         job_data = {
             "title": raw["title"],
             "company": raw["company"],
-            "description": f"Entry Level / Fresher opportunity for {raw['title']} at {raw['company']} ({raw['location']}). Ideal for 0-1 year candidates & recent graduates.",
+            "description": f"Real-time LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']}). Experience level: {cfg['label']}.",
             "source": "linkedin",
             "url": raw["url"],
             "location": raw["location"],
             "remote_type": "hybrid" if "remote" not in raw["location"].lower() else "remote",
-            "salary_raw": "₹4,50,000 - ₹9,50,000 / year (Fresher Standard)",
-            "experience_required": "0-1 years (Fresher)",
+            "salary_raw": cfg["salary"],
+            "experience_required": cfg["label"],
             "visa_sponsorship": 1,
             "deadline": "2026-08-30"
         }
         
         jid = create_job(job_data)
         analysis = analyze_job_match(job_data, resume_content, {})
-        score = analysis.get("overall_score", 92)
+        score = analysis.get("overall_score", 90)
         
         update_job(jid, {
             "match_json": json.dumps(analysis),
@@ -120,5 +161,5 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         job_data["match"] = analysis
         ingested.append(job_data)
 
-    log_activity("linkedin_sync", f"Scraped {len(ingested)} REAL FRESHER jobs from LinkedIn for '{query}'")
+    log_activity("linkedin_sync", f"Scraped {len(ingested)} real jobs from LinkedIn for '{query}' [{cfg['label']}]")
     return ingested

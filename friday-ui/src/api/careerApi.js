@@ -141,8 +141,8 @@ export const getJobs = (params = {}) => {
   return cached(key, () => api('GET', `/jobs?${qs.toString()}`));
 };
 
-export const fetchLinkedinJobs = (query = 'Java Software Engineer') =>
-  api('POST', `/jobs/fetch-linkedin?query=${encodeURIComponent(query)}`);
+export const fetchLinkedinJobs = (query = 'Java Software Engineer', location = 'India', expLevel = 'fresher') =>
+  api('POST', `/jobs/fetch-linkedin?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&exp_level=${encodeURIComponent(expLevel)}`);
 
 export const getJob = (id) => api('GET', `/jobs/${id}`);
 

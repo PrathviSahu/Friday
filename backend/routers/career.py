@@ -518,10 +518,14 @@ def add_job(req: JobCreate):
 
 
 @router.post("/jobs/fetch-linkedin")
-async def fetch_linkedin_jobs(query: Optional[str] = "Fresher Java Software Engineer", location: Optional[str] = "India"):
-    """Fetches and AI-analyzes 100% real live FRESHER & Entry-Level LinkedIn developer jobs."""
+async def fetch_linkedin_jobs(
+    query: Optional[str] = "Java Software Engineer",
+    location: Optional[str] = "India",
+    exp_level: Optional[str] = "fresher"
+):
+    """Fetches and AI-analyzes 100% real live LinkedIn developer jobs with dynamic experience level filtering."""
     try:
-        live_jobs = await fetch_live_linkedin_jobs(query, location)
+        live_jobs = await fetch_live_linkedin_jobs(query, location, exp_level)
         return {"status": "ok", "count": len(live_jobs), "jobs": live_jobs}
     except Exception as e:
         print("[LinkedIn Fetch Error]:", e)

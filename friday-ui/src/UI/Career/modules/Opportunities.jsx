@@ -10,12 +10,21 @@ import Skeleton from '../components/Skeleton.jsx';
 const SOURCES  = ['All', 'LinkedIn', 'Wellfound', 'Naukri', 'Indeed', 'Manual'];
 const STATUSES = ['All', 'new', 'bookmarked', 'approved', 'applied', 'ignored'];
 
+const EXP_OPTIONS = [
+  { id: 'fresher', label: '🎓 Fresher (0-1 yrs)' },
+  { id: 'junior',  label: '🌱 Junior (1-3 yrs)'  },
+  { id: 'mid',     label: '💼 Mid-Level (3-5 yrs)' },
+  { id: 'senior',  label: '⚡ Senior (5+ yrs)'  },
+  { id: 'any',     label: '🌐 Any Exp'           },
+];
+
 export default function Opportunities() {
   const [jobs, setJobs]             = useState([]);
   const [loading, setLoading]       = useState(true);
   const [selected, setSelected]     = useState(null);
   const [source, setSource]         = useState('All');
   const [statusFilter, setStatus]   = useState('All');
+  const [expLevel, setExpLevel]     = useState('fresher');
   const [search, setSearch]         = useState('');
   const [minScore, setMinScore]     = useState(0);
   const [analyzing, setAnalyzing]   = useState(false);
@@ -36,10 +45,10 @@ export default function Opportunities() {
 
   useEffect(loadJobs, [source, statusFilter, minScore]);
 
-  const handleFetchLinkedin = async () => {
+  const handleFetchLinkedin = async (overrideExp = expLevel) => {
     setFetchingLinkedin(true);
     try {
-      await fetchLinkedinJobs('Java Software Engineer');
+      await fetchLinkedinJobs('Java Software Engineer', 'India', overrideExp);
       loadJobs();
     } catch (err) {
       console.error("Fetch LinkedIn jobs error:", err);
@@ -139,10 +148,30 @@ export default function Opportunities() {
               }}>{s}</button>
             ))}
           </div>
-          {/* Score filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: 11, color: '#475569', whiteSpace: 'nowrap' }}>Min score: {minScore}%</span>
-            <input type="range" min={0} max={90} step={10} value={minScore} onChange={e => setMinScore(+e.target.value)} style={{ flex: 1, accentColor: '#6366f1' }} />
+          {/* Experience & Score filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <span style={{ fontSize: 11, color: '#475569', whiteSpace: 'nowrap' }}>Exp:</span>
+            <select
+              value={expLevel}
+              onChange={e => {
+                const val = e.target.value;
+                setExpLevel(val);
+                handleFetchLinkedin(val);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#818cf8', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+                outline: 'none', cursor: 'pointer'
+              }}
+            >
+              {EXP_OPTIONS.map(opt => (
+                <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: 11, color: '#475569', marginLeft: 'auto', whiteSpace: 'nowrap' }}>Min: {minScore}%</span>
+            <input type="range" min={0} max={90} step={10} value={minScore} onChange={e => setMinScore(+e.target.value)} style={{ width: 55, accentColor: '#6366f1' }} />
           </div>
         </div>
 
