@@ -54,6 +54,9 @@ export default function CareerOS({ onClose }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
+  const { micEnabled, setMicEnabled } = useFriday();
+  const isMuted = !micEnabled;
+
   const handleRefresh = () => {
     setRefreshing(true);
     setRefreshKey(k => k + 1);
