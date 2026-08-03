@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Zap, ExternalLink, X } from 'lucide-react';
-import { getJobs, addJob, updateJobStatus, analyzeJob, createApplication } from '../../../api/careerApi.js';
+import { getJobs, addJob, updateJobStatus, analyzeJob, createApplication, fetchLinkedinJobs } from '../../../api/careerApi.js';
 import JobCard from '../components/JobCard.jsx';
 import MatchScoreRing from '../components/MatchScoreRing.jsx';
 import SkillTag from '../components/SkillTag.jsx';
@@ -19,17 +19,34 @@ export default function Opportunities() {
   const [search, setSearch]         = useState('');
   const [minScore, setMinScore]     = useState(0);
   const [analyzing, setAnalyzing]   = useState(false);
+  const [fetchingLinkedin, setFetchingLinkedin] = useState(false);
   const [showAddJob, setShowAddJob] = useState(false);
   const [newJob, setNewJob]         = useState({ title: '', company: '', description: '', source: 'manual', location: '', url: '' });
 
   const loadJobs = () => {
     setLoading(true);
     getJobs({ status: statusFilter === 'All' ? null : statusFilter, min_score: minScore, source: source === 'All' ? null : source.toLowerCase() })
-      .then(d => { setJobs(d.jobs || []); })
+      .then(d => {
+        const jList = d.jobs || [];
+        setJobs(jList);
+        if (!selected && jList.length) setSelected(jList[0]);
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(loadJobs, [source, statusFilter, minScore]);
+
+  const handleFetchLinkedin = async () => {
+    setFetchingLinkedin(true);
+    try {
+      await fetchLinkedinJobs('Java Software Engineer');
+      loadJobs();
+    } catch (err) {
+      console.error("Fetch LinkedIn jobs error:", err);
+    } finally {
+      setFetchingLinkedin(false);
+    }
+  };
 
   const filtered = jobs.filter(j =>
     !search || j.title?.toLowerCase().includes(search.toLowerCase()) || j.company?.toLowerCase().includes(search.toLowerCase())
@@ -95,6 +112,9 @@ export default function Opportunities() {
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search opportunities…" style={inputStyle({ paddingLeft: 32 })} />
             </div>
+            <button onClick={handleFetchLinkedin} disabled={fetchingLinkedin} style={{ ...btnPrimary, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
+              <Zap size={13} style={{ animation: fetchingLinkedin ? 'spin 1s linear infinite' : 'none' }} /> {fetchingLinkedin ? 'Fetching…' : 'LinkedIn'}
+            </button>
             <button onClick={() => setShowAddJob(true)} style={btnPrimary}>
               <Plus size={14} /> Add
             </button>

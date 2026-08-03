@@ -138,8 +138,11 @@ export const getJobs = (params = {}) => {
   if (min_score) qs.set('min_score', min_score);
   if (source) qs.set('source', source);
   const key = `jobs_${qs.toString()}`;
-  return cached(key, () => api('GET', `/jobs${qs.size ? '?' + qs : ''}`));
+  return cached(key, () => api('GET', `/jobs?${qs.toString()}`));
 };
+
+export const fetchLinkedinJobs = (query = 'Java Software Engineer') =>
+  api('POST', `/jobs/fetch-linkedin?query=${encodeURIComponent(query)}`);
 
 export const getJob = (id) => api('GET', `/jobs/${id}`);
 
