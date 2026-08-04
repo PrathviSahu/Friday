@@ -472,6 +472,69 @@ def _h_last_meeting(args) -> str:
     return meeting_agent.format_meeting_for_speech(meetings[0])
 
 
+# ── WhatsApp Agent handlers (experimental driver) ────────────────────────
+
+_pending_whatsapp_draft = None
+
+
+def get_pending_whatsapp_draft() -> dict | None:
+    """Return and clear the most recently created WhatsApp draft."""
+    global _pending_whatsapp_draft
+    draft = _pending_whatsapp_draft
+    _pending_whatsapp_draft = None
+    return draft
+
+
+def _h_check_whatsapp(args) -> str:
+    from services import whatsapp_agent
+    if not whatsapp_agent.ENABLED:
+        return ("WhatsApp is disabled, Boss — set FRIDAY_WHATSAPP_ENABLED=1 in "
+                "backend/.env to enable the experimental driver.")
+    try:
+        s = whatsapp_agent.summarize()
+    except whatsapp_agent.WhatsAppUnavailableError as err:
+        return f"WhatsApp isn't connected yet: {err}"
+    if not s.get("unread_count"):
+        return "No unread WhatsApp messages."
+    lines = [f"You have {s['unread_count']} unread WhatsApp messages."]
+    for c in s.get("chats", [])[:3]:
+        lines.append(f"- {c['name']} ({c['unread']})")
+    return " ".join(lines)
+
+
+def _h_search_whatsapp(args) -> str:
+    from services import whatsapp_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your WhatsApp for?"
+    if not whatsapp_agent.ENABLED:
+        return "WhatsApp is disabled, Boss."
+    try:
+        results = whatsapp_agent.search_messages(query, limit=5)
+    except whatsapp_agent.WhatsAppUnavailableError as err:
+        return f"Couldn't search WhatsApp: {err}"
+    if not results:
+        return f"Nothing matched '{query}' in WhatsApp."
+    return "Found: " + ", ".join(f"{c['name']} ({c['unread']} unread)" for c in results)
+
+
+def _h_send_whatsapp(args) -> str:
+    from services import whatsapp_agent
+    if not whatsapp_agent.ENABLED:
+        return ("WhatsApp is disabled, Boss — set FRIDAY_WHATSAPP_ENABLED=1 in "
+                "backend/.env to enable the experimental driver.")
+    try:
+        draft = whatsapp_agent.create_draft(
+            args.get("phone") or "", args.get("message") or ""
+        )
+    except ValueError as err:
+        return str(err)
+    global _pending_whatsapp_draft
+    _pending_whatsapp_draft = draft
+    return (f"Message ready for +{draft['phone']}: \"{draft['message'][:80]}\". "
+            "I won't send it until you confirm.")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Registrations (18 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -844,4 +907,39 @@ register_function(
     description="Summarize the user's most recent meeting, including its action items.",
     parameters={"type": "object", "properties": {}},
     handler=_h_last_meeting,
+)
+
+register_function(
+    name="check_whatsapp",
+    description="Check the user's WhatsApp: unread messages and unread chat names.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_check_whatsapp,
+)
+
+register_function(
+    name="search_whatsapp",
+    description="Search the user's WhatsApp chats by contact name.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Contact name to find"}},
+        "required": ["query"],
+    },
+    handler=_h_search_whatsapp,
+)
+
+register_function(
+    name="send_whatsapp",
+    description=(
+        "Draft a WhatsApp message to a phone number (with country code, digits only). "
+        "NEVER sends anything: it only creates a preview and the user must confirm."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "phone": {"type": "string", "description": "Phone with country code, digits only, e.g. 919876543210"},
+            "message": {"type": "string", "description": "Message text"},
+        },
+        "required": ["phone", "message"],
+    },
+    handler=_h_send_whatsapp,
 )

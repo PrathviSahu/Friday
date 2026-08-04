@@ -18,6 +18,7 @@ import KnowledgeCard from './components/Panels/KnowledgeCard';
 import EmailCard from './components/Panels/EmailCard';
 import CalendarCard from './components/Panels/CalendarCard';
 import MeetingsCard from './components/Panels/MeetingsCard';
+import WhatsAppCard from './components/Panels/WhatsAppCard';
 import { FridayProvider } from './context/FridayContext';
 import FridaySync from './context/FridaySync';
 import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
@@ -92,6 +93,7 @@ function FridayCore() {
             {showExtraCapsules && <EmailCard />}
             {showExtraCapsules && <CalendarCard />}
             {showExtraCapsules && <MeetingsCard />}
+            {showExtraCapsules && <WhatsAppCard />}
 
             {/* Lock screen: button to reveal/hide the extra capsules (all except Spotify) */}
             {locked && !isCareerWorkspace && (

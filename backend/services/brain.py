@@ -367,6 +367,51 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             except Exception:
                 pass  # fall through to the LLM
 
+        # 💬 WHATSAPP AGENT (experimental driver; approval-first send)
+        # "check whatsapp" / "any new whatsapp messages"
+        if re.search(r'\b(?:whatsapp|whats\s*app|wa)\b', lower_text) and \
+           re.search(r'\b(?:check|read|any|new|messages?|unread|notif)\b', lower_text):
+            try:
+                from services import whatsapp_agent
+                if whatsapp_agent.ENABLED:
+                    summary = whatsapp_agent.summarize()
+                    if summary.get("unread_count"):
+                        reply_msg = f"You have {summary['unread_count']} unread WhatsApp messages. " + "; ".join(
+                            f"{c['name']} ({c['unread']})" for c in summary.get("chats", [])[:3]) + "."
+                    else:
+                        reply_msg = "No unread WhatsApp messages."
+                    log_conversation(role="assistant", message=reply_msg)
+                    return {"reply": reply_msg, "action": "none"}
+            except Exception:
+                pass  # fall through to the LLM
+
+        # "message <phone> that <text>" / "whatsapp <phone> saying <text>"
+        wa_send_match = re.search(
+            r'\b(?:message|whatsapp|whats\s*app|text|ping)\s+(\+?\d{8,15})\s+(?:that|saying|stating|about|re)\s+(.+)$',
+            lower_text,
+        )
+        if wa_send_match:
+            try:
+                from services import whatsapp_agent
+                if whatsapp_agent.ENABLED:
+                    phone = wa_send_match.group(1)
+                    message = wa_send_match.group(2).strip()
+                    draft = whatsapp_agent.create_draft(phone, message)
+                    preview = f"+{draft['phone']}: \"{draft['message'][:80]}\""
+                    reply_msg = f"Message ready, Prem — {preview}. I won't send it until you confirm."
+                    log_conversation(role="assistant", message=reply_msg)
+                    return {
+                        "reply": reply_msg,
+                        "action": "whatsapp_confirm",
+                        "whatsapp_draft_id": draft["id"],
+                        "whatsapp_preview": {
+                            "phone": draft["phone"],
+                            "message": draft["message"],
+                        },
+                    }
+            except Exception:
+                pass  # fall through to the LLM
+
         # 📅 CALENDAR AGENT (read: today / tomorrow / this week)
         # "what's on my calendar today", "any meetings tomorrow", "this week"
         if re.search(r'\b(?:calendar|schedule|meetings?|appointments?)\b', lower_text) or \

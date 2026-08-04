@@ -15,6 +15,7 @@ import { speak, stopSpeaking } from '../../services/ttsService';
 import { API_ENDPOINTS } from '../../api/config.js';
 import { approveAndSendEmail, cancelEmailDraft } from '../../api/email';
 import { approveAndCreateEvent, cancelEventDraft } from '../../api/calendar';
+import { approveAndSendWhatsApp, cancelWhatsAppDraft } from '../../api/whatsapp';
 import PendingApprovalCard from '../Common/PendingApprovalCard';
 
 export default function LockScreen() {
@@ -32,6 +33,10 @@ export default function LockScreen() {
     const [pendingCalendar, setPendingCalendar] = React.useState(null);
     const pendingCalendarRef = React.useRef(null);
     React.useEffect(() => { pendingCalendarRef.current = pendingCalendar; }, [pendingCalendar]);
+
+    const [pendingWhatsApp, setPendingWhatsApp] = React.useState(null);
+    const pendingWhatsAppRef = React.useRef(null);
+    React.useEffect(() => { pendingWhatsAppRef.current = pendingWhatsApp; }, [pendingWhatsApp]);
 
     // Push-to-talk HUD: shows a live "speaking" state while Space is held.
     const [pttHeld, setPttHeld] = React.useState(false);
@@ -53,6 +58,10 @@ export default function LockScreen() {
         }
         if (action === 'calendar_confirm' && calendar_draft_id) {
             setPendingCalendar({ draftId: calendar_draft_id, preview: calendar_preview || {} });
+            return;
+        }
+        if (action === 'whatsapp_confirm' && whatsapp_draft_id) {
+            setPendingWhatsApp({ draftId: whatsapp_draft_id, preview: whatsapp_preview || {} });
             return;
         }
         if (action && action !== 'none' && !locked) {
@@ -263,8 +272,34 @@ export default function LockScreen() {
         return true;
     }, [setResponseMessage]);
 
-    // Voice confirmation for any pending approval (email then calendar):
-    // "yes / send it / create it" → confirm; "no / cancel" → discard.
+    // ── WhatsApp approval helpers ────────────────────────────────────────
+    const sendPendingWhatsApp = React.useCallback(async () => {
+        const pending = pendingWhatsAppRef.current;
+        if (!pending) return false;
+        try {
+            await approveAndSendWhatsApp(pending.draftId);
+            setResponseMessage?.('WhatsApp message sent.');
+        } catch (err) {
+            setResponseMessage?.(`WhatsApp failed: ${err.message || 'unknown error'}`);
+        } finally {
+            pendingWhatsAppRef.current = null;
+            setPendingWhatsApp(null);
+        }
+        return true;
+    }, [setResponseMessage]);
+
+    const cancelPendingWhatsApp = React.useCallback(async () => {
+        const pending = pendingWhatsAppRef.current;
+        if (!pending) return false;
+        await cancelWhatsAppDraft(pending.draftId).catch(() => {});
+        pendingWhatsAppRef.current = null;
+        setPendingWhatsApp(null);
+        setResponseMessage?.('Message cancelled.');
+        return true;
+    }, [setResponseMessage]);
+
+    // Voice confirmation for any pending approval (email → calendar →
+    // WhatsApp): "yes / send it / create it" → confirm; "no / cancel" → discard.
     React.useEffect(() => {
         window.fridayCheckPendingApproval = async (transcript) => {
             const t = (transcript || '').trim().toLowerCase();
@@ -281,10 +316,16 @@ export default function LockScreen() {
                 if (NO.test(t)) { await cancelPendingCalendar(); return true; }
                 return false;
             }
+            if (pendingWhatsAppRef.current) {
+                if (YES.test(t)) { await sendPendingWhatsApp(); return true; }
+                if (NO.test(t)) { await cancelPendingWhatsApp(); return true; }
+                return false;
+            }
             return false;
         };
         return () => { delete window.fridayCheckPendingApproval; };
-    }, [sendPendingEmail, cancelPendingEmail, createPendingCalendar, cancelPendingCalendar]);
+    }, [sendPendingEmail, cancelPendingEmail, createPendingCalendar, cancelPendingCalendar,
+        sendPendingWhatsApp, cancelPendingWhatsApp]);
 
     useSpeech({
         locked,
@@ -502,6 +543,19 @@ export default function LockScreen() {
                     confirmLabel="Send"
                     onConfirm={sendPendingEmail}
                     onCancel={cancelPendingEmail}
+                />
+            )}
+            {pendingWhatsApp && (
+                <PendingApprovalCard
+                    title="💬 WhatsApp Approval Required"
+                    rows={[
+                        { label: 'To', value: `+${pendingWhatsApp.preview?.phone || '—'}` },
+                    ]}
+                    body={pendingWhatsApp.preview?.message || '—'}
+                    hint='Say "yes" to send · "no" to cancel'
+                    confirmLabel="Send"
+                    onConfirm={sendPendingWhatsApp}
+                    onCancel={cancelPendingWhatsApp}
                 />
             )}
             {pendingCalendar && (

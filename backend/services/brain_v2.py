@@ -148,6 +148,16 @@ def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False,
                         "end": pending["end"],
                         "description": pending["description"],
                     }
+            # WhatsApp drafts likewise require explicit confirmation.
+            if name == "send_whatsapp":
+                pending = function_engine.get_pending_whatsapp_draft()
+                if pending:
+                    result["action"] = "whatsapp_confirm"
+                    result["whatsapp_draft_id"] = pending["id"]
+                    result["whatsapp_preview"] = {
+                        "phone": pending["phone"],
+                        "message": pending["message"],
+                    }
             return result
         if result["content"]:
             return {"reply": result["content"], "action": "none", "engine": "brain_v2"}
