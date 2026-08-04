@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 from services.career_db import create_job, update_job, get_all_resumes, log_activity, upsert_preference
 from services.career_intelligence import analyze_job_match
 
-DB_FILE = Path(__file__).parent.parent / "data" / "career.db"
+DB_FILE = Path(__file__).parent.parent / "data" / "friday_brain.db"
 
 EXP_CONFIG = {
     "fresher": {
