@@ -31,6 +31,9 @@ from routes.watchlist import router as watchlist_router, seed_watchlist
 from routes.trading import router as trading_router
 from routes.automation import router as automation_router
 from routes.agents import router as agents_router
+from routes.learning import router as learning_router
+from routes.life_memory import router as life_memory_router
+from routes.devtools import router as devtools_router
 from routers.career import router as career_router
 
 from services.market_data import start_market_pollers, stop_market_pollers
@@ -156,6 +159,9 @@ app.include_router(watchlist_router)
 app.include_router(trading_router)
 app.include_router(automation_router)
 app.include_router(agents_router)
+app.include_router(learning_router)
+app.include_router(life_memory_router)
+app.include_router(devtools_router)
 app.include_router(career_router)
 
 

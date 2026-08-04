@@ -196,7 +196,23 @@ All loops check a stop-event, so shutdown is prompt and tests run thread-free.
 - 6 agents with capability-scoped tool filters; keyword router (deterministic);
   `agent.autonomy` permission gates autonomous action.
 
-## 8. Database Schema — Career OS Tables (in `friday_brain.db`)
+## 8. v3.2 Foundation Modules
+
+### Learning Coach (`services/learning.py`)
+- `learning_goals` (seeded tracks + weekly targets) + `learning_log` (sessions).
+- Streak math (consecutive calendar days), weekly goal progress, `learning_check`
+  automation action → Notification Center when idle ≥ 3 days.
+
+### Life Memory (`services/life_memory.py`)
+- `life_memories` triples (subject → relation → target) + token/prefix search.
+- `remember_fact` writes both facts and triples; `search_memories` function tool.
+
+### Developer Mode (`routes/devtools.py`)
+- Owner-only `/api/dev/*`: overview, memory viewer, log tail (file + ring buffer),
+  safe config (booleans only, never values), in-process API tester via
+  `httpx.ASGITransport`.
+
+## 9. Database Schema — Career OS Tables (in `friday_brain.db`)
 
 All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL mode):
 
@@ -215,7 +231,7 @@ All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL
 
 ---
 
-## 9. Active API Endpoint Reference
+## 10. Active API Endpoint Reference
 
 ### Core Endpoints
 | Method | Endpoint | Description |
@@ -278,7 +294,7 @@ All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL
 
 ---
 
-## 10. Voice Command Routing
+## 11. Voice Command Routing
 
 All workspace navigation is handled by `useOrbState.jsx`:
 
@@ -293,7 +309,7 @@ All workspace navigation is handled by `useOrbState.jsx`:
 
 ---
 
-## 11. Security & Protection Guidelines
+## 12. Security & Protection Guidelines
 
 1. **Owner Authentication**: Loopback clients are the owner; non-localhost callers must present `FRIDAY_API_TOKEN` via the `X-FRIDAY-Token` header (401 otherwise). `is_boss` is never accepted from the client body. Chat, machine-control, memory, and the whole `/api/career/*` router are owner-gated.
 2. **Proxy-Header Spoofing Defense**: uvicorn runs with `--no-proxy-headers` so client-supplied `X-Forwarded-For` / `X-Real-IP` are ignored — otherwise a remote caller could spoof `127.0.0.1` and bypass auth.

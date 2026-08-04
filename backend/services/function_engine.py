@@ -229,7 +229,31 @@ def _h_remember_fact(args) -> str:
     if not key or not value:
         return "Please give me both a fact name and its value."
     save_fact(key, value)
+    # Also store as a searchable life-memory triple (Boss --key--> value)
+    try:
+        from services.life_memory import save_memory
+        save_memory("Boss", key.replace("_", " "), value, category="fact")
+    except Exception:
+        pass
     return f"Remembered: {key} = {value}."
+
+
+def _h_log_learning(args) -> str:
+    from services.learning import log_session
+    title = (args.get("title") or "Practice session").strip()
+    category = (args.get("category") or "general").strip()
+    minutes = int(args.get("minutes") or 30)
+    solved = int(args.get("solved") or 0)
+    log_session(title, category, minutes, solved)
+    return f"Logged '{title}' — {minutes} minutes, {solved} problem(s) solved. Keep the streak alive, Boss!"
+
+
+def _h_search_memories(args) -> str:
+    from services.life_memory import answer_memory_query
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "Tell me what you'd like me to recall."
+    return answer_memory_query(query)
 
 
 def _h_technical_analysis(args) -> str:
@@ -427,4 +451,32 @@ register_function(
         "required": ["symbol"],
     },
     handler=_h_technical_analysis,
+)
+
+
+register_function(
+    name="log_learning",
+    description="Record a learning / practice session (DSA, Java, AWS, interview prep, etc.) for the Learning Coach.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "What you practiced"},
+            "category": {"type": "string", "enum": ["dsa", "java", "system_design", "aws", "interview_prep", "general"]},
+            "minutes": {"type": "integer", "description": "Minutes spent"},
+            "solved": {"type": "integer", "description": "Problems solved"},
+        },
+        "required": ["title"],
+    },
+    handler=_h_log_learning,
+)
+
+register_function(
+    name="search_memories",
+    description="Search FRIDAY's long-term life memory (facts about the user: preferences, people, dates, rules).",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "What to recall, e.g. 'salary preference' or 'birthday'"}},
+        "required": ["query"],
+    },
+    handler=_h_search_memories,
 )

@@ -233,3 +233,27 @@ Roadmap items intentionally deferred (need external credentials/devices): Gmail/
 WhatsApp, SMS/phone (KDE Connect/Phone Link), webcam vision, smart home. Their
 capabilities already exist in the Permission Center catalog, so wiring them in later
 is drop-in.
+
+
+---
+
+## ✅ v3.2 roadmap additions (same session)
+
+Per your "yes — keep going" (Learning Coach, Life Memory, Developer Mode):
+
+1. **Learning Coach** (`services/learning.py` + `routes/learning.py` + HUD `LearningCoachCard`):
+   - `learning_log` / `learning_goals` tables (5 seeded tracks), streak math
+     (current + best), weekly goal progress, last-7-days activity chart.
+   - `learning_check` automation action pushes "haven't practiced in N days"
+     notifications; `log_learning` function tool (20 tools total now).
+2. **Life Memory — knowledge-graph-lite** (`services/life_memory.py` + routes + HUD via Dev panel):
+   - (subject → relation → target) triples; token + prefix search;
+     `answer_memory_query` natural-language recall; `search_memories` function tool;
+     `remember_fact` now writes both stores.
+3. **Developer Mode** (`routes/devtools.py` + HUD `DevToolsCard`):
+   - /api/dev/overview, /memory, /logs (file + ring-buffer tail), /config
+     (booleans only — never leaks secret values), /test (in-process ASGI API tester).
+   - UI tabs: Overview, Memory, Logs, API Tester, Config.
+4. Tests: 53 passing (learning streak/log/check, life-memory save/search/recall,
+   dev overview/logs/config/tester, owner gating, function tools).
+5. Docs: README §12–14, architecture §8; API surface 81 → 92 paths; 18 → 20 function tools.

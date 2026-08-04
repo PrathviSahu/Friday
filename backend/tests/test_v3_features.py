@@ -6,10 +6,10 @@ import pytest
 
 # ═══ Function engine ════════════════════════════════════════════════════════
 
-def test_function_engine_registers_18_tools():
+def test_function_engine_registers_tools():
     from services import function_engine
     tools = function_engine.get_tools_schema()
-    assert len(tools) == 18
+    assert len(tools) == 20
     names = {t["function"]["name"] for t in tools}
     assert {"get_time", "get_weather", "play_spotify", "control_spotify",
             "add_todo", "get_todos", "set_reminder", "open_app",

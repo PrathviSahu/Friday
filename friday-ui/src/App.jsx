@@ -12,6 +12,8 @@ import WeatherCard from './components/Panels/WeatherCard';
 import WebSearchCard from './components/Panels/WebSearchCard';
 import PermissionCenterCard from './components/Panels/PermissionCenterCard';
 import NotificationCenterCard from './components/Panels/NotificationCenterCard';
+import LearningCoachCard from './components/Panels/LearningCoachCard';
+import DevToolsCard from './components/Panels/DevToolsCard';
 import { FridayProvider } from './context/FridayContext';
 import FridaySync from './context/FridaySync';
 import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
@@ -72,6 +74,8 @@ function FridayCore() {
             {!isCareerWorkspace && <WebSearchCard />}
             {!isCareerWorkspace && <PermissionCenterCard />}
             {!isCareerWorkspace && <NotificationCenterCard />}
+            {!isCareerWorkspace && <LearningCoachCard />}
+            {!isCareerWorkspace && <DevToolsCard />}
             <DebugKeys />
 
             {/* ── Proactive Suggestion Toast ── */}

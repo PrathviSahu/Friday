@@ -90,7 +90,7 @@ def list_automations() -> list:
 def create_automation(name: str, trigger_type: str, action: str,
                       interval_seconds: int = 0, daily_time: str = "",
                       params: dict = None, enabled: bool = True) -> int:
-    if action not in ("briefing", "job_scan", "market_summary"):
+    if action not in ("briefing", "job_scan", "market_summary", "learning_check"):
         raise ValueError(f"Unknown automation action: {action}")
     if trigger_type not in ("interval", "daily"):
         raise ValueError(f"Unknown trigger type: {trigger_type}")
@@ -185,6 +185,10 @@ def run_action(action: str, params: dict = None) -> str:
         summary = " | ".join(picks) if picks else "Market feed unavailable."
         push_notification("Market Summary", summary[:2000], "market")
         return summary
+
+    if action == "learning_check":
+        from services.learning import check_streak
+        return check_streak()
 
     return f"Unknown action: {action}"
 

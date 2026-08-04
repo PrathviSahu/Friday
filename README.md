@@ -15,6 +15,9 @@
 | **Automation Engine** | Scheduled workflows (`briefing`, `job_scan`, `market_summary`) with a lifespan-managed runner → Notification Center |
 | **Smart Daily Briefing** | Aggregates weather, tasks, reminders, career pipeline, markets, notifications into `GET /api/briefing` |
 | **Multi-Agent Framework** | 6 specialized agents (career, coding, research, finance, communication, automation) with filtered tool sets |
+| **Learning Coach** | Practice tracking (DSA / Java / AWS / System Design / interview prep), streaks, weekly goals, gentle "haven't practiced in N days" reminders |
+| **Life Memory (graph-lite)** | Searchable (subject → relation → target) memory: "Boss loves cold brew", "don't apply below 7 LPA" |
+| **Developer Mode** | HUD panel: overview counts, memory viewer, log tail, safe config inspector, in-process API tester |
 | **Modular API Routes** | Monolithic `app.py` (667 lines) split into 7 focused route modules under `backend/routes/` |
 | **Lifespan-managed Background Tasks** | Market pollers, gdrive sync & audio cleanup now start/stop cleanly with the FastAPI lifespan (no import-time zombie threads) |
 | **Thread-safe SQLite** | `check_same_thread=False` + WAL + `busy_timeout` across all DB layers, `_db_lock` serializes writes |
@@ -196,6 +199,38 @@ Agent autonomy is gated by the `agent.autonomy` permission (default `ask`).
 "debug this React error"         → Coding Agent
 "apply for Java jobs in Mumbai"  → Career Agent
 ```
+
+---
+
+### 🎓 12. Learning Coach (`services/learning.py`)
+
+Track practice across tracks (DSA, Java, System Design, AWS, Interview Prep):
+- **Streaks** — current + best consecutive-day streaks; daily/weekly minutes; problems solved.
+- **Weekly goals** — per-track targets with progress bars (defaults seeded).
+- **Gentle reminders** — a `learning_check` automation action notifies when you haven't practiced in ≥ 3 days ("Boss, you haven't solved a DSA problem in 3 days").
+- Voice: *"Friday, I solved two DSA problems today"* → `log_learning` function tool.
+
+### 🧠 13. Life Memory — Knowledge-Graph-Lite (`services/life_memory.py`)
+
+Memories are stored as **subject → relation → target** triples instead of isolated facts:
+
+```
+Boss  --loves-->             cold brew
+Boss  --won't apply below--> 7 LPA
+Mom   --birthday-->          15 September
+```
+
+- Token + prefix search (`GET /api/life-memory/search?q=...`) answers connected questions: *"what do I love?"* → cold brew.
+- `remember_fact` now writes both the facts table and a life-memory triple; the `search_memories` function tool lets FRIDAY recall things mid-conversation.
+
+### 🛠️ 14. Developer Mode (`routes/devtools.py` + HUD panel)
+
+Owner-only HUD panel with five tabs:
+- **Overview** — live counts (facts, life memories, automations, notifications, todos, applications) + uptime.
+- **Memory** — facts, life-memory triples, recent conversations.
+- **Logs** — tail of backend logs (file + ring-buffer fallback).
+- **API Tester** — run any request in-process against the app and see the JSON.
+- **Config** — which env keys are set (booleans only — values never exposed) + permission modes.
 
 ---
 
