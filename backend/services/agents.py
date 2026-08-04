@@ -57,10 +57,11 @@ AGENTS = {
         "capabilities": ["get_time", "get_weather", "get_todos", "add_todo",
                          "set_reminder", "search_web", "check_email",
                          "search_email", "send_email", "check_calendar",
-                         "search_calendar", "create_calendar_event"],
+                         "search_calendar", "create_calendar_event",
+                         "meeting_action_items", "search_meetings", "last_meeting"],
         "keywords": ["email", "message", "whatsapp", "call", "calendar",
                      "meeting", "appointment", "schedule", "remind", "notify",
-                     "send", "draft", "inbox", "summar"],
+                     "send", "draft", "inbox", "summar", "action item", "minutes"],
     },
     "automation": {
         "name": "Automation Agent",

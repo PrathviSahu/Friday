@@ -436,6 +436,42 @@ def _h_create_calendar_event(args) -> str:
             "I won't create it until you confirm.")
 
 
+# ── Meeting Assistant handlers ───────────────────────────────────────────
+
+def _h_meeting_action_items(args) -> str:
+    from services import meeting_agent
+    items = meeting_agent.get_action_items()
+    if not items:
+        return "No action items from your meetings yet."
+    lines = [f"{len(items)} action item(s) from your meetings:"]
+    for it in items[:5]:
+        owner = f" ({it['owner']})" if it.get("owner") else ""
+        lines.append(f"- {it['text']}{owner}")
+    return " ".join(lines)
+
+
+def _h_search_meetings(args) -> str:
+    from services import meeting_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your meetings for?"
+    results = meeting_agent.search_meetings(query, limit=5)
+    if not results:
+        return f"No meetings matched '{query}'."
+    lines = [f"Found {len(results)} meeting(s):"]
+    for m in results:
+        lines.append(f"- {m['title']} — {m['summary'][:80]}")
+    return " ".join(lines)
+
+
+def _h_last_meeting(args) -> str:
+    from services import meeting_agent
+    meetings = meeting_agent.list_meetings(limit=1)
+    if not meetings:
+        return "No meetings recorded yet, Boss."
+    return meeting_agent.format_meeting_for_speech(meetings[0])
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Registrations (18 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -783,4 +819,29 @@ register_function(
         "required": ["summary", "start"],
     },
     handler=_h_create_calendar_event,
+)
+
+register_function(
+    name="meeting_action_items",
+    description="Get outstanding action items extracted from the user's meetings.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_meeting_action_items,
+)
+
+register_function(
+    name="search_meetings",
+    description="Search the user's recorded meetings by title, summary or transcript.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_meetings,
+)
+
+register_function(
+    name="last_meeting",
+    description="Summarize the user's most recent meeting, including its action items.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_last_meeting,
 )

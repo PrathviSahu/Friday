@@ -41,6 +41,7 @@ remembers you over time.
 | Speech corrections | "No, I meant X" → permanently stored in personal vocabulary |
 | Email Agent | Gmail/Outlook via IMAP+SMTP (app password): unread inbox, search, priority detection, summary, drafts — **approval-first send**: nothing is sent until you confirm (voice "yes"/"no" or the on-screen preview) |
 | Calendar Agent | Google Calendar: today/upcoming/search, **approval-first create** (preview → confirm → insert), Calendar section in the Daily Briefing; OAuth via `credentials.json` (own `calendar_token.json`) |
+| Meeting Assistant | Upload a recording (Groq Whisper, free tier) or paste a transcript → LLM extracts summary, key points, decisions & **action items** → saved to SQLite + mirrored to Knowledge OS; action items can be pushed to Todos; voice: "what were the action items?", "summarize my last meeting" |
 
 ### Voice command patterns (frontend fast-path)
 

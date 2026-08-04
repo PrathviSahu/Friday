@@ -340,6 +340,33 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "dashboard"}
 
+        # 🎙️ MEETING ASSISTANT (read-only voice access)
+        # "what were the action items", "summarize my last meeting",
+        # "what happened in the meeting about X"
+        if re.search(r'\b(?:meeting|action items?|action-items?)\b', lower_text) and \
+           re.search(r'\b(?:summar|last|recent|action|what|any|read|show|list|search)\b', lower_text):
+            try:
+                from services import meeting_agent
+                if re.search(r'\b(?:action\s*items?)\b', lower_text):
+                    items = meeting_agent.get_action_items()
+                    if items:
+                        reply_msg = "Your meeting action items: " + "; ".join(
+                            f"{it['text']}" + (f" ({it['owner']})" if it.get('owner') else "")
+                            for it in items[:5]) + "."
+                    else:
+                        reply_msg = "No pending action items from your meetings."
+                    log_conversation(role="assistant", message=reply_msg)
+                    return {"reply": reply_msg, "action": "none"}
+                meetings = meeting_agent.list_meetings(limit=1)
+                if meetings:
+                    reply_msg = meeting_agent.format_meeting_for_speech(meetings[0])
+                else:
+                    reply_msg = "No meetings recorded yet, Boss."
+                log_conversation(role="assistant", message=reply_msg)
+                return {"reply": reply_msg, "action": "none"}
+            except Exception:
+                pass  # fall through to the LLM
+
         # 📅 CALENDAR AGENT (read: today / tomorrow / this week)
         # "what's on my calendar today", "any meetings tomorrow", "this week"
         if re.search(r'\b(?:calendar|schedule|meetings?|appointments?)\b', lower_text) or \
