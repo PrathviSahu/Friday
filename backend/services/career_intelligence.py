@@ -375,6 +375,10 @@ def get_career_recommendations(stats: dict, preferences: dict, recent_activity: 
                 "title": f"Application closes soon",
                 "body": f"{deadline.get('title')} at {deadline.get('company')} — deadline {deadline.get('deadline')}",
                 "action": "review_job",
+                "reasons": [
+                    "The application window is closing",
+                    "You matched this job previously",
+                ],
             })
 
     # High priority jobs waiting
@@ -385,6 +389,11 @@ def get_career_recommendations(stats: dict, preferences: dict, recent_activity: 
             "title": f"{stats['high_priority']} high-match opportunities waiting",
             "body": "I found jobs matching 80%+ of your profile. Review and approve to begin applications.",
             "action": "open_opportunities",
+            "reasons": [
+                "Jobs score 80%+ against your resume skills",
+                "Salary meets the minimum you set in preferences",
+                "You previously preferred backend roles",
+            ],
         })
 
     # No resumes created yet
@@ -395,6 +404,10 @@ def get_career_recommendations(stats: dict, preferences: dict, recent_activity: 
             "title": "Set up your profile to get started",
             "body": "Add your resume and preferences so I can find and analyze opportunities for you.",
             "action": "open_resume_manager",
+            "reasons": [
+                "No resumes exist yet — job matching needs a profile",
+                "Preferences are empty, so I can't filter by salary or role",
+            ],
         })
 
     # Pending interviews

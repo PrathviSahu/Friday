@@ -257,3 +257,20 @@ Per your "yes — keep going" (Learning Coach, Life Memory, Developer Mode):
 4. Tests: 53 passing (learning streak/log/check, life-memory save/search/recall,
    dev overview/logs/config/tester, owner gating, function tools).
 5. Docs: README §12–14, architecture §8; API surface 81 → 92 paths; 18 → 20 function tools.
+
+
+---
+
+## ✅ v3.3 roadmap additions (same session)
+
+1. **Second Brain / Knowledge OS** (`services/knowledge.py` + routes + HUD `KnowledgeCard` Notes tab):
+   - `kb_notes` with auto-categorization (idea/meeting/research/code/decision/book/youtube), tags, project links.
+   - Token + prefix search with natural-language recall; `project_memory` per-project sections.
+2. **AI Memory Timeline** (`services/timeline.py` + routes + Timeline tab):
+   - `timeline_events`, period summaries ("last month" / "this year"), `snapshot_from_existing()`.
+3. **Goal Manager** (`services/goals.py` + routes + Goals tab):
+   - goals with progress %, auto-done at 100%, skill-gap suggestions from job matches.
+4. **Explainable AI**: career recommendations now include `reasons[]`.
+5. **Function tools**: +4 (`remember_idea`, `search_notes`, `log_milestone`, `update_goal`) → 24 total.
+6. Fixed a HUD overlap: PermissionCenter moved off SpotifyCard's corner.
+7. Tests: 67 passing. API surface 92 → 104 paths. Docs updated (README §15–18, architecture §9).

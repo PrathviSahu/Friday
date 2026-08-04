@@ -34,6 +34,7 @@ from routes.agents import router as agents_router
 from routes.learning import router as learning_router
 from routes.life_memory import router as life_memory_router
 from routes.devtools import router as devtools_router
+from routes.knowledge import router as knowledge_router
 from routers.career import router as career_router
 
 from services.market_data import start_market_pollers, stop_market_pollers
@@ -162,6 +163,7 @@ app.include_router(agents_router)
 app.include_router(learning_router)
 app.include_router(life_memory_router)
 app.include_router(devtools_router)
+app.include_router(knowledge_router)
 app.include_router(career_router)
 
 

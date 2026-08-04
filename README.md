@@ -18,6 +18,10 @@
 | **Learning Coach** | Practice tracking (DSA / Java / AWS / System Design / interview prep), streaks, weekly goals, gentle "haven't practiced in N days" reminders |
 | **Life Memory (graph-lite)** | Searchable (subject → relation → target) memory: "Boss loves cold brew", "don't apply below 7 LPA" |
 | **Developer Mode** | HUD panel: overview counts, memory viewer, log tail, safe config inspector, in-process API tester |
+| **Second Brain (Knowledge OS)** | Auto-categorized notes (ideas, meetings, research, code, decisions…), full-text search, per-project memory |
+| **AI Memory Timeline** | Chronological milestones — "what changed last month?", "progress this year" |
+| **Goal Manager** | Goals → tasks → progress → deadlines → skill gaps → resources, voice-trackable |
+| **Explainable AI** | Career recommendations now include "reasons" (why I suggested this) |
 | **Modular API Routes** | Monolithic `app.py` (667 lines) split into 7 focused route modules under `backend/routes/` |
 | **Lifespan-managed Background Tasks** | Market pollers, gdrive sync & audio cleanup now start/stop cleanly with the FastAPI lifespan (no import-time zombie threads) |
 | **Thread-safe SQLite** | `check_same_thread=False` + WAL + `busy_timeout` across all DB layers, `_db_lock` serializes writes |
@@ -231,6 +235,42 @@ Owner-only HUD panel with five tabs:
 - **Logs** — tail of backend logs (file + ring-buffer fallback).
 - **API Tester** — run any request in-process against the app and see the JSON.
 - **Config** — which env keys are set (booleans only — values never exposed) + permission modes.
+
+---
+
+### 🧠 15. Second Brain — Knowledge OS (`services/knowledge.py`)
+
+Automatically stores meeting notes, ideas, research, code snippets, interview
+experiences, project decisions, book notes and YouTube summaries — everything
+searchable:
+
+- **Idea capture** — "Friday, remember this idea…" auto-categorizes the note type from the text.
+- **Search** — token + prefix search over title/content/tags/project; *"where did I save that Kafka architecture idea?"* → answered.
+- **Project Intelligence** — every project gets its own memory (architecture, tasks, bugs, roadmap, ideas, completed, docs, GitHub, dependencies).
+
+### 🕰️ 16. AI Memory Timeline (`services/timeline.py`)
+
+A chronological timeline of meaningful events instead of isolated memories:
+
+```
+2026  ✓ Finished AI Attendance System    ✓ Got internship    ✓ AWS Certified
+```
+
+- "Friday, what changed last month?" → `GET /api/timeline/summary?query=last month`.
+- "Show me my progress this year." → year-period grouping by category.
+- `snapshot_from_existing()` auto-derives events from applications + learning sessions, so it's useful immediately.
+
+### 🎯 17. Goal Manager (`services/goals.py`)
+
+Set goals like *"Get 8 LPA job"* → tasks, progress %, deadlines, skill gaps
+(optionally auto-suggested from job-match data), and resources. Track by voice:
+*"Friday, I made 25% progress on my job goal"* → `update_goal` function tool.
+
+### 💡 18. Explainable AI
+
+Every Career OS recommendation now carries a `reasons` array — "why I
+suggested this": matched skills %, salary meets target, previously preferred
+roles, missing skills. Transparent instead of mysterious.
 
 ---
 

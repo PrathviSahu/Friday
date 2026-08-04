@@ -256,6 +256,47 @@ def _h_search_memories(args) -> str:
     return answer_memory_query(query)
 
 
+def _h_remember_idea(args) -> str:
+    from services.knowledge import add_note, auto_categorize
+    title = (args.get("title") or "Idea").strip()
+    content = (args.get("content") or args.get("idea") or "").strip()
+    ntype = args.get("note_type") or auto_categorize(f"{title} {content}")
+    nid = add_note(title, content, ntype, tags=args.get("tags"))
+    return f"Captured as a {ntype.replace('_', ' ')} note: '{title}'."
+
+
+def _h_search_notes(args) -> str:
+    from services.knowledge import answer_notes_query
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "Tell me what you'd like me to find in your notes."
+    return answer_notes_query(query)
+
+
+def _h_log_milestone(args) -> str:
+    from services.timeline import add_event
+    event = (args.get("event") or "").strip()
+    if not event:
+        return "Please tell me what milestone to record."
+    add_event(event, category=args.get("category") or "milestone",
+              event_date=args.get("date"), detail=args.get("detail") or "")
+    return f"Logged on your timeline: {event}."
+
+
+def _h_update_goal(args) -> str:
+    from services.goals import list_goals, increment_goal, create_goal
+    title = (args.get("title") or "").strip()
+    amount = float(args.get("amount") or 1)
+    for g in list_goals():
+        if title.lower() in g["title"].lower():
+            updated = increment_goal(g["id"], amount)
+            return f"Updated '{g['title']}' to {updated['current_value']}/{g['target_value']} {g['unit']}."
+    # no match → create
+    gid = create_goal(title or "New goal", category=args.get("category") or "personal",
+                      target_value=float(args.get("target") or 100))
+    return f"Created goal '{title}' — track progress by asking me to update it."
+
+
 def _h_technical_analysis(args) -> str:
     from services.technical_analysis import analyze_symbol
     symbol = (args.get("symbol") or "FX:EURUSD").strip()
@@ -479,4 +520,63 @@ register_function(
         "required": ["query"],
     },
     handler=_h_search_memories,
+)
+
+
+register_function(
+    name="remember_idea",
+    description="Capture an idea or note into FRIDAY's second brain (auto-categorized).",
+    parameters={
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Short title"},
+            "content": {"type": "string", "description": "The idea or note content"},
+            "note_type": {"type": "string", "enum": ["meeting", "idea", "research", "code_snippet", "interview", "decision", "book", "youtube", "general"]},
+            "tags": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["title"],
+    },
+    handler=_h_remember_idea,
+)
+
+register_function(
+    name="search_notes",
+    description="Search FRIDAY's second brain knowledge base for notes, ideas, or project memory.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "What to find, e.g. 'Kafka architecture idea'"}},
+        "required": ["query"],
+    },
+    handler=_h_search_notes,
+)
+
+register_function(
+    name="log_milestone",
+    description="Record a milestone on FRIDAY's memory timeline (certifications, projects finished, skills learned).",
+    parameters={
+        "type": "object",
+        "properties": {
+            "event": {"type": "string", "description": "The milestone, e.g. 'Finished AI Attendance System'"},
+            "category": {"type": "string", "enum": ["career", "learning", "project", "skill", "milestone", "personal"]},
+            "date": {"type": "string", "description": "ISO date (YYYY-MM-DD), defaults to today"},
+        },
+        "required": ["event"],
+    },
+    handler=_h_log_milestone,
+)
+
+register_function(
+    name="update_goal",
+    description="Create or update progress on a goal (e.g. '8 LPA job', 'solve 100 DSA problems').",
+    parameters={
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Goal title"},
+            "amount": {"type": "number", "description": "How much progress to add (default 1)"},
+            "category": {"type": "string"},
+            "target": {"type": "number", "description": "Target value when creating a new goal"},
+        },
+        "required": ["title"],
+    },
+    handler=_h_update_goal,
 )

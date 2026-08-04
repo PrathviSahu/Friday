@@ -34,6 +34,9 @@ export const API_ENDPOINTS = {
   learning: `${API_BASE_URL}/api/learning`,
   lifeMemory: `${API_BASE_URL}/api/life-memory`,
   dev: `${API_BASE_URL}/api/dev`,
+  knowledge: `${API_BASE_URL}/api/knowledge`,
+  timeline: `${API_BASE_URL}/api/timeline`,
+  goals: `${API_BASE_URL}/api/goals`,
 };
 
 /**

@@ -100,7 +100,7 @@ export default function PermissionCenterCard() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsVisible(true)}
                 style={{
-                    position: 'fixed', bottom: 32, right: 40, zIndex: 50,
+                    position: 'fixed', bottom: 32, right: 220, zIndex: 50,
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
@@ -132,7 +132,7 @@ export default function PermissionCenterCard() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 30 }}
                 style={{
-                    position: 'fixed', bottom: 32, right: 40, zIndex: 40,
+                    position: 'fixed', bottom: 32, right: 220, zIndex: 40,
                     width: 380, maxHeight: 480,
                     borderRadius: 16, overflow: 'hidden',
                     pointerEvents: 'auto', userSelect: 'none',
