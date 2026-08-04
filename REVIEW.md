@@ -384,3 +384,67 @@ Shipped the remaining high-value recommendations from Round 2:
 Verified: 69 backend tests, 16 frontend tests, build clean, 2 benign
 fast-refresh warnings remaining (FridayContext, useOrbState — standard
 provider+hook pattern).
+
+## 🔍 Round 4 — Post-review hardening & expansion (2026-08-05)
+
+A full session addressing the remaining review findings plus the review's
+"biggest recommendations" (central AI pipeline, capability registry,
+finished-not-half-finished modules, dev dashboard, clean repo):
+
+### Findings now fixed
+- **#16 Race conditions on JSON persistence** — `todos.py`, `reminders.py`
+  and the Spotify cache in `system_control.py` now lock every
+  read-modify-write cycle (FastAPI threadpool-safe). No more silent
+  todo/reminder loss under concurrent voice+UI requests.
+- **#14 Dead code** — additionally removed stale committed `__pycache__`
+  `.pyc` files (incl. compiled leftovers of deleted modules).
+- **Repo-size complaint** — the repo itself is 231 tracked files / 1.5 MB
+  git; the "59k files" came from zipping the working folder. Added
+  `scripts/package-zip.sh` (git-archive-based clean ZIP) so that never
+  happens again.
+- **Voice pipeline** — STT upgraded to a real engine chain
+  (browser Web Speech → Groq Whisper `large-v3-turbo` free tier → Gemini
+  audio), true barge-in, push-to-talk mode, and confidence-based noise
+  filtering. `backend/speech/__init__.py` + docs no longer claim a
+  Gemini STT fallback that didn't exist.
+- **Personal vocabulary engine** — was recorded-but-never-applied;
+  `apply_corrections()` is now called in `brain.respond()` and in the
+  `/api/speech/transcribe` route.
+
+### New modules (all through the existing Planner → Tool Router → Agent →
+Permission pipeline; every send/create is approval-first)
+- **Email Agent** — Gmail/Outlook IMAP+SMTP; unread/summary/search/priority;
+  server-side drafts (15-min TTL) + explicit confirm before send.
+- **Calendar Agent** — Google Calendar OAuth (own `calendar_token.json`);
+  today/upcoming/search; approval-first create; TZ-aware (Docker `TZ`).
+- **Meeting Assistant** — audio (Whisper) or transcript → LLM summary,
+  decisions, action items → SQLite + Knowledge-OS mirror → push to Todos.
+- **WhatsApp Agent** — FRIDAY's own Playwright driver (QR pairing, opt-in).
+  Note: the PyPI package squatting `whatsapp-web.py`'s name was identified
+  as a typosquat and rejected; the original repo is dead — hence the
+  in-house driver, clearly marked experimental.
+- **Document AI** — PDF/DOCX/PPTX/XLSX/TXT extraction → ask/summarize/
+  compare via Groq; originals discarded (privacy).
+- **Company Intelligence** — "tell me about X" → web research + your
+  application history + interview-prep checklist.
+- **Coding AI** — paste code → review / bugs / explain / tests / docs /
+  refactor.
+
+### Brain intelligence (the review's "central AI pipeline" ask)
+- **Conversation context** — last 6 turns injected into every LLM call.
+- **Semantic memory** — Gemini `text-embedding-004` RAG over facts/notes/
+  meetings with graceful keyword fallback.
+- **Agentic loop** — up to 4 tool calls per request with result feedback.
+- **Latency metrics** — `services/metrics.py` + `/api/dev/metrics` +
+  DevTools Latency tab (LLM/STT/TTS/tool averages, last agent/tool/action).
+
+### Operational
+- **Docker distribution** (`Dockerfile`s + `docker-compose.yml`) so FRIDAY
+  runs on Windows for family/friends; macOS automation auto-disabled via
+  `IS_MAC`; frontend injects `X-FRIDAY-Token` (Docker traffic is
+  non-loopback). GDrive deps were missing from `requirements.txt` — fixed.
+- **Lock-screen declutter** — all widget capsules hidden behind an
+  "ALL WIDGETS" toggle; Spotify stays visible.
+
+**Verified:** 168 backend tests (was 69), 16 frontend tests, oxlint 0
+errors, production build clean, live smoke tests on every new module.

@@ -67,11 +67,14 @@ def list_functions() -> List[str]:
 
 def dispatch(name: str, args: dict) -> str:
     """Execute a registered function and return its spoken reply text."""
+    from services.metrics import timed, set_last
     spec = _REGISTRY.get(name)
     if not spec:
         return f"Unknown function '{name}'."
+    set_last(tool=name)
     try:
-        result = spec["handler"](args or {})
+        with timed("tool", meta=name):
+            result = spec["handler"](args or {})
         return str(result) if result is not None else "Done."
     except Exception as err:
         logging.warning(f"[Function Engine] {name} failed: {err}")
@@ -305,8 +308,306 @@ def _h_technical_analysis(args) -> str:
     return result.get("summary") or result.get("error", "Analysis unavailable.")
 
 
+# ── Email Agent handlers ─────────────────────────────────────────────────
+
+# Set whenever send_email creates a draft, so brain_v2 can surface the
+# email_confirm action (the frontend then drives the approval flow).
+_pending_email_draft = None
+
+
+def get_pending_email_draft() -> dict | None:
+    """Return and clear the most recently created email draft (for confirm flow)."""
+    global _pending_email_draft
+    draft = _pending_email_draft
+    _pending_email_draft = None
+    return draft
+
+
+def _h_check_email(args) -> str:
+    from services import email_agent
+    if not email_agent.is_configured():
+        return ("Email isn't configured yet, Boss. Add FRIDAY_EMAIL_HOST, "
+                "FRIDAY_EMAIL_USER and FRIDAY_EMAIL_PASS to backend/.env to enable it.")
+    try:
+        s = email_agent.summarize_inbox(limit=20)
+    except Exception as err:
+        return f"I couldn't reach your inbox: {err}"
+    lines = [f"You have {s['unread_count']} unread emails."]
+    if s["priority"]:
+        top = "; ".join(f"{m['from_name']} — {m['subject'][:48]}" for m in s["priority"][:3])
+        lines.append(f"Priority: {top}.")
+    if s["by_sender"]:
+        senders = ", ".join(f"{m['name']} ({m['count']})" for m in s["by_sender"][:4])
+        lines.append(f"Top senders: {senders}.")
+    return " ".join(lines)
+
+
+def _h_search_email(args) -> str:
+    from services import email_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your email for?"
+    if not email_agent.is_configured():
+        return "Email isn't configured yet, Boss."
+    try:
+        results = email_agent.search_emails(query, limit=5)
+    except Exception as err:
+        return f"I couldn't search your inbox: {err}"
+    if not results:
+        return f"No emails matched '{query}'."
+    lines = [f"Found {len(results)} email(s) matching '{query}':"]
+    for m in results:
+        lines.append(f"- {m['from_name']}: {m['subject'][:60]}")
+    return " ".join(lines)
+
+
+def _h_send_email(args) -> str:
+    from services import email_agent
+    to = (args.get("to") or "").strip()
+    subject = (args.get("subject") or "").strip()
+    body = (args.get("body") or "").strip()
+    if not email_agent.is_configured():
+        return "Email isn't configured yet, Boss."
+    try:
+        draft = email_agent.create_draft(to, subject, body)
+    except ValueError as err:
+        return str(err)
+    global _pending_email_draft
+    _pending_email_draft = draft
+    return (f"Draft ready for {draft['to']} — subject: {draft['subject'] or '(none)'}. "
+            "I won't send it until you confirm.")
+
+
+# ── Calendar Agent handlers ──────────────────────────────────────────────
+
+_pending_calendar_draft = None
+
+
+def get_pending_calendar_draft() -> dict | None:
+    """Return and clear the most recently created calendar draft."""
+    global _pending_calendar_draft
+    draft = _pending_calendar_draft
+    _pending_calendar_draft = None
+    return draft
+
+
+def _h_check_calendar(args) -> str:
+    from services import calendar_agent
+    if not calendar_agent.is_configured():
+        return ("Calendar isn't connected yet, Boss. Add a Google OAuth client as "
+                "backend/credentials.json with the Calendar API enabled.")
+    try:
+        events = calendar_agent.get_today()
+    except Exception as err:
+        return f"I couldn't reach your calendar: {err}"
+    return calendar_agent.format_events_for_speech(events, "today")
+
+
+def _h_search_calendar(args) -> str:
+    from services import calendar_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your calendar for?"
+    if not calendar_agent.is_configured():
+        return "Calendar isn't connected yet, Boss."
+    try:
+        events = calendar_agent.search_events(query)
+    except Exception as err:
+        return f"I couldn't search your calendar: {err}"
+    if not events:
+        return f"No events matched '{query}'."
+    lines = [f"Found {len(events)} event(s):"]
+    for e in events[:5]:
+        lines.append(f"- {calendar_agent._pretty_time(e['start'])}: {e['summary']}")
+    return " ".join(lines)
+
+
+def _h_create_calendar_event(args) -> str:
+    from services import calendar_agent
+    if not calendar_agent.is_configured():
+        return "Calendar isn't connected yet, Boss."
+    try:
+        draft = calendar_agent.create_draft(
+            args.get("summary") or "", args.get("start") or "",
+            args.get("end") or "", args.get("description") or "",
+        )
+    except ValueError as err:
+        return str(err)
+    global _pending_calendar_draft
+    _pending_calendar_draft = draft
+    return (f"Event ready — {calendar_agent.format_event_preview(draft)}. "
+            "I won't create it until you confirm.")
+
+
+# ── Meeting Assistant handlers ───────────────────────────────────────────
+
+def _h_meeting_action_items(args) -> str:
+    from services import meeting_agent
+    items = meeting_agent.get_action_items()
+    if not items:
+        return "No action items from your meetings yet."
+    lines = [f"{len(items)} action item(s) from your meetings:"]
+    for it in items[:5]:
+        owner = f" ({it['owner']})" if it.get("owner") else ""
+        lines.append(f"- {it['text']}{owner}")
+    return " ".join(lines)
+
+
+def _h_search_meetings(args) -> str:
+    from services import meeting_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your meetings for?"
+    results = meeting_agent.search_meetings(query, limit=5)
+    if not results:
+        return f"No meetings matched '{query}'."
+    lines = [f"Found {len(results)} meeting(s):"]
+    for m in results:
+        lines.append(f"- {m['title']} — {m['summary'][:80]}")
+    return " ".join(lines)
+
+
+def _h_last_meeting(args) -> str:
+    from services import meeting_agent
+    meetings = meeting_agent.list_meetings(limit=1)
+    if not meetings:
+        return "No meetings recorded yet, Boss."
+    return meeting_agent.format_meeting_for_speech(meetings[0])
+
+
+# ── WhatsApp Agent handlers (experimental driver) ────────────────────────
+
+_pending_whatsapp_draft = None
+
+
+def get_pending_whatsapp_draft() -> dict | None:
+    """Return and clear the most recently created WhatsApp draft."""
+    global _pending_whatsapp_draft
+    draft = _pending_whatsapp_draft
+    _pending_whatsapp_draft = None
+    return draft
+
+
+def _h_check_whatsapp(args) -> str:
+    from services import whatsapp_agent
+    if not whatsapp_agent.ENABLED:
+        return ("WhatsApp is disabled, Boss — set FRIDAY_WHATSAPP_ENABLED=1 in "
+                "backend/.env to enable the experimental driver.")
+    try:
+        s = whatsapp_agent.summarize()
+    except whatsapp_agent.WhatsAppUnavailableError as err:
+        return f"WhatsApp isn't connected yet: {err}"
+    if not s.get("unread_count"):
+        return "No unread WhatsApp messages."
+    lines = [f"You have {s['unread_count']} unread WhatsApp messages."]
+    for c in s.get("chats", [])[:3]:
+        lines.append(f"- {c['name']} ({c['unread']})")
+    return " ".join(lines)
+
+
+def _h_search_whatsapp(args) -> str:
+    from services import whatsapp_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your WhatsApp for?"
+    if not whatsapp_agent.ENABLED:
+        return "WhatsApp is disabled, Boss."
+    try:
+        results = whatsapp_agent.search_messages(query, limit=5)
+    except whatsapp_agent.WhatsAppUnavailableError as err:
+        return f"Couldn't search WhatsApp: {err}"
+    if not results:
+        return f"Nothing matched '{query}' in WhatsApp."
+    return "Found: " + ", ".join(f"{c['name']} ({c['unread']} unread)" for c in results)
+
+
+def _h_send_whatsapp(args) -> str:
+    from services import whatsapp_agent
+    if not whatsapp_agent.ENABLED:
+        return ("WhatsApp is disabled, Boss — set FRIDAY_WHATSAPP_ENABLED=1 in "
+                "backend/.env to enable the experimental driver.")
+    try:
+        draft = whatsapp_agent.create_draft(
+            args.get("phone") or "", args.get("message") or ""
+        )
+    except ValueError as err:
+        return str(err)
+    global _pending_whatsapp_draft
+    _pending_whatsapp_draft = draft
+    return (f"Message ready for +{draft['phone']}: \"{draft['message'][:80]}\". "
+            "I won't send it until you confirm.")
+
+
+# ── Document AI handlers ─────────────────────────────────────────────────
+
+def _h_search_documents(args) -> str:
+    from services import document_agent
+    query = (args.get("query") or "").strip()
+    results = document_agent.search_documents(query) if query else document_agent.list_documents(limit=5)
+    if not results:
+        return "No documents found, Boss."
+    lines = [f"Found {len(results)} document(s):"]
+    lines += [f"- {d['title']} ({d['ext']})" for d in results[:5]]
+    return " ".join(lines)
+
+
+def _h_ask_document(args) -> str:
+    from services import document_agent
+    query = (args.get("document") or "").strip()
+    question = (args.get("question") or "").strip()
+    if not question:
+        return "What would you like to ask about the document?"
+    doc = document_agent.find_document_by_keyword(query) if query else None
+    if not doc:
+        return "I couldn't find a matching document, Boss."
+    try:
+        return document_agent.ask_document(doc["id"], question)
+    except document_agent.DocumentUnavailableError as err:
+        return f"I couldn't answer that: {err}"
+
+
+def _h_summarize_document(args) -> str:
+    from services import document_agent
+    query = (args.get("document") or "").strip()
+    doc = document_agent.find_document_by_keyword(query) if query else None
+    if not doc:
+        return "I couldn't find a matching document, Boss."
+    try:
+        return document_agent.summarize_document(doc["id"])
+    except document_agent.DocumentUnavailableError as err:
+        return f"I couldn't summarize that: {err}"
+
+
+# ── Coding AI handler ────────────────────────────────────────────────────
+
+def _h_coding_review(args) -> str:
+    from services import coding_agent
+    code = (args.get("code") or "").strip()
+    language = (args.get("language") or "").strip()
+    if not code:
+        return "No code provided to review, Boss."
+    try:
+        return coding_agent.review_code(code, language)[:600]
+    except coding_agent.CodingUnavailableError as err:
+        return f"I couldn't review that: {err}"
+
+
+# ── Company Intelligence handler ─────────────────────────────────────────
+
+def _h_company_intel(args) -> str:
+    from services import company_intelligence
+    name = (args.get("company") or "").strip()
+    if not name:
+        return "Which company should I research, Boss?"
+    try:
+        intel = company_intelligence.get_company_intel(name)
+        return company_intelligence.format_for_speech(intel)
+    except company_intelligence.CompanyIntelUnavailableError as err:
+        return f"I couldn't research that company: {err}"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# Registrations (18 functions)
+# Registrations (41 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 register_function(
@@ -579,4 +880,198 @@ register_function(
         "required": ["title"],
     },
     handler=_h_update_goal,
+)
+
+register_function(
+    name="check_email",
+    description="Check the user's email inbox: unread count, priority emails and top senders.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_check_email,
+)
+
+register_function(
+    name="search_email",
+    description="Search the user's email inbox by subject or sender.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_email,
+)
+
+register_function(
+    name="send_email",
+    description=(
+        "Draft an email to a recipient. NEVER sends anything: it only creates a "
+        "preview and the user must explicitly confirm before it is sent."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "to": {"type": "string", "description": "Recipient email address"},
+            "subject": {"type": "string", "description": "Email subject"},
+            "body": {"type": "string", "description": "Email body text"},
+        },
+        "required": ["to", "subject", "body"],
+    },
+    handler=_h_send_email,
+)
+
+register_function(
+    name="check_calendar",
+    description="Check the user's calendar: today's events with times.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_check_calendar,
+)
+
+register_function(
+    name="search_calendar",
+    description="Search the user's calendar events by title/keyword.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_calendar,
+)
+
+register_function(
+    name="create_calendar_event",
+    description=(
+        "Create a calendar event. NEVER creates anything: it only makes a preview "
+        "and the user must explicitly confirm. Use 24h ISO dates like 2026-08-06T15:00:00."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string", "description": "Event title"},
+            "start": {"type": "string", "description": "Start, YYYY-MM-DDTHH:MM:SS (24h)"},
+            "end": {"type": "string", "description": "End, YYYY-MM-DDTHH:MM:SS (24h)"},
+            "description": {"type": "string", "description": "Optional details"},
+        },
+        "required": ["summary", "start"],
+    },
+    handler=_h_create_calendar_event,
+)
+
+register_function(
+    name="meeting_action_items",
+    description="Get outstanding action items extracted from the user's meetings.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_meeting_action_items,
+)
+
+register_function(
+    name="search_meetings",
+    description="Search the user's recorded meetings by title, summary or transcript.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_meetings,
+)
+
+register_function(
+    name="last_meeting",
+    description="Summarize the user's most recent meeting, including its action items.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_last_meeting,
+)
+
+register_function(
+    name="check_whatsapp",
+    description="Check the user's WhatsApp: unread messages and unread chat names.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_check_whatsapp,
+)
+
+register_function(
+    name="search_whatsapp",
+    description="Search the user's WhatsApp chats by contact name.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Contact name to find"}},
+        "required": ["query"],
+    },
+    handler=_h_search_whatsapp,
+)
+
+register_function(
+    name="send_whatsapp",
+    description=(
+        "Draft a WhatsApp message to a phone number (with country code, digits only). "
+        "NEVER sends anything: it only creates a preview and the user must confirm."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "phone": {"type": "string", "description": "Phone with country code, digits only, e.g. 919876543210"},
+            "message": {"type": "string", "description": "Message text"},
+        },
+        "required": ["phone", "message"],
+    },
+    handler=_h_send_whatsapp,
+)
+
+register_function(
+    name="search_documents",
+    description="Search the user's uploaded documents (PDF/DOCX/PPTX/XLSX/TXT) by keyword.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_documents,
+)
+
+register_function(
+    name="ask_document",
+    description="Ask a question about an uploaded document (find it by title/keyword first).",
+    parameters={
+        "type": "object",
+        "properties": {
+            "document": {"type": "string", "description": "Title or keyword identifying the document"},
+            "question": {"type": "string", "description": "The question to answer from the document"},
+        },
+        "required": ["document", "question"],
+    },
+    handler=_h_ask_document,
+)
+
+register_function(
+    name="summarize_document",
+    description="Summarize an uploaded document (find it by title/keyword first).",
+    parameters={
+        "type": "object",
+        "properties": {"document": {"type": "string", "description": "Title or keyword identifying the document"}},
+        "required": ["document"],
+    },
+    handler=_h_summarize_document,
+)
+
+register_function(
+    name="company_intel",
+    description="Research a company: overview, hiring signals, your application history, interview prep.",
+    parameters={
+        "type": "object",
+        "properties": {"company": {"type": "string", "description": "Company name, e.g. Goldman Sachs"}},
+        "required": ["company"],
+    },
+    handler=_h_company_intel,
+)
+
+register_function(
+    name="review_code",
+    description="Review pasted code: bugs, security, performance, style. Requires the code text.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "The code to review"},
+            "language": {"type": "string", "description": "Optional language hint"},
+        },
+        "required": ["code"],
+    },
+    handler=lambda args: _h_coding_review(args),
 )

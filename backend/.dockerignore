@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/
+temp_audio/
+*.log
+.env
+tests/
+.git/
+*.md

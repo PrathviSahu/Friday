@@ -4,7 +4,7 @@ import { useOrbState } from '../../hooks/useOrbState';
 import Waveform from '../Animations/Waveform';
 
 export default function BottomBar() {
-    const { micEnabled, setMicEnabled } = useFriday();
+    const { micEnabled, setMicEnabled, pttMode, setPttMode } = useFriday();
     const { stateLabel, appState, responseMessage, conversationMode, runAuthSequence, locked } = useOrbState();
 
     // Quick-launch commands so panels open even when voice recognition is
@@ -55,14 +55,35 @@ export default function BottomBar() {
                 </div>
             ) : null}
 
-            <button
-                type="button"
-                onClick={() => setMicEnabled((current) => !current)}
-                className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-[#00B7FF]/35 bg-[#001018]/95 px-4 py-2 text-[9px] tracking-[0.35em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:text-[#DFFAFF]"
-            >
-                <span className={`inline-block h-2.5 w-2.5 rounded-full ${micEnabled ? 'bg-[#22ff99]' : 'bg-[#ff4d6d]'}`} />
-                {micLabel}
-            </button>
+            <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => setMicEnabled((current) => !current)}
+                    className="inline-flex items-center gap-2 rounded-full border border-[#00B7FF]/35 bg-[#001018]/95 px-4 py-2 text-[9px] tracking-[0.35em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:text-[#DFFAFF]"
+                >
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${micEnabled ? 'bg-[#22ff99]' : 'bg-[#ff4d6d]'}`} />
+                    {micLabel}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setPttMode((current) => !current)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[9px] tracking-[0.35em] uppercase transition ${
+                        pttMode
+                            ? 'border-[#22ff99]/50 bg-[#22ff99]/10 text-[#22ff99] hover:border-[#22ff99]'
+                            : 'border-[#00B7FF]/25 bg-[#001018]/80 text-[#00B7FF]/60 hover:border-[#00B7FF] hover:text-[#00D9FF]'
+                    }`}
+                >
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${pttMode ? 'bg-[#22ff99] shadow-[0_0_8px_#22ff99]' : 'bg-[#00B7FF]/40'}`} />
+                    {pttMode ? 'PUSH-TO-TALK ON' : 'PUSH-TO-TALK OFF'}
+                </button>
+            </div>
+
+            {pttMode && (
+                <div className="mb-2 font-grotesk text-[8px] tracking-[0.3em] text-[#22ff99]/70 uppercase">
+                    Hold Space to talk · release to send
+                </div>
+            )}
 
             <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
                 {QUICK_COMMANDS.map(({ cmd, label }) => (

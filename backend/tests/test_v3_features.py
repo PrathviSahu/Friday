@@ -9,7 +9,7 @@ import pytest
 def test_function_engine_registers_tools():
     from services import function_engine
     tools = function_engine.get_tools_schema()
-    assert len(tools) == 24
+    assert len(tools) == 41  # + company_intel, review_code
     names = {t["function"]["name"] for t in tools}
     assert {"get_time", "get_weather", "play_spotify", "control_spotify",
             "add_todo", "get_todos", "set_reminder", "open_app",
@@ -96,11 +96,11 @@ def test_brain_v2_groq_tool_path_dispatches(monkeypatch):
     """Groq returns a tool call → engine dispatches to the registered handler."""
     from services import brain_v2
 
-    def fake_groq(text, tools):
-        return {"tool_calls": [{"name": "get_time", "arguments": {}}],
+    def fake_groq(messages, tools):
+        return {"tool_calls": [{"id": "c1", "name": "get_time", "arguments": {}}],
                 "content": ""}
 
-    monkeypatch.setattr(brain_v2, "_call_groq_with_tools", fake_groq)
+    monkeypatch.setattr(brain_v2, "_call_groq_with_messages", fake_groq)
     monkeypatch.setattr(brain_v2, "_groq_client", lambda: object())
     result = brain_v2.respond_v2("what time is it", is_boss=True)
     assert result["function"] == "get_time"

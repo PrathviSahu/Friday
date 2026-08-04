@@ -61,31 +61,46 @@ FRIDAY is built for **Prem** (Prathvi Sahu) as a voice-first personal operating 
 |                 FastAPI Python Backend (:8000)                        |
 |                                                                       |
 |  [app.py]  — thin wiring: CORS, static mount, lifespan lifecycle      |
-|     ├── routes/chat.py        chat, memory, permission, proactive    |
+|     ├── routes/chat.py        chat, memory, speech/correct+transcribe |
+|     ├── routes/email.py       Email Agent (IMAP+SMTP, draft→confirm)  |
+|     ├── routes/calendar.py    Calendar Agent (Google, draft→confirm)  |
+|     ├── routes/meetings.py    Meeting Assistant (Whisper→LLM→todos)   |
+|     ├── routes/whatsapp.py    WhatsApp Agent (Playwright driver)      |
+|     ├── routes/documents.py   Document AI (upload→ask/summarize)      |
+|     ├── routes/company.py     Company Intelligence                    |
+|     ├── routes/coding.py      Coding AI (review/bugs/tests/docs)      |
 |     ├── routes/system.py      display/brightness/volume/lock, apps    |
 |     ├── routes/spotify.py     current-track, seek, duck/unduck        |
-|     ├── routes/todos.py       todo CRUD                               |
+|     ├── routes/todos.py       todo CRUD (thread-locked)               |
 |     ├── routes/utilities.py   tts, weather, search, reminders, gdrive |
 |     ├── routes/watchlist.py   watchlist CRUD + default seed           |
 |     ├── routes/trading.py     ohlcv, live-prices, analysis, search    |
+|     ├── routes/devtools.py    overview, metrics, logs, config, tester |
 |     └── routers/career.py     Career OS (/api/career/*)               |
 |                                                                       |
 |  Services Layer:                                                       |
-|  ├── brain_v2.py + function_engine.py  (v3 function-calling brain)   |
+|  ├── brain_v2.py + function_engine.py  (v4 agentic brain, 41 tools)  |
 |  ├── brain.py                   (legacy regex brain — final fallback) |
+|  ├── embeddings.py              (Gemini RAG over facts/notes/meetings)|
+|  ├── metrics.py                 (LLM/STT/TTS/tool latency ring buffer)|
+|  ├── email_agent / calendar_agent / meeting_agent / whatsapp_agent   |
+|  ├── document_agent / coding_agent / company_intelligence             |
+|  ├── stt.py                     (Groq Whisper large-v3-turbo + Gemini)|
 |  ├── technical_analysis.py      (real TA from live OHLCV)             |
 |  ├── telegram_bot.py            (remote phone interface)              |
 |  ├── learning_engine.py         (habits, corrections, RAG memory)     |
 |  ├── career_db.py               (career tables, encrypted vault)      |
 |  ├── chart_data.py              (shared OHLCV fetch + symbol search)  |
 |  ├── market_data.py / indian_market_data.py (lifespan-managed pollers)|
-|  ├── system_control.py          (macOS AppleScript + Spotify)         |
+|  ├── system_control.py          (macOS AppleScript + Spotify, locked) |
 |  ├── auth.py / ratelimit.py     (owner auth + per-IP limiting)        |
 |  └── tts.py                     (Edge-TTS + temp audio cleanup)       |
 |                                                                       |
 |  Databases:                                                           |
 |  ├── friday_brain.db        (AI memory + Career OS, WAL, thread-safe) |
-|  └── friday_trading_db.sqlite (Trading watchlist & chart state, WAL)  |
+|  ├── friday_trading_db.sqlite (Trading watchlist & chart state, WAL)  |
+|  ├── meetings.db / documents.db / embeddings.db                       |
+|  └── email_drafts.json / calendar_drafts.json / whatsapp_drafts.json  |
 +-----------------------------------------------------------------------+
         |                    |                        |
         v                    v                        v
@@ -94,7 +109,7 @@ FRIDAY is built for **Prem** (Prathvi Sahu) as a voice-first personal operating 
 
 ---
 
-## 3. Function Calling AI Brain (v3)
+## 3. Smart Function Calling AI Brain (v4)
 
 ```
 User Voice / Text
@@ -102,24 +117,45 @@ User Voice / Text
       ▼
 brain_v2.respond_v2(text)
       │
-      ├── Step 1: Groq (llama-3.3-70b-versatile) with tools=function_engine.get_tools_schema()
-      │            → LLM returns tool_calls[{name, arguments}]
-      │            → function_engine.dispatch(name, args) → handler reply → spoken
+      ├─ _build_context_messages(text):
+      │     • system prompt (personality + honesty rules)
+      │     • last 6 conversation turns (get_recent_conversation)
+      │     • permanent facts (get_memory_context_string)
+      │     • top-3 SEMANTIC memories (embeddings.semantic_context → Gemini
+      │       text-embedding-004 RAG over facts/notes/meetings)
+      │     • the user's request
+      │
+      ├── AGENTIC LOOP (max 4 steps):
+      │     Groq (GROQ_MODEL, default llama-3.3-70b-versatile) with
+      │     tools=function_engine.get_tools_schema()
+      │       → ALL tool_calls executed via dispatch(), results appended as
+      │         tool messages → loop until the model answers
+      │       → send_*/create_* tools surface email_confirm /
+      │         calendar_confirm / whatsapp_confirm approval actions
       │
       ├── Step 2: Gemini failover — structured JSON {"reply", "function", "args"}
-      │            → dispatch if a function was chosen
+      │            (also receives history + semantic memory context)
       │
       └── Step 3: legacy brain.respond() regex fallback (always works)
 ```
 
-**The tool registry (`function_engine.py`):** 18 registered functions — `get_time`,
-`get_weather`, `play_spotify`, `control_spotify`, `get_spotify_info`, `add_todo`,
-`get_todos`, `set_reminder`, `open_app`, `system_control`, `search_web`,
-`navigate_to`, `take_screenshot`, `open_trading`, `close_trading`,
-`guest_permission`, `remember_fact`, `technical_analysis`.
+**The tool registry (`function_engine.py`):** **41 registered functions** across
+12 categories — time/weather, music, tasks/reminders, computer control, web,
+trading, memory/knowledge, learning, **email ×3**, **calendar ×3**,
+**meetings ×3**, **whatsapp ×3**, **documents ×3**, **company_intel**,
+**review_code**, access. Each capability is registered once with an OpenAI-style
+JSON schema; adding a feature no longer requires inserting a regex among ~30
+patterns in `brain.py`.
 
-Each capability is registered once with an OpenAI-style JSON schema; adding a
-feature no longer requires inserting a regex among ~30 patterns in `brain.py`.
+**Semantic memory (`services/embeddings.py`):** facts (on `save_fact`), knowledge
+notes (on `add_note`) and meeting summaries (via the note mirror) are embedded
+with Gemini `text-embedding-004` into `data/embeddings.db`; cosine retrieval
+injects the top-3 relevant items per request. Without `GEMINI_API_KEY` the layer
+degrades to keyword search — never crashes.
+
+**Latency telemetry (`services/metrics.py`):** LLM/STT/TTS/tool calls are timed
+into a ring buffer; `GET /api/dev/metrics` + the DevTools Latency tab surface
+per-op averages and the last agent/tool/action.
 
 ## 4. Technical Analysis Pipeline (v3)
 
@@ -165,12 +201,16 @@ All loops check a stop-event, so shutdown is prompt and tests run thread-free.
 |---|---|---|
 | **Frontend Core** | React 19, Vite 8, Framer Motion | Dynamic HUD dashboard, panel routing, animations |
 | **Charting Engine** | Lightweight Charts (TradingView) | Canvas rendering, OHLCV candles, Volume histogram |
-| **Voice & Audio** | Web Speech API + Edge-TTS `en-GB-SoniaNeural` | STT input, Neural TTS output queue |
-| **Backend Framework** | FastAPI + Uvicorn | Async ASGI REST backend (:8000) |
+| **Voice & Audio** | Web Speech API (instant) + **Groq Whisper `whisper-large-v3-turbo` fallback (free tier)** + Gemini audio last resort + Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` | STT input w/ **barge-in** + **push-to-talk**, Neural TTS output queue |
+| **Backend Framework** | FastAPI + Uvicorn | Async ASGI REST backend (:8000), 173 routes |
 | **Market Data** | yfinance + TradingView Scanner API | Multi-exchange market quotes & candle history |
-| **AI LLMs** | Groq Llama 3.3 70B + Gemini 2.5 | Intent extraction, career intelligence, natural dialogue |
-| **Database Layer** | SQLite (WAL) + JSON | `friday_brain.db`, `friday_trading_db.sqlite`, todos, reminders |
-| **System Automation** | Python `subprocess` + AppleScript | macOS application management, system volume |
+| **AI LLMs** | Groq Llama 3.3 70B + Gemini 2.5 + Gemini `text-embedding-004` | Intent extraction, agentic tool loop, semantic memory RAG, career intelligence |
+| **Email** | IMAP4_SSL + SMTP (app password) | Gmail/Outlook read + **approval-first send** |
+| **Calendar** | Google Calendar API (OAuth, own `calendar_token.json`) | Read + **approval-first create**, TZ-aware (Docker `TZ`) |
+| **WhatsApp** | FRIDAY's own Playwright driver (opt-in) | QR pairing, unread chats, **approval-first send** (experimental) |
+| **Documents** | pypdf / python-docx / python-pptx / openpyxl | PDF/DOCX/PPTX/XLSX/TXT extraction + Groq RAG Q&A |
+| **Database Layer** | SQLite (WAL) + JSON (thread-locked) | `friday_brain.db`, `friday_trading_db.sqlite`, `meetings.db`, `documents.db`, `embeddings.db`, drafts |
+| **System Automation** | Python `subprocess` + AppleScript | macOS application management, system volume (auto-disabled in Docker) |
 | **Career AI** | Groq Llama 3.3 70B (JSON mode) | Job scoring, cover letters, skill gap, briefing |
 | **Typography** | Inter (Google Fonts) | Career OS UI — professional, clean typography |
 
@@ -223,7 +263,7 @@ All loops check a stop-event, so shutdown is prompt and tests run thread-free.
 - `goals` (title/category/target/current/unit/deadline/status/skill_gaps/
   resources) — goal manager with auto-done at 100%.
 - Function tools: `remember_idea`, `search_notes`, `log_milestone`,
-  `update_goal` (engine now 24 tools).
+  `update_goal` (engine now 41 tools).
 - Explainable AI: career recommendations carry `reasons[]`.
 
 ## 10. Database Schema — Career OS Tables (in `friday_brain.db`)
@@ -251,10 +291,28 @@ All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/chat/text` | Main voice/text AI brain entrypoint (owner-only, rate-limited) |
+| `POST` | `/api/speech/transcribe` | STT: Groq Whisper `large-v3-turbo` (free tier) → Gemini fallback (owner-only) |
 | `GET` | `/api/memory` / `POST` `/api/memory` | Long-term memory read/write (owner-only) |
 | `POST` | `/api/permission` | Grant/revoke guest access (owner-only) |
 | `GET` | `/api/proactive` | Time-aware proactive suggestion |
 | `POST` | `/api/tts` | Edge-TTS speech generation (relative audio URL) |
+| `GET` | `/api/email/unread` · `/summary` · `/search` | Email read (permission `email.read`) |
+| `POST` | `/api/email/draft` · `/send` · `/cancel` | Email **approval-first send** (`email.send`) |
+| `GET` | `/api/calendar/today` · `/upcoming` · `/search` | Calendar read (`calendar.read`) |
+| `POST` | `/api/calendar/draft` · `/create` · `/cancel` | Calendar **approval-first create** (`calendar.write`) |
+| `POST` | `/api/meetings/process` · `/transcribe` | Meeting summaries from transcript / audio (Whisper) |
+| `GET` | `/api/meetings` · `/search` · `/action-items` · `/{id}` | Meeting records & action items |
+| `POST` | `/api/meetings/{id}/todos` | Push action items into Todos |
+| `GET` | `/api/whatsapp/status` · `/qr` | WhatsApp driver state + pairing QR (opt-in) |
+| `GET` | `/api/whatsapp/chats` · `/search` | WhatsApp read (`whatsapp.read`) |
+| `POST` | `/api/whatsapp/draft` · `/send` · `/cancel` | WhatsApp **approval-first send** (`whatsapp.send`) |
+| `POST` | `/api/documents/upload` | Document ingestion (PDF/DOCX/PPTX/XLSX/TXT, 10 MB cap) |
+| `GET` | `/api/documents` · `/search` · `/{id}` | Document list / search / full text |
+| `POST` | `/api/documents/{id}/ask` · `/summarize` · `/compare` | Document Q&A (Groq RAG) |
+| `GET` | `/api/company/intel?name=` | Company Intelligence brief |
+| `POST` | `/api/coding/review` · `/bugs` · `/explain` · `/tests` · `/docs` · `/refactor` | Coding AI on pasted code |
+| `GET` | `/api/dev/metrics` | Latency dashboard (LLM/STT/TTS/tool averages) |
+| `GET` | `/api/weather` | Open-Meteo weather with IP geolocation |
 | `GET` | `/api/weather` | Open-Meteo weather with IP geolocation |
 | `POST` | `/api/search` | DuckDuckGo instant-answer search |
 | `GET/POST` | `/api/reminders` | Active timers / set a reminder (write = owner-only) |
@@ -308,7 +366,46 @@ All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL
 
 ---
 
-## 12. Voice Command Routing
+## 12. Communication Center Architecture
+
+All communication modules follow one pattern — **Planner → Tool Router → Agent →
+Permission → Approval-first action**:
+
+```
+Voice: "email rahul@x.com that I'll reach in 20"
+   │
+   ▼
+brain_v2 agentic loop → function_engine.dispatch("send_email", …)
+   │
+   ▼
+email_agent.create_draft()  → server-side draft (15-min TTL, preview only)
+   │
+   ▼
+reply surfaces action="email_confirm" + email_draft_id
+   │
+   ▼
+Frontend: PendingApprovalCard shows the preview → user says "yes" / clicks Send
+   │
+   ▼
+POST /api/email/send (requires fresh draft + one-time email.send approval)
+```
+
+| Module | Read | Write (always approval-first) | Storage |
+|---|---|---|---|
+| **Email Agent** | IMAP unread/search/summary/priority | SMTP via server-side draft | `data/email_drafts.json` |
+| **Calendar Agent** | Google Calendar today/upcoming/search | Insert via server-side draft | `data/calendar_drafts.json` |
+| **Meeting Assistant** | SQLite list/search/action-items | Whisper+LLM → SQLite + Knowledge mirror | `data/meetings.db` |
+| **WhatsApp Agent** | Playwright driver chats/search | Driver send via server-side draft | `data/whatsapp_drafts.json` + `data/whatsapp_session/` |
+| **Document AI** | SQLite full-text search | Groq Q&A/summary/compare | `data/documents.db` (text only) |
+| **Company Intel** | Web search + Career OS data | Groq-composed brief | stateless |
+| **Coding AI** | — | Groq review/bugs/tests/docs/refactor | stateless |
+
+Shared safeguards: drafts expire after 15 min; `send_*`/`create_*` tools can
+never send without a previewed draft; the LLM system prompt forbids claiming
+a send that was only previewed.
+
+## 13. Voice Command Routing
+
 
 All workspace navigation is handled by `useOrbState.jsx`:
 
@@ -323,7 +420,7 @@ All workspace navigation is handled by `useOrbState.jsx`:
 
 ---
 
-## 13. Security & Protection Guidelines
+## 14. Security & Protection Guidelines
 
 1. **Owner Authentication**: Loopback clients are the owner; non-localhost callers must present `FRIDAY_API_TOKEN` via the `X-FRIDAY-Token` header (401 otherwise). `is_boss` is never accepted from the client body. Chat, machine-control, memory, and the whole `/api/career/*` router are owner-gated.
 2. **Proxy-Header Spoofing Defense**: uvicorn runs with `--no-proxy-headers` so client-supplied `X-Forwarded-For` / `X-Real-IP` are ignored — otherwise a remote caller could spoof `127.0.0.1` and bypass auth.
@@ -336,6 +433,9 @@ All workspace navigation is handled by `useOrbState.jsx`:
 9. **Rate Limiting**: LLM-backed endpoints (chat + career AI) are limited per IP to protect Groq/Gemini credits.
 10. **Telegram Access Control**: `TELEGRAM_OWNER_ID` — only the owner's Telegram id can interact with the bot.
 11. **No Blind Career Submissions**: Career OS enforces a mandatory human confirmation step before any application submission.
+12. **Approval-First Communication**: email/WhatsApp sends and calendar creates only act on server-side previewed drafts (15-min TTL) with a one-time permission grant; the LLM is instructed to never claim a send that was only previewed.
+13. **Docker Auth**: in containers every request arrives from the bridge network, so the frontend injects `X-FRIDAY-Token` (baked at build time) and `FRIDAY_API_TOKEN` is required via compose.
+14. **Data Integrity**: todos, reminders and the Spotify cache lock their read-modify-write cycles; uploaded documents are stored as extracted text only (originals discarded).
 ---
 
 *Last Updated:* August 2026

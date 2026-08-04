@@ -47,6 +47,13 @@ def dev_overview():
     return counts
 
 
+@router.get("/dev/metrics", dependencies=[Depends(require_boss)])
+def dev_metrics():
+    """Performance metrics: LLM/STT/TTS/tool latencies + last agent/action."""
+    from services.metrics import snapshot
+    return snapshot()
+
+
 @router.get("/dev/memory", dependencies=[Depends(require_boss)])
 def dev_memory():
     """Facts + life-memory triples + recent conversations (owner only)."""

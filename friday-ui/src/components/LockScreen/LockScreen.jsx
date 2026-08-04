@@ -13,17 +13,56 @@ import { useFriday } from '../../context/FridayContext';
 import { useFitScale } from '../../hooks/useFitScale';
 import { speak, stopSpeaking } from '../../services/ttsService';
 import { API_ENDPOINTS } from '../../api/config.js';
+import { approveAndSendEmail, cancelEmailDraft } from '../../api/email';
+import { approveAndCreateEvent, cancelEventDraft } from '../../api/calendar';
+import { approveAndSendWhatsApp, cancelWhatsAppDraft } from '../../api/whatsapp';
+import PendingApprovalCard from '../Common/PendingApprovalCard';
 
 export default function LockScreen() {
     const orb = useOrbState();
     const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
-    const { micEnabled } = useFriday();
+    const { micEnabled, pttMode } = useFriday();
     const scale = useFitScale();
 
+    // Approval-first email flow: holds the pending draft + preview shown to
+    // the user until they explicitly confirm ("yes") or cancel ("no").
+    const [pendingEmail, setPendingEmail] = React.useState(null);
+    const pendingEmailRef = React.useRef(null);
+    React.useEffect(() => { pendingEmailRef.current = pendingEmail; }, [pendingEmail]);
+
+    const [pendingCalendar, setPendingCalendar] = React.useState(null);
+    const pendingCalendarRef = React.useRef(null);
+    React.useEffect(() => { pendingCalendarRef.current = pendingCalendar; }, [pendingCalendar]);
+
+    const [pendingWhatsApp, setPendingWhatsApp] = React.useState(null);
+    const pendingWhatsAppRef = React.useRef(null);
+    React.useEffect(() => { pendingWhatsAppRef.current = pendingWhatsApp; }, [pendingWhatsApp]);
+
+    // Push-to-talk HUD: shows a live "speaking" state while Space is held.
+    const [pttHeld, setPttHeld] = React.useState(false);
+    React.useEffect(() => {
+        const onPtt = (e) => setPttHeld(Boolean(e.detail?.held));
+        window.addEventListener('friday-ptt', onPtt);
+        return () => window.removeEventListener('friday-ptt', onPtt);
+    }, []);
+
     // FRIDAY's conversation loop: show text on screen when speech is returned.
-    const handleConversation = React.useCallback(({ reply, action }) => {
+    const handleConversation = React.useCallback(({ reply, action, email_draft_id, email_preview }) => {
         if (reply) {
             setResponseMessage?.(reply);
+        }
+        if (action === 'email_confirm' && email_draft_id) {
+            // Approval-first email flow: show the preview, wait for explicit confirm.
+            setPendingEmail({ draftId: email_draft_id, preview: email_preview || {} });
+            return;
+        }
+        if (action === 'calendar_confirm' && calendar_draft_id) {
+            setPendingCalendar({ draftId: calendar_draft_id, preview: calendar_preview || {} });
+            return;
+        }
+        if (action === 'whatsapp_confirm' && whatsapp_draft_id) {
+            setPendingWhatsApp({ draftId: whatsapp_draft_id, preview: whatsapp_preview || {} });
+            return;
         }
         if (action && action !== 'none' && !locked) {
             if (action === 'trading')   setWorkspace?.('trading');
@@ -181,10 +220,118 @@ export default function LockScreen() {
         }
     };
 
+    // ── Email approval helpers (voice + UI) ──────────────────────────────
+    const sendPendingEmail = React.useCallback(async () => {
+        const pending = pendingEmailRef.current;
+        if (!pending) return false;
+        try {
+            await approveAndSendEmail(pending.draftId);
+            setResponseMessage?.('Email sent.');
+        } catch (err) {
+            setResponseMessage?.(`Email failed: ${err.message || 'unknown error'}`);
+        } finally {
+            pendingEmailRef.current = null;
+            setPendingEmail(null);
+        }
+        return true;
+    }, [setResponseMessage]);
+
+    const cancelPendingEmail = React.useCallback(async () => {
+        const pending = pendingEmailRef.current;
+        if (!pending) return false;
+        await cancelEmailDraft(pending.draftId).catch(() => {});
+        pendingEmailRef.current = null;
+        setPendingEmail(null);
+        setResponseMessage?.('Email cancelled.');
+        return true;
+    }, [setResponseMessage]);
+
+    // ── Calendar approval helpers ────────────────────────────────────────
+    const createPendingCalendar = React.useCallback(async () => {
+        const pending = pendingCalendarRef.current;
+        if (!pending) return false;
+        try {
+            await approveAndCreateEvent(pending.draftId);
+            setResponseMessage?.('Event created on your calendar.');
+        } catch (err) {
+            setResponseMessage?.(`Calendar failed: ${err.message || 'unknown error'}`);
+        } finally {
+            pendingCalendarRef.current = null;
+            setPendingCalendar(null);
+        }
+        return true;
+    }, [setResponseMessage]);
+
+    const cancelPendingCalendar = React.useCallback(async () => {
+        const pending = pendingCalendarRef.current;
+        if (!pending) return false;
+        await cancelEventDraft(pending.draftId).catch(() => {});
+        pendingCalendarRef.current = null;
+        setPendingCalendar(null);
+        setResponseMessage?.('Event cancelled.');
+        return true;
+    }, [setResponseMessage]);
+
+    // ── WhatsApp approval helpers ────────────────────────────────────────
+    const sendPendingWhatsApp = React.useCallback(async () => {
+        const pending = pendingWhatsAppRef.current;
+        if (!pending) return false;
+        try {
+            await approveAndSendWhatsApp(pending.draftId);
+            setResponseMessage?.('WhatsApp message sent.');
+        } catch (err) {
+            setResponseMessage?.(`WhatsApp failed: ${err.message || 'unknown error'}`);
+        } finally {
+            pendingWhatsAppRef.current = null;
+            setPendingWhatsApp(null);
+        }
+        return true;
+    }, [setResponseMessage]);
+
+    const cancelPendingWhatsApp = React.useCallback(async () => {
+        const pending = pendingWhatsAppRef.current;
+        if (!pending) return false;
+        await cancelWhatsAppDraft(pending.draftId).catch(() => {});
+        pendingWhatsAppRef.current = null;
+        setPendingWhatsApp(null);
+        setResponseMessage?.('Message cancelled.');
+        return true;
+    }, [setResponseMessage]);
+
+    // Voice confirmation for any pending approval (email → calendar →
+    // WhatsApp): "yes / send it / create it" → confirm; "no / cancel" → discard.
+    React.useEffect(() => {
+        window.fridayCheckPendingApproval = async (transcript) => {
+            const t = (transcript || '').trim().toLowerCase();
+            const YES = /^(yes|yeah|yep|yup|sure|ok|okay|confirm|send|send it|send it now|create|create it|go ahead|do it|haan|ha)$/i;
+            const NO = /^(no|nope|nah|cancel|cancel it|never mind|don'?t send|don'?t create|skip|mat bhejo)$/i;
+
+            if (pendingEmailRef.current) {
+                if (YES.test(t)) { await sendPendingEmail(); return true; }
+                if (NO.test(t)) { await cancelPendingEmail(); return true; }
+                return false; // pending approval exists — don't route elsewhere
+            }
+            if (pendingCalendarRef.current) {
+                if (YES.test(t)) { await createPendingCalendar(); return true; }
+                if (NO.test(t)) { await cancelPendingCalendar(); return true; }
+                return false;
+            }
+            if (pendingWhatsAppRef.current) {
+                if (YES.test(t)) { await sendPendingWhatsApp(); return true; }
+                if (NO.test(t)) { await cancelPendingWhatsApp(); return true; }
+                return false;
+            }
+            return false;
+        };
+        return () => { delete window.fridayCheckPendingApproval; };
+    }, [sendPendingEmail, cancelPendingEmail, createPendingCalendar, cancelPendingCalendar,
+        sendPendingWhatsApp, cancelPendingWhatsApp]);
+
     useSpeech({
         locked,
         workspace,
         enabled: micEnabled,
+        mode: pttMode ? 'ptt' : 'always',
         onCommand: handleLocalCommand,
         onConversation: handleConversation,
     });
@@ -286,21 +433,33 @@ export default function LockScreen() {
                             </div>
                         ) : null}
 
-                        <div className="mt-3 flex items-center justify-center gap-3">
-                            {!audioEnabled ? (
-                                <button
-                                    onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
-                                    className="px-4 py-2 rounded bg-[#00B7FF] text-[#001018] text-[11px] uppercase font-bold"
-                                    style={{ pointerEvents: 'auto' }}
-                                >
-                                    Enable Voice
-                                </button>
+                        {pttMode ? (
+                            pttHeld ? (
+                                <div className="mt-3 text-[11px] font-orbitron text-[#22ff99] tracking-[0.4em] uppercase drop-shadow-[0_0_10px_rgba(34,255,153,0.6)]">
+                                    🎙 SPEAKING — RELEASE TO SEND
+                                </div>
                             ) : (
-                                <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
-                                    Voice enabled
-                                </span>
-                            )}
-                        </div>
+                                <div className="mt-3 text-[10px] font-orbitron text-[#00B7FF]/70 tracking-[0.35em] uppercase animate-pulse">
+                                    HOLD SPACE TO TALK
+                                </div>
+                            )
+                        ) : (
+                            <div className="mt-3 flex items-center justify-center gap-3">
+                                {!audioEnabled ? (
+                                    <button
+                                        onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
+                                        className="px-4 py-2 rounded bg-[#00B7FF] text-[#001018] text-[11px] uppercase font-bold"
+                                        style={{ pointerEvents: 'auto' }}
+                                    >
+                                        Enable Voice
+                                    </button>
+                                ) : (
+                                    <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
+                                        Voice enabled
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -370,6 +529,54 @@ export default function LockScreen() {
                     </div>
                 </div>
             ) : null}
+
+            {/* ── Pending approval cards (approval-first: email + calendar) ── */}
+            {pendingEmail && (
+                <PendingApprovalCard
+                    title="✉ Email Approval Required"
+                    rows={[
+                        { label: 'To', value: pendingEmail.preview?.to || '—' },
+                        { label: 'Subject', value: pendingEmail.preview?.subject || '(none)' },
+                    ]}
+                    body={pendingEmail.preview?.body || '—'}
+                    hint='Say "yes" to send · "no" to cancel'
+                    confirmLabel="Send"
+                    onConfirm={sendPendingEmail}
+                    onCancel={cancelPendingEmail}
+                />
+            )}
+            {pendingWhatsApp && (
+                <PendingApprovalCard
+                    title="💬 WhatsApp Approval Required"
+                    rows={[
+                        { label: 'To', value: `+${pendingWhatsApp.preview?.phone || '—'}` },
+                    ]}
+                    body={pendingWhatsApp.preview?.message || '—'}
+                    hint='Say "yes" to send · "no" to cancel'
+                    confirmLabel="Send"
+                    onConfirm={sendPendingWhatsApp}
+                    onCancel={cancelPendingWhatsApp}
+                />
+            )}
+            {pendingCalendar && (
+                <PendingApprovalCard
+                    title="📅 Calendar Approval Required"
+                    rows={[
+                        { label: 'Event', value: pendingCalendar.preview?.summary || '—' },
+                        {
+                            label: 'When',
+                            value: pendingCalendar.preview?.start
+                                ? `${new Date(pendingCalendar.preview.start).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })} → ${new Date(pendingCalendar.preview.end).toLocaleString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+                                : '—',
+                        },
+                    ]}
+                    body={pendingCalendar.preview?.description || ''}
+                    hint='Say "yes" to create · "no" to cancel'
+                    confirmLabel="Create"
+                    onConfirm={createPendingCalendar}
+                    onCancel={cancelPendingCalendar}
+                />
+            )}
 
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
                 <Corners />

@@ -147,6 +147,12 @@ def save_fact(key: str, value: str, category: str = "preference"):
                 updated_at = CURRENT_TIMESTAMP
             """, (category, key.strip().lower(), value.strip()))
             conn.commit()
+    # Semantic index (guarded — never breaks the save)
+    try:
+        from services.embeddings import on_fact_saved
+        on_fact_saved(key.strip().lower(), value.strip())
+    except Exception:
+        pass
 
 
 def get_all_memories() -> list:

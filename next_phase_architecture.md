@@ -8,6 +8,15 @@
 > **Career OS (Career Intelligence Center)** was added as a separate module and is fully operational as of August 2026.
 > See `architecture.md` and `README.md` for Career OS documentation.
 
+> [!IMPORTANT]
+> **Implementation status (August 2026)** — most of this specification has been **built and shipped**:
+> - ✅ **Phase 1.1 — AI Brain & Learning Engine**: `learning_engine.py` live (`friday_brain.db`), plus the **Smart Brain v4** upgrade: conversation context, Gemini-embedding semantic memory (`services/embeddings.py`), and a multi-step agentic tool loop in `brain_v2.py`.
+> - ✅ **Phase 1.2 — Display Controls**: `mac_controls.py` live (brightness, dark mode, volume, lock), guarded by `IS_MAC` so it auto-disables in Docker/Linux.
+> - ✅ **Phase 1.4 — Calendar**: implemented as the **Calendar Agent** (`services/calendar_agent.py`, `routes/calendar.py`) using the Google Calendar API (OAuth) instead of Apple Calendar — cross-platform and approval-first.
+> - ✅ **Phase 1.5 — WhatsApp & Email**: implemented as the **Communication Center** — Email Agent (Gmail/Outlook IMAP+SMTP), WhatsApp Agent (FRIDAY's own Playwright driver, opt-in experimental), Meeting Assistant, Document AI, Company Intelligence, Coding AI.
+> - ⏳ **Phase 1.3 — Brave YouTube controller** (`brave_youtube.py`): not shipped as a module; browser control is covered by `open_app`/`navigate_to` tools + the Browser Agent.
+> - **Newer superseding docs**: see `FRIDAY_CAPABILITIES.md` (complete capability reference, 41 tools / 173 endpoints) and `architecture.md` (v4 brain + Communication Center architecture).
+
 ---
 
 ## 1. High-Level Architecture & Intent Execution Sequence
@@ -304,14 +313,14 @@ CREATE TABLE IF NOT EXISTS communication_logs (
 [Phase 1.5: WhatsApp/Email Automation] <--- [Phase 1.4: Calendar Engine] <--------------+
 ```
 
-1. **★ Phase 1.1 (FIRST PRIORITY)**: `learning_engine.py` (Habit logging, soft penalty corrections, dynamic pace matching brevity, and RAG semantic memory in `friday_learning.db`).
-2. **Phase 1.2**: `mac_controls.py` (Screen Brightness 0-100% & Dark Mode / Night Shift toggle).
-3. **Phase 1.3**: `brave_youtube.py` (Brave Browser tab focus & YouTube media controls).
-4. **Phase 1.4**: `mac_calendar.py` & Calendar HUD Card (Apple Calendar API + `friday_hub.sqlite`).
-5. **Phase 1.5**: `mac_communications.py` & Messaging HUD Card (WhatsApp Web & Apple Mail).
+1. **★ Phase 1.1 (FIRST PRIORITY)**: `learning_engine.py` (Habit logging, soft penalty corrections, dynamic pace matching brevity, and RAG semantic memory in `friday_learning.db`). ✅ **Built** — plus Smart Brain v4 (context + embeddings + agentic loop).
+2. **Phase 1.2**: `mac_controls.py` (Screen Brightness 0-100% & Dark Mode / Night Shift toggle). ✅ **Built** (IS_MAC-guarded).
+3. **Phase 1.3**: `brave_youtube.py` (Brave Browser tab focus & YouTube media controls). ⏳ Superseded by `open_app`/`navigate_to` tools.
+4. **Phase 1.4**: `mac_calendar.py` & Calendar HUD Card (Apple Calendar API + `friday_hub.sqlite`). ✅ **Built as Google Calendar Agent** (cross-platform, approval-first).
+5. **Phase 1.5**: `mac_communications.py` & Messaging HUD Card (WhatsApp Web & Apple Mail). ✅ **Built as Email Agent + WhatsApp Agent + Meeting Assistant** (approval-first).
 
 ---
-*Document Version*: 3.1.0 (Phase 1 AI Brain + Career OS added August 2026)
+*Document Version*: 4.0.0 (Phase 1-2 implemented; see implementation-status note above — August 2026)
 *Target Environment*: macOS Desktop System
 *Authors & Lead Architects*: **Prem (Prathvi Sahu)** & **F.R.I.D.A.Y.**
 *DB Note*: `friday_learning.db` and `friday_hub.sqlite` referenced in earlier revisions are consolidated into the single unified `friday_brain.db` database.

@@ -3,6 +3,7 @@ FRIDAY Reminders Service
 Manages one-time timers and scheduled reminders with persistent storage.
 """
 import json
+import threading
 import uuid
 import time
 from pathlib import Path
@@ -10,6 +11,10 @@ from datetime import datetime
 
 DATA_FILE = Path(__file__).parent.parent / "data" / "reminders.json"
 DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# FastAPI runs sync handlers in a threadpool — lock every read-modify-write
+# so concurrent requests can't lose reminders (see todos.py for the same fix).
+_lock = threading.Lock()
 
 
 def _load() -> list:
@@ -45,23 +50,25 @@ def add_reminder(message: str, delay_seconds: int) -> dict:
         "trigger_at": trigger_at,
         "triggered": False,
     }
-    items = _load()
-    items.append(item)
-    _save(items)
+    with _lock:
+        items = _load()
+        items.append(item)
+        _save(items)
     return item
 
 
 def check_due_reminders() -> list:
     """Check and mark any due reminders as triggered. Returns due items."""
     now = time.time()
-    items = _load()
-    due = []
-    updated = False
-    for i in items:
-        if not i.get("triggered") and i.get("trigger_at", 0) <= now:
-            i["triggered"] = True
-            due.append(i)
-            updated = True
-    if updated:
-        _save(items)
+    with _lock:
+        items = _load()
+        due = []
+        updated = False
+        for i in items:
+            if not i.get("triggered") and i.get("trigger_at", 0) <= now:
+                i["triggered"] = True
+                due.append(i)
+                updated = True
+        if updated:
+            _save(items)
     return due
