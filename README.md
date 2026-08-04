@@ -42,6 +42,12 @@ Key architectural pillars:
 - **Career Intelligence Center (Career OS)**: A fully operational AI-powered career operating system — not a job portal. Analyzes opportunities, drafts cover letters, tracks interviews, manages resumes, and learns your preferences. Never submits without your final approval.
 - **Quantum Trading Workstation**: TradingView Lightweight Charts with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, a drag-and-drop watchlist backed by SQLite persistence, and **real technical analysis on demand**.
 - **Zero-Config Spotify Automation**: Control music playback, track search, volume, and progress seek bar via an anonymous web player token without manual OAuth setup.
+- **Free-Tier Whisper STT**: Speech-to-text runs on the browser Web Speech API for instant recognition and automatically fails over to **Groq Whisper `whisper-large-v3-turbo`** (free tier) with a Gemini audio fallback — Hinglish commands transcribe correctly, and **true barge-in** (start talking, she stops) + **push-to-talk** mode included.
+- **Communication Center**: **Email Agent** (Gmail/Outlook, approval-first send), **Calendar Agent** (Google Calendar, approval-first create), **Meeting Assistant** (audio/transcript → summary + action items → todos), **WhatsApp Agent** (experimental opt-in Playwright driver, QR pairing), all voice-driven and permission-gated.
+- **Document AI**: Upload PDF/DOCX/PPTX/XLSX/TXT → ask questions, summarize, compare (Groq RAG); voice: "ask my documents about X".
+- **Coding Workspace AI**: Paste code → review, find bugs, explain, generate tests & docs, refactor suggestions.
+- **Company Intelligence**: "Tell me about Goldman Sachs" → overview, hiring signals, your application history, interview-prep checklist.
+- **Smart Brain**: conversation context (last 6 turns), **semantic memory** (Gemini embeddings RAG over facts/notes/meetings), **multi-step agentic tool loop** (up to 4 tool calls per request), live **latency metrics** in the Dev Dashboard.
 - **macOS Automation & Hardware Telemetry**: Voice-driven application management, system volume control, and real-time CPU, RAM, Disk, and Power monitoring.
 
 ---
@@ -282,7 +288,7 @@ roles, missing skills. Transparent instead of mysterious.
 | **Frontend UI** | React 19, Vite 8, Tailwind CSS, Framer Motion, Inter (Google Fonts), TradingView Lightweight Charts, Web Speech API, WebGL GLSL Shaders |
 | **Backend API** | Python 3.11+, FastAPI, Uvicorn, SQLite (WAL mode, thread-safe), yfinance, numpy, psutil, asyncio |
 | **AI Models** | Groq (Llama 3.3 70B Versatile — function calling), Google Gemini 2.5 |
-| **Audio / Speech** | Web Speech API (STT, instant) + Groq Whisper `whisper-large-v3-turbo` free-tier fallback (Gemini `gemini-2.5-flash` audio last resort), Microsoft Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` (Neural TTS) |
+| **Audio / Speech** | Web Speech API (STT, instant) + Groq Whisper `whisper-large-v3-turbo` free-tier fallback (Gemini `gemini-2.5-flash` audio last resort), Microsoft Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` (Neural TTS), barge-in, push-to-talk |
 | **Integrations** | Spotify Web Player API, Open-Meteo, Google Drive API, AppleScript (`osascript`), Telegram Bot API (`python-telegram-bot`) |
 | **Career OS** | Groq Llama 3.3 70B (scoring, letters, skill gap), SQLite WAL (10 career tables) |
 

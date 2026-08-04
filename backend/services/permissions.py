@@ -46,6 +46,7 @@ CAPABILITIES = {
     "meetings.create": ("enabled", "Meetings", "Transcribe & process meeting recordings (Groq credits)"),
     "documents.read":  ("enabled", "Documents", "Read, search, ask & summarize uploaded documents"),
     "documents.upload": ("enabled", "Documents", "Upload documents for the Document AI (Groq credits)"),
+    "coding.analyze":  ("enabled", "Coding AI", "Review, explain, test & document pasted code (Groq credits)"),
     "whatsapp.read":   ("ask",     "Read WhatsApp", "Read and summarize chats (needs WhatsApp)"),
     "whatsapp.send":   ("ask",     "Send WhatsApp", "Send messages (always ask)"),
     "phone.call":      ("ask",     "Phone Calls", "Make calls (always ask, needs phone link)"),

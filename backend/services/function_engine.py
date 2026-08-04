@@ -67,11 +67,14 @@ def list_functions() -> List[str]:
 
 def dispatch(name: str, args: dict) -> str:
     """Execute a registered function and return its spoken reply text."""
+    from services.metrics import timed, set_last
     spec = _REGISTRY.get(name)
     if not spec:
         return f"Unknown function '{name}'."
+    set_last(tool=name)
     try:
-        result = spec["handler"](args or {})
+        with timed("tool", meta=name):
+            result = spec["handler"](args or {})
         return str(result) if result is not None else "Done."
     except Exception as err:
         logging.warning(f"[Function Engine] {name} failed: {err}")
@@ -575,6 +578,34 @@ def _h_summarize_document(args) -> str:
         return f"I couldn't summarize that: {err}"
 
 
+# ── Coding AI handler ────────────────────────────────────────────────────
+
+def _h_coding_review(args) -> str:
+    from services import coding_agent
+    code = (args.get("code") or "").strip()
+    language = (args.get("language") or "").strip()
+    if not code:
+        return "No code provided to review, Boss."
+    try:
+        return coding_agent.review_code(code, language)[:600]
+    except coding_agent.CodingUnavailableError as err:
+        return f"I couldn't review that: {err}"
+
+
+# ── Company Intelligence handler ─────────────────────────────────────────
+
+def _h_company_intel(args) -> str:
+    from services import company_intelligence
+    name = (args.get("company") or "").strip()
+    if not name:
+        return "Which company should I research, Boss?"
+    try:
+        intel = company_intelligence.get_company_intel(name)
+        return company_intelligence.format_for_speech(intel)
+    except company_intelligence.CompanyIntelUnavailableError as err:
+        return f"I couldn't research that company: {err}"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Registrations (18 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1018,4 +1049,29 @@ register_function(
         "required": ["document"],
     },
     handler=_h_summarize_document,
+)
+
+register_function(
+    name="company_intel",
+    description="Research a company: overview, hiring signals, your application history, interview prep.",
+    parameters={
+        "type": "object",
+        "properties": {"company": {"type": "string", "description": "Company name, e.g. Goldman Sachs"}},
+        "required": ["company"],
+    },
+    handler=_h_company_intel,
+)
+
+register_function(
+    name="review_code",
+    description="Review pasted code: bugs, security, performance, style. Requires the code text.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "The code to review"},
+            "language": {"type": "string", "description": "Optional language hint"},
+        },
+        "required": ["code"],
+    },
+    handler=lambda args: _h_coding_review(args),
 )

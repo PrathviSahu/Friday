@@ -183,7 +183,10 @@ def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False,
         max_steps = 4
 
         for _step in range(max_steps):
-            result = _call_groq_with_messages(messages, tools)
+            from services.metrics import timed, set_last
+            set_last(agent="brain_v2")
+            with timed("llm", meta="groq-tools"):
+                result = _call_groq_with_messages(messages, tools)
             tool_calls = result["tool_calls"]
 
             if not tool_calls:

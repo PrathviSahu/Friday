@@ -28,6 +28,8 @@ from routes.calendar import router as calendar_router
 from routes.meetings import router as meetings_router
 from routes.whatsapp import router as whatsapp_router
 from routes.documents import router as documents_router
+from routes.company import router as company_router
+from routes.coding import router as coding_router
 from routes.system import router as system_router
 from routes.spotify import router as spotify_router
 from routes.todos import router as todos_router
@@ -162,6 +164,8 @@ app.include_router(calendar_router)
 app.include_router(meetings_router)
 app.include_router(whatsapp_router)
 app.include_router(documents_router)
+app.include_router(company_router)
+app.include_router(coding_router)
 app.include_router(system_router)
 app.include_router(spotify_router)
 app.include_router(todos_router)

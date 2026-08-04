@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from 'framer-motion';
-import { Terminal, X, GripHorizontal, Database, ScrollText, SlidersHorizontal, Play, RefreshCw, Settings } from 'lucide-react';
+import { Terminal, X, GripHorizontal, Database, ScrollText, SlidersHorizontal, Play, RefreshCw, Settings, Activity } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 import { API_ENDPOINTS } from '../../api/config.js';
 
 const TABS = [
     { key: 'overview', label: 'Overview', Icon: SlidersHorizontal },
+    { key: 'metrics',  label: 'Latency',  Icon: Activity },
     { key: 'memory',   label: 'Memory',   Icon: Database },
     { key: 'logs',     label: 'Logs',     Icon: ScrollText },
     { key: 'tester',   label: 'API Tester', Icon: Play },
@@ -20,6 +21,7 @@ export default function DevToolsCard() {
     const [memory, setMemory] = useState(null);
     const [logs, setLogs] = useState([]);
     const [config, setConfig] = useState(null);
+    const [metrics, setMetrics] = useState(null);
     const [testMethod, setTestMethod] = useState('GET');
     const [testPath, setTestPath] = useState('/api/system/stats');
     const [testBody, setTestBody] = useState('');
@@ -52,6 +54,13 @@ export default function DevToolsCard() {
         try {
             const res = await fetch(`${API_ENDPOINTS.dev}/logs?lines=150`);
             if (res.ok) setLogs((await res.json()).logs || []);
+        } catch (_) {}
+    };
+
+    const loadMetrics = async () => {
+        try {
+            const res = await fetch(`${API_ENDPOINTS.dev}/metrics`);
+            if (res.ok) setMetrics(await res.json());
         } catch (_) {}
     };
 
@@ -228,6 +237,47 @@ export default function DevToolsCard() {
                                 style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 8, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', fontSize: 10, cursor: 'pointer' }}>
                                 <RefreshCw size={11} /> Refresh
                             </button>
+                        </div>
+                    )}
+
+                    {tab === 'metrics' && (
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live latencies (avg / last)</span>
+                                <button onClick={() => { loadMetrics(); }} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+                                    <RefreshCw size={10} /> Refresh
+                                </button>
+                            </div>
+
+                            {metrics?.last && (
+                                <div style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+                                    <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Last action</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                        {metrics.last.agent && <span style={{ fontSize: 11, color: '#e2e8f0' }}>Agent: <b style={{ color: '#38bdf8' }}>{metrics.last.agent}</b></span>}
+                                        {metrics.last.tool && <span style={{ fontSize: 11, color: '#e2e8f0' }}>Tool: <b style={{ color: '#a78bfa' }}>{metrics.last.tool}</b></span>}
+                                        {metrics.last.action && <span style={{ fontSize: 11, color: '#e2e8f0' }}>Action: <b style={{ color: '#f472b6' }}>{metrics.last.action}</b></span>}
+                                    </div>
+                                </div>
+                            )}
+
+                            {metrics?.averages && Object.keys(metrics.averages).length === 0 && (
+                                <div style={{ color: '#64748b', fontSize: 11, textAlign: 'center', padding: 14 }}>
+                                    No activity recorded yet — talk to Friday or run a tool.
+                                </div>
+                            )}
+
+                            {metrics?.averages && Object.entries(metrics.averages).map(([op, a]) => (
+                                <div key={op} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141428', border: '1px solid #1e293b', borderRadius: 10, padding: '9px 12px', marginBottom: 6 }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', textTransform: 'capitalize' }}>{op}</div>
+                                        <div style={{ fontSize: 10, color: '#64748b' }}>{a.count} call(s)</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: 14, fontWeight: 800, color: a.avg_ms < 400 ? '#4ade80' : a.avg_ms < 1500 ? '#facc15' : '#f87171' }}>{a.avg_ms} ms</div>
+                                        <div style={{ fontSize: 10, color: '#64748b' }}>last {a.last_ms} ms</div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 

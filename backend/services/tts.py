@@ -42,6 +42,10 @@ def _clean_old_mp3s(output_dir: Path, keep_last: int = 5):
         pass
 
 
+from services.metrics import timed as _timed
+
+
+@_timed("tts")
 async def generate_speech(text: str, output_dir: Path, voice: str = None) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     _clean_old_mp3s(output_dir, keep_last=5)

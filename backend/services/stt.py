@@ -112,6 +112,10 @@ def _transcribe_gemini(audio_bytes: bytes, filename: str, mime_type: str) -> dic
     }
 
 
+from services.metrics import timed as _timed
+
+
+@_timed("stt")
 def transcribe_audio(audio_bytes: bytes, filename: str = "clip.ogg",
                      mime_type: str = "audio/ogg") -> dict:
     """Transcribe audio with the best available free-tier engine.

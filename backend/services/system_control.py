@@ -13,6 +13,7 @@ import subprocess
 import urllib.parse
 import urllib.request
 import platform
+import threading
 import time
 import json
 from pathlib import Path
@@ -236,23 +237,26 @@ def _paste_text_via_clipboard(text: str) -> str:
 
 # ── Spotify Local Cache ────────────────────────────────────────────────────────
 SPOTIFY_CACHE_FILE = Path(__file__).parent.parent / "data" / "spotify_cache.json"
+_spotify_cache_lock = threading.Lock()
 SPOTIFY_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
 def _load_spotify_cache() -> dict:
-    if not SPOTIFY_CACHE_FILE.exists():
-        return {}
-    try:
-        return json.loads(SPOTIFY_CACHE_FILE.read_text())
-    except Exception:
-        return {}
+    with _spotify_cache_lock:
+        if not SPOTIFY_CACHE_FILE.exists():
+            return {}
+        try:
+            return json.loads(SPOTIFY_CACHE_FILE.read_text())
+        except Exception:
+            return {}
 
 
 def _save_spotify_cache(cache: dict):
-    try:
-        SPOTIFY_CACHE_FILE.write_text(json.dumps(cache, indent=2))
-    except Exception as err:
-        print(f"[Spotify Cache] Failed to save cache: {err}")
+    with _spotify_cache_lock:
+        try:
+            SPOTIFY_CACHE_FILE.write_text(json.dumps(cache, indent=2))
+        except Exception as err:
+            print(f"[Spotify Cache] Failed to save cache: {err}")
 
 
 def wait_until_spotify_running(timeout: float = 10.0) -> bool:
@@ -644,17 +648,18 @@ def search_and_play_spotify(song_query: str) -> bool:
         print(f"[Song Memory] Lookup notice: {err}")
 
     # ── 2. Local Cache Lookup ──
-    cache = _load_spotify_cache()
-    cached_uri = cache.get(norm_q)
-    if cached_uri:
-        print(f"[Spotify Cache] ⚡ Cache HIT for '{norm_q}' -> {cached_uri}")
-        wait_until_spotify_running()
-        play_spotify_uri(cached_uri)
-        if verify_spotify_playback(expected_title=song_query.strip()):
-            return True
-        print("[Spotify Cache] Cached URI verification failed or played wrong track — invalidating cache entry...")
-        del cache[norm_q]
-        _save_spotify_cache(cache)
+    with _spotify_cache_lock:
+        cache = _load_spotify_cache()
+        cached_uri = cache.get(norm_q)
+        if cached_uri:
+            print(f"[Spotify Cache] ⚡ Cache HIT for '{norm_q}' -> {cached_uri}")
+            wait_until_spotify_running()
+            play_spotify_uri(cached_uri)
+            if verify_spotify_playback(expected_title=song_query.strip()):
+                return True
+            print("[Spotify Cache] Cached URI verification failed or played wrong track — invalidating cache entry...")
+            del cache[norm_q]
+            _save_spotify_cache(cache)
 
     wait_until_spotify_running()
 
@@ -705,8 +710,10 @@ def search_and_play_spotify(song_query: str) -> bool:
             time.sleep(1.0)
             if verify_spotify_playback(expected_title=cand_title, expected_artist=cand_artist):
                 print(f"[Verification Loop] ✅ Verified candidate #{idx + 1} matches requested song!")
-                cache[norm_q] = cand_uri
-                _save_spotify_cache(cache)
+                with _spotify_cache_lock:
+                    cache = _load_spotify_cache()
+                    cache[norm_q] = cand_uri
+                    _save_spotify_cache(cache)
                 return True
             else:
                 print(f"[Verification Loop] ❌ Candidate #{idx + 1} failed verification — stopping playback and trying candidate #{idx + 2}...")
