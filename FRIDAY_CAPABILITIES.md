@@ -5,7 +5,7 @@
 
 > This document is the definitive, machine-accurate list of everything F.R.I.D.A.Y.
 > can do. Every capability below is implemented and tested — none are placeholders.
-> Version numbers and counts reflect the code at commit `4bb11eb`.
+> Version numbers and counts reflect the code at commit `f1d37ee`.
 
 ---
 
@@ -418,5 +418,5 @@ Learning Coach streaks, goal progress, job applications, and habits
 
 ---
 
-*Generated from the live codebase — commit `4bb11eb` (v3.3.0). All 128 endpoints,
+*Generated from the live codebase — commit `f1d37ee` (v3.3.0). All 128 endpoints,
 24 tools, and 13 panels verified present in the running application.*
