@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Eye, EyeOff, X, Check, ShieldCheck, RefreshCw, Zap, ExternalLink } from 'lucide-react';
+import { Eye, EyeOff, X, Check, ShieldCheck, RefreshCw, ExternalLink } from 'lucide-react';
 import { getProfile, updateProfile, verifyAccount, connectAccountLiveBrowser } from '../../../api/careerApi.js';
 import { SkeletonCard } from '../components/Skeleton.jsx';
 

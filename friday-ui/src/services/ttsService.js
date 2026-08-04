@@ -1,4 +1,4 @@
-import { API_ENDPOINTS } from '../api/config.js';
+import { API_ENDPOINTS, resolveApiUrl } from '../api/config.js';
 
 let currentAudio = null;
 let currentResolve = null; // Holds the pending speak() promise resolver for instant abort
@@ -68,7 +68,10 @@ export async function speak(text) {
           // Store resolver so stopSpeaking() can resolve this promise instantly from outside
           currentResolve = resolve;
 
-          const audio = new Audio(data.audio_url);
+          // Backend returns a relative path (/temp_audio/...); resolve against
+          // the configured API base so it works via the dev proxy or a
+          // production VITE_API_URL alike.
+          const audio = new Audio(resolveApiUrl(data.audio_url));
           currentAudio = audio;
 
           audio.onended = () => {

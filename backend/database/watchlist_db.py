@@ -7,9 +7,19 @@ DB_PATH = Path(__file__).parent.parent / "data" / "friday_trading_db.sqlite"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _get_conn():
+    """Thread-safe SQLite connection with WAL journaling and busy timeout."""
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
+
+
 def init_watchlist_table():
     """Create watchlist table in SQLite if it doesn't exist."""
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_conn() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS watchlist (
@@ -41,7 +51,7 @@ init_watchlist_table()
 def get_watchlist() -> list:
     """Fetch all watchlist items sorted by sort_order."""
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_conn() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM watchlist ORDER BY sort_order ASC, added_at ASC")
@@ -59,7 +69,7 @@ def add_watchlist_item(item: dict) -> bool:
         if not symbol:
             return False
 
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_conn() as conn:
             cursor = conn.cursor()
             # Count existing rows to set sort_order
             cursor.execute("SELECT COUNT(*) FROM watchlist")
@@ -112,7 +122,7 @@ def remove_watchlist_item(symbol: str) -> bool:
     """Remove a symbol from the watchlist. Returns True if a row was deleted."""
     try:
         symbol = symbol.strip().upper()
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol,))
             deleted = cursor.rowcount
@@ -127,7 +137,7 @@ def remove_watchlist_item(symbol: str) -> bool:
 def seed_default_watchlist(default_items: list) -> None:
     """Seed the watchlist with default items only if the table is empty."""
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM watchlist")
             if cursor.fetchone()[0] == 0:

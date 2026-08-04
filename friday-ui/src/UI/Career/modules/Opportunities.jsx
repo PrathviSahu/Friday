@@ -50,7 +50,7 @@ export default function Opportunities() {
       .then(d => {
         const jList = d.jobs || [];
         setJobs(jList);
-        if (!selected && jList.length) setSelected(jList[0]);
+        setSelected(prev => (prev && jList.some(j => j.id === prev.id)) ? prev : (jList[0] || null));
       })
       .finally(() => setLoading(false));
   };

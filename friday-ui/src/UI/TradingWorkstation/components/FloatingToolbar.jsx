@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     TrendingUp, ArrowRight, Square, Minus, MoveVertical,
-    GitCommit, ArrowUpRight, ArrowDownRight, Brush, Trash2, Sliders, Pin, Palette
+    GitCommit, ArrowUpRight, ArrowDownRight, Brush, Trash2, Pin
 } from 'lucide-react';
 
 const FLOATING_ITEMS = [

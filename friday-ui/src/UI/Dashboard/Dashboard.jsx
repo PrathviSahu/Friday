@@ -3,19 +3,18 @@ import AnimatedCard from '../../components/Panels/AnimatedCard';
 import Clock from '../../components/Clock/Clock';
 import { useOrbState } from '../../hooks/useOrbState';
 import { useState, useEffect } from 'react';
-
-const API_BASE = 'http://localhost:8000';
+import { API_ENDPOINTS } from '../../api/config.js';
 
 async function fetchStats() {
     try {
-        const r = await fetch(`${API_BASE}/api/system/stats`);
+        const r = await fetch(API_ENDPOINTS.system + '/stats');
         return await r.json();
     } catch { return null; }
 }
 
 async function fetchMarket() {
     try {
-        const r = await fetch(`${API_BASE}/api/trading/live-prices`);
+        const r = await fetch(API_ENDPOINTS.trading + '/live-prices');
         return await r.json();
     } catch { return null; }
 }

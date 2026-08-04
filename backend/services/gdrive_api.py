@@ -11,7 +11,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 
-# Scopes required for 5TB Google Drive access
+# Scopes required for Google Drive access
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
 
 BASE_DIR = Path(__file__).parent.parent
@@ -111,7 +111,7 @@ def get_or_create_gdrive_vault_folder(service) -> str:
         folder = service.files().create(body=file_metadata, fields='id').execute()
         folder_id = folder.get('id')
         _gdrive_api_status["folder_id"] = folder_id
-        print(f"[GDrive API] 📁 Created root folder 'FRIDAY_AI_Vault' in 5TB Google Drive (ID: {folder_id})")
+        print(f"[GDrive API] 📁 Created root folder 'FRIDAY_AI_Vault' in Google Drive (ID: {folder_id})")
         return folder_id
     except Exception as e:
         print(f"[GDrive API] Error resolving vault folder: {e}")
@@ -119,7 +119,7 @@ def get_or_create_gdrive_vault_folder(service) -> str:
 
 
 def upload_db_to_gdrive_api() -> bool:
-    """Upload local SQLite database snapshot directly to 5TB Google Drive via API."""
+    """Upload local SQLite database snapshot directly to Google Drive via API."""
     global _gdrive_api_status
     if not LOCAL_DB.exists():
         return False
@@ -141,11 +141,11 @@ def upload_db_to_gdrive_api() -> bool:
         if files:
             file_id = files[0]['id']
             service.files().update(fileId=file_id, media_body=media).execute()
-            print(f"[GDrive API] ☁️ Updated database file in 5TB Google Drive (ID: {file_id})")
+            print(f"[GDrive API] ☁️ Updated database file in Google Drive (ID: {file_id})")
         else:
             file_metadata = {'name': filename, 'parents': [folder_id]} if folder_id else {'name': filename}
             created = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-            print(f"[GDrive API] ☁️ Created new database file in 5TB Google Drive (ID: {created.get('id')})")
+            print(f"[GDrive API] ☁️ Created new database file in Google Drive (ID: {created.get('id')})")
 
         _gdrive_api_status.update({
             "last_sync": time.time(),

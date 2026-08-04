@@ -5,10 +5,22 @@ import asyncio
 from pathlib import Path
 from playwright.async_api import async_playwright
 
-DB_FILE = Path(__file__).parent.parent / "data" / "career.db"
+# Sessions live in the unified friday_brain.db like the rest of Career OS
+# (previously a separate career.db — migrated once below).
+DB_FILE = Path(__file__).parent.parent / "data" / "friday_brain.db"
+
+
+def _connect():
+    """Thread-safe SQLite connection (WAL) for the unified brain DB."""
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
 
 def init_session_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = _connect()
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS platform_sessions (
@@ -24,7 +36,41 @@ def init_session_db():
     conn.commit()
     conn.close()
 
+
+def _migrate_legacy_career_db():
+    """One-time copy of platform_sessions from the old data/career.db (if any)."""
+    legacy = Path(__file__).parent.parent / "data" / "career.db"
+    if not legacy.exists():
+        return
+    try:
+        import sqlite3 as _sq
+        src = _sq.connect(legacy)
+        src.row_factory = _sq.Row
+        rows = src.execute(
+            "SELECT platform_key, account_name, headline, connections_count, "
+            "open_to_work, cookies_json, verified_at FROM platform_sessions"
+        ).fetchall()
+        src.close()
+        if not rows:
+            return
+        with _connect() as conn:
+            for r in rows:
+                conn.execute(
+                    "INSERT OR IGNORE INTO platform_sessions "
+                    "(platform_key, account_name, headline, connections_count, "
+                    "open_to_work, cookies_json, verified_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (r["platform_key"], r["account_name"], r["headline"],
+                     r["connections_count"], r["open_to_work"],
+                     r["cookies_json"], r["verified_at"]))
+            conn.commit()
+        print(f"[Platform Session] Migrated {len(rows)} session(s) from legacy career.db")
+    except Exception as err:
+        print(f"[Platform Session] Legacy migration skipped: {err}")
+
+
 init_session_db()
+_migrate_legacy_career_db()
 
 async def launch_real_browser_login(platform_key: str):
     """
@@ -60,11 +106,11 @@ async def launch_real_browser_login(platform_key: str):
                 if 'feed' in curr_url or 'in/' in curr_url or 'mynetwork' in curr_url or has_li_cookie or ('naukri.com' in curr_url and 'mnjuser' in curr_url):
                     cookies_json = json.dumps(cookies)
                     
-                    account_name = "Prathvi Sahu"
-                    headline = "Full Stack & AI Engineer"
-                    connections = 842
-                    open_to_work = 1
-                    
+                    account_name = ""
+                    headline = ""
+                    connections = 0
+                    open_to_work = 0
+
                     try:
                         if 'linkedin.com' in curr_url:
                             name_el = await page.query_selector(".profile-rail-card__actor-link, .identity-headline")
@@ -104,13 +150,17 @@ async def launch_real_browser_login(platform_key: str):
             return {"status": "error", "verified": False, "message": str(e)}
 
 def get_platform_session_status(platform_key: str):
-    """Retrieves verified session metadata for platform."""
-    conn = sqlite3.connect(DB_FILE)
+    """Retrieves verified session metadata for platform.
+
+    Returns an honest `needs_login` status when no session has been captured
+    yet — never a fabricated "connected" response.
+    """
+    conn = _connect()
     c = conn.cursor()
     c.execute("SELECT account_name, headline, connections_count, open_to_work, cookies_json, verified_at FROM platform_sessions WHERE platform_key = ?", (platform_key,))
     row = c.fetchone()
     conn.close()
-    
+
     if row:
         account_name, headline, connections, open_to_work, cookies_json, verified_at = row
         return {
@@ -118,25 +168,29 @@ def get_platform_session_status(platform_key: str):
             "healthy": True,
             "verified": True,
             "platform": platform_key.capitalize(),
-            "account_user": account_name or "Prathvi Sahu",
-            "headline": headline or "Full Stack & AI Engineer",
-            "connections": connections or 842,
+            "account_user": account_name or "Unknown account",
+            "headline": headline or "",
+            "connections": int(connections or 0),
             "open_to_work": bool(open_to_work),
             "last_verified": verified_at or "Recently",
             "cookie_expires_days": 14,
             "permissions": ["Read profile", "Search jobs", "Fill applications safely"]
         }
-    
+
     return {
-        "status": "connected",
-        "healthy": True,
-        "verified": True,
+        "status": "needs_login",
+        "healthy": False,
+        "verified": False,
         "platform": platform_key.capitalize(),
-        "account_user": "Prathvi Sahu",
-        "headline": "Java & AI Systems Developer",
-        "connections": 842,
-        "open_to_work": True,
-        "last_verified": "Active Session",
-        "cookie_expires_days": 14,
-        "permissions": ["Read profile", "Search jobs", "Fill applications safely"]
+        "account_user": None,
+        "headline": None,
+        "connections": 0,
+        "open_to_work": False,
+        "last_verified": None,
+        "cookie_expires_days": 0,
+        "permissions": [],
+        "message": (
+            f"No stored session for {platform_key}. "
+            "Use 'Connect' to log in once in a real browser and capture a session."
+        )
     }

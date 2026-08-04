@@ -106,7 +106,7 @@ export function createVault() {
       }
       key = candidate;
       return true;
-    } catch (e) {
+    } catch (_e) {
       key = null;
       return false; // wrong passphrase
     }

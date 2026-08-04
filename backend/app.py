@@ -1,99 +1,138 @@
-from dotenv import load_dotenv
+"""F.R.I.D.A.Y. AI Core — application wiring (v3).
+
+app.py is intentionally thin: it assembles the FastAPI app, wires the route
+modules (backend/routes/*), and owns the lifespan (env validation, background
+task startup/shutdown). All route logic lives in the route modules.
+"""
+
 from pathlib import Path
 
-# Load environment variables from backend/.env
+from dotenv import load_dotenv
+
+# Load environment variables from backend/.env first — services read these at import.
 env_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from contextlib import asynccontextmanager
-import uvicorn
 import asyncio
 import os
-import time
-import threading
+from contextlib import asynccontextmanager
 
-# ── Simple in-process rate limiter (token bucket) ───────────────────────
-# 30 requests / 60s window per IP. Protects Groq/Gemini API credits.
-_rate_store: dict = {}   # {ip: [timestamps]}
-_rate_lock  = threading.Lock()
-RATE_LIMIT  = 30         # max requests
-RATE_WINDOW = 60         # per N seconds
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import uvicorn
 
-def _is_rate_limited(ip: str) -> bool:
-    now = time.time()
-    with _rate_lock:
-        timestamps = _rate_store.get(ip, [])
-        # Keep only timestamps within the window
-        timestamps = [t for t in timestamps if now - t < RATE_WINDOW]
-        if len(timestamps) >= RATE_LIMIT:
-            _rate_store[ip] = timestamps
-            return True
-        timestamps.append(now)
-        _rate_store[ip] = timestamps
-        return False
+from routes.chat import router as chat_router
+from routes.system import router as system_router
+from routes.spotify import router as spotify_router
+from routes.todos import router as todos_router
+from routes.utilities import router as utilities_router
+from routes.watchlist import router as watchlist_router, seed_watchlist
+from routes.trading import router as trading_router
+from routes.automation import router as automation_router
+from routes.agents import router as agents_router
+from routes.learning import router as learning_router
+from routes.life_memory import router as life_memory_router
+from routes.devtools import router as devtools_router
+from routes.knowledge import router as knowledge_router
+from routers.career import router as career_router
+
+from services.market_data import start_market_pollers, stop_market_pollers
+from services.indian_market_data import start_indian_poller, stop_indian_poller
+from services.gdrive_sync import (
+    start_background_gdrive_sync,
+    stop_background_gdrive_sync,
+)
+from services.automation import start_automation_runner, stop_automation_runner
+from services.tts import cleanup_temp_audio
+from services.voice_auth import is_guest_permitted
 
 # ── Required environment variable validation ───────────────────────────────────
 REQUIRED_ENV_VARS = [
     ("GROQ_API_KEY",          "LLM voice responses will fail — brain is offline"),
-    ("GEMINI_API_KEY",        "Gemini fallback + STT will be unavailable"),
+    ("GEMINI_API_KEY",        "Gemini fallback will be unavailable"),
     ("SPOTIFY_CLIENT_ID",     "Spotify control will be unavailable"),
     ("SPOTIFY_CLIENT_SECRET", "Spotify control will be unavailable"),
+    ("FRIDAY_API_TOKEN",      "non-localhost API access will be rejected (401)"),
 ]
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Startup: validate .env keys; warn loudly if anything is missing or stubbed."""
-    env_ok = True
+OPTIONAL_ENV_VARS = [
+    ("TELEGRAM_BOT_TOKEN", "Telegram bot interface will be unavailable"),
+    ("TELEGRAM_OWNER_ID",  "Telegram bot rejects everyone (access denied)"),
+    ("FRIDAY_VAULT_KEY",   "Career vault falls back to auto-generated .vault_key"),
+]
+
+
+def _validate_env() -> None:
+    """Warn loudly about missing / stubbed keys at startup (no silent failures)."""
+    missing_required = []
     for var, consequence in REQUIRED_ENV_VARS:
         val = os.getenv(var, "").strip()
         if not val or val in ("your_key_here", "your_spotify_client_id",
                               "your_spotify_client_secret",
                               "generated_by_spotify_auth_setup_py"):
-            if env_ok:
-                print("\n⚠️  FRIDAY Startup — Missing / stubbed environment variables:")
-            print(f"   • {var}: {consequence}")
-            env_ok = False
-    if not env_ok:
+            missing_required.append((var, consequence))
+    if missing_required:
+        print("\n🚨 FRIDAY STARTUP — Missing Required API Keys:")
+        for var, consequence in missing_required:
+            print(f"  ❌ {var}: {consequence}")
         print("   → Copy backend/.env.example → backend/.env and fill in your API keys.\n")
-    else:
-        print("✅ FRIDAY environment validation passed — all keys present.")
-    yield  # App runs here
-    # Shutdown hook (nothing to clean up in MVP)
 
-from services.brain import respond, get_proactive_suggestion
-from services.tts import generate_speech
-from services.voice_auth import is_guest_permitted, set_guest_permission
-from services.memory import get_all_memories, save_fact
-from services.system_control import get_spotify_current_track, set_spotify_position, duck_spotify_volume, unduck_spotify_volume, open_app, close_app
+    missing_optional = []
+    for var, consequence in OPTIONAL_ENV_VARS:
+        if not os.getenv(var, "").strip():
+            missing_optional.append((var, consequence))
+    if missing_optional:
+        print("⚠️  FRIDAY STARTUP — Optional keys not set:")
+        for var, consequence in missing_optional:
+            print(f"   • {var}: {consequence}")
+        print()
 
-from services.todos import get_todos, add_todo, toggle_todo, delete_todo, clear_done, update_todo_text
-from services.system_stats import get_system_stats
-from services.weather import get_weather
-from services.web_search import search_web_instant
-from services.reminders import add_reminder, get_active_reminders
-from services.mac_controls import (
-    get_display_status,
-    set_brightness,
-    set_dark_mode,
-    set_system_volume,
-    set_system_mute,
-    lock_display,
-)
 
-# Ensure temp_audio directory exists
-AUDIO_DIR = Path('temp_audio')
-AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: validate env, seed data, launch background tasks.
 
-# Career OS router
-from routers.career import router as career_router
+    Shutdown: stop background threads / tasks so tests and reloads are clean.
+    """
+    _validate_env()
 
-app = FastAPI(title="FRIDAY AI Core", version="2.0.0", lifespan=lifespan)
+    # Seed default watchlist (only if the table is empty)
+    seed_watchlist()
 
-# Enable CORS — frontend origins only (removed self-referential backend origin)
+    # Background market-data pollers (previously spawned at module import —
+    # that made testing impossible and created zombie threads).
+    start_market_pollers()
+    start_indian_poller()
+
+    # Google Drive background sync (DB snapshot backup)
+    start_background_gdrive_sync(interval_seconds=300)
+
+    # Automation Engine — scheduled workflows (briefing, job scans, ...)
+    start_automation_runner()
+
+    # Temp audio cleanup: delete stale generated MP3s every 2 minutes
+    audio_dir = Path(__file__).parent / "temp_audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    cleanup_task = asyncio.create_task(cleanup_temp_audio(audio_dir))
+
+    yield
+
+    # ── Shutdown ──
+    stop_market_pollers()
+    stop_indian_poller()
+    stop_background_gdrive_sync()
+    stop_automation_runner()
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
+
+app = FastAPI(title="FRIDAY AI Core", version="3.3.0", lifespan=lifespan)
+
+# Enable CORS — frontend origins only (no self-referential backend origin)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -103,661 +142,44 @@ app.add_middleware(
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
-app.mount('/temp_audio', StaticFiles(directory='temp_audio'), name='temp_audio')
+# Generated TTS audio (ensure the dir exists before mounting)
+Path(__file__).parent.joinpath("temp_audio").mkdir(parents=True, exist_ok=True)
+app.mount('/temp_audio', StaticFiles(directory=Path(__file__).parent / "temp_audio"), name='temp_audio')
 
-# Register Career OS router
+# Route modules (v3 modular split)
+app.include_router(chat_router)
+app.include_router(system_router)
+app.include_router(spotify_router)
+app.include_router(todos_router)
+app.include_router(utilities_router)
+app.include_router(watchlist_router)
+app.include_router(trading_router)
+app.include_router(automation_router)
+app.include_router(agents_router)
+app.include_router(learning_router)
+app.include_router(life_memory_router)
+app.include_router(devtools_router)
+app.include_router(knowledge_router)
 app.include_router(career_router)
-
-
-class ChatTextRequest(BaseModel):
-    text: str
-    is_boss: bool = True
-    silence_tts: bool = False
-
-
-class TTSRequest(BaseModel):
-    text: str
-
-
-class PermissionRequest(BaseModel):
-    allow: bool
-
-
-class SaveMemoryRequest(BaseModel):
-    key: str
-    value: str
-
-
-class SearchRequest(BaseModel):
-    query: str
-
-
-class ReminderRequest(BaseModel):
-    message: str
-    seconds: int
-
-
-class BrightnessRequest(BaseModel):
-    level: float
-
-
-class DarkModeRequest(BaseModel):
-    enabled: bool
-
-
-class VolumeRequest(BaseModel):
-    level: int
-
-
-class MuteRequest(BaseModel):
-    muted: bool
-
-
-class TodoCreateRequest(BaseModel):
-    text: str
-    priority: str = "normal"  # "high" | "normal" | "low"
-
-
-class TodoTextRequest(BaseModel):
-    text: str
 
 
 @app.get("/")
 def read_root():
     return {
         "status": "online",
-        "system": "F.R.I.D.A.Y. AI Core v2.0",
-        "guest_permitted": is_guest_permitted()
+        "system": "F.R.I.D.A.Y. AI Core v3.3.0",
+        "guest_permitted": is_guest_permitted(),
     }
-
-
-@app.post("/api/chat/text")
-async def chat_text_endpoint(req: ChatTextRequest, request: Request):
-    """Text-based chat endpoint for FRIDAY AI brain with memory learning.
-    Rate limited: 30 requests / 60s per IP to protect Groq/Gemini API credits.
-    Uses asyncio.to_thread() to prevent blocking the event loop during
-    synchronous Groq/Gemini LLM calls (150ms–2s per request).
-    """
-    client_ip = request.client.host if request.client else "unknown"
-    if _is_rate_limited(client_ip):
-        raise HTTPException(
-            status_code=429,
-            detail="Too many requests. Please slow down, Prem — even I need a breather!"
-        )
-    try:
-        res = await asyncio.to_thread(
-            respond, req.text, req.is_boss, req.silence_tts
-        )
-        return res
-    except Exception as e:
-        import traceback
-        print(f"[Error] Chat endpoint error: {e}")
-        traceback.print_exc()
-        return {
-            "reply": "I apologize Prem, I had a momentary connection hiccup. Could you repeat that?",
-            "action": "none"
-        }
-
-
-@app.get("/api/memory")
-def get_memories_endpoint():
-    """Retrieve all stored long-term memories"""
-    return {"status": "ok", "memories": get_all_memories()}
-
-
-@app.post("/api/memory")
-def save_memory_endpoint(req: SaveMemoryRequest):
-    """Manually add or edit a memory fact"""
-    save_fact(req.key, req.value)
-    return {"status": "ok", "memories": get_all_memories()}
-
-
-class SpeechCorrectionRequest(BaseModel):
-    original_text: str
-    corrected_text: str
-
-@app.post("/api/speech/correct")
-def record_speech_correction(req: SpeechCorrectionRequest):
-    """Record a user speech correction permanently in personal vocabulary memory."""
-    from speech.personal_vocabulary import PersonalVocabularyEngine
-    ok = PersonalVocabularyEngine().record_correction(req.original_text, req.corrected_text)
-    return {"status": "ok" if ok else "error"}
-
-
-@app.post("/api/permission")
-def set_permission_endpoint(req: PermissionRequest):
-    """Grant or revoke guest voice permission"""
-    set_guest_permission(req.allow)
-    return {"status": "ok", "guest_permitted": is_guest_permitted()}
-
-
-@app.get("/api/spotify/current-track")
-def get_spotify_track_endpoint():
-    """Retrieve details of currently playing track on Spotify"""
-    return get_spotify_current_track()
-
-
-class SpotifySeekRequest(BaseModel):
-    seconds: float
-
-@app.post("/api/spotify/seek")
-def spotify_seek_endpoint(req: SpotifySeekRequest):
-    """Seek to specific position in currently playing Spotify track"""
-    ok = set_spotify_position(req.seconds)
-    return {"status": "ok" if ok else "error"}
-
-
-@app.post("/api/spotify/duck")
-def spotify_duck_endpoint():
-    """Lower Spotify volume while FRIDAY is speaking."""
-    ok = duck_spotify_volume()
-    return {"status": "ok" if ok else "ignored"}
-
-
-@app.post("/api/spotify/unduck")
-def spotify_unduck_endpoint():
-    """Restore Spotify volume after FRIDAY finishes speaking."""
-    ok = unduck_spotify_volume()
-    return {"status": "ok" if ok else "ignored"}
-
-
-class AppRequest(BaseModel):
-    app: str
-
-@app.post("/api/open-app")
-def open_app_endpoint(req: AppRequest):
-    """Open a macOS application."""
-    ok = open_app(req.app)
-    return {"status": "ok" if ok else "error", "app": req.app}
-
-@app.post("/api/close-app")
-def close_app_endpoint(req: AppRequest):
-    """Close a macOS application."""
-    ok = close_app(req.app)
-    return {"status": "ok" if ok else "error", "app": req.app}
-
-
-# ── macOS Display & Hardware Controls ─────────────────────────────────────────
-@app.get("/api/system/display")
-def get_display_endpoint():
-    """Return live brightness, dark mode, system volume, and mute status."""
-    return get_display_status()
-
-
-@app.post("/api/system/display/brightness")
-def set_brightness_endpoint(req: BrightnessRequest):
-    """Set main display brightness (0-100 or 0.0-1.0)."""
-    ok = set_brightness(req.level)
-    return {"status": "ok" if ok else "error", "brightness": req.level}
-
-
-@app.post("/api/system/display/dark-mode")
-def set_dark_mode_endpoint(req: DarkModeRequest):
-    """Toggle macOS Dark Mode on or off."""
-    ok = set_dark_mode(req.enabled)
-    return {"status": "ok" if ok else "error", "dark_mode": req.enabled}
-
-
-@app.post("/api/system/display/volume")
-def set_volume_endpoint(req: VolumeRequest):
-    """Set system output volume (0-100)."""
-    ok = set_system_volume(req.level)
-    return {"status": "ok" if ok else "error", "volume": req.level}
-
-
-@app.post("/api/system/display/mute")
-def set_mute_endpoint(req: MuteRequest):
-    """Mute or unmute system audio output."""
-    ok = set_system_mute(req.muted)
-    return {"status": "ok" if ok else "error", "muted": req.muted}
-
-
-@app.post("/api/system/display/lock")
-def lock_display_endpoint():
-    """Immediately lock display / trigger screen saver."""
-    ok = lock_display()
-    return {"status": "ok" if ok else "error"}
-
-
-@app.get("/api/proactive")
-def proactive_endpoint():
-    """Return a time-aware proactive suggestion FRIDAY can speak spontaneously."""
-    return get_proactive_suggestion()
-
-
-@app.get("/api/system/stats")
-def system_stats_endpoint():
-    """Return live CPU, RAM, Disk, and Battery stats."""
-    return get_system_stats()
-
-
-@app.get("/api/weather")
-def weather_endpoint():
-    """Return live weather data."""
-    return get_weather()
-
-
-@app.post("/api/search")
-def web_search_endpoint(req: SearchRequest):
-    """Search DuckDuckGo instant answer snippets."""
-    return search_web_instant(req.query)
-
-
-@app.get("/api/reminders")
-def get_reminders_endpoint():
-    """Get active timers and reminders."""
-    return {"reminders": get_active_reminders()}
-
-
-@app.post("/api/reminders")
-def add_reminder_endpoint(req: ReminderRequest):
-    """Set a timer/reminder."""
-    item = add_reminder(req.message, req.seconds)
-    return {"status": "ok", "reminder": item}
-
-
-# ── Todo endpoints ──────────────────────────────────────────
-
-@app.get("/api/todos")
-def get_todos_endpoint():
-    """Get all todos"""
-    return {"todos": get_todos()}
-
-
-@app.post("/api/todos")
-def create_todo_endpoint(req: TodoCreateRequest):
-    """Add a new todo"""
-    item = add_todo(req.text, req.priority)
-    return {"status": "ok", "todo": item}
-
-
-@app.patch("/api/todos/{todo_id}/toggle")
-def toggle_todo_endpoint(todo_id: str):
-    """Toggle a todo's done state"""
-    item = toggle_todo(todo_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return {"status": "ok", "todo": item}
-
-
-@app.patch("/api/todos/{todo_id}/text")
-def update_todo_endpoint(todo_id: str, req: TodoTextRequest):
-    """Edit todo text"""
-    item = update_todo_text(todo_id, req.text)
-    if not item:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return {"status": "ok", "todo": item}
-
-
-@app.delete("/api/todos/done")
-def clear_done_endpoint():
-    """Remove all completed todos"""
-    count = clear_done()
-    return {"status": "ok", "removed": count}
-
-
-@app.delete("/api/todos/{todo_id}")
-def delete_todo_endpoint(todo_id: str):
-    """Delete a todo by id"""
-    ok = delete_todo(todo_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return {"status": "ok"}
-
-
-@app.post("/api/tts")
-async def tts_endpoint(req: TTSRequest):
-    """Generate British female voice audio using Edge-TTS"""
-    try:
-        file_path = await generate_speech(req.text, AUDIO_DIR)
-        # Verify generated audio file exists on disk before returning URL
-        if not file_path.exists() or file_path.stat().st_size == 0:
-            raise HTTPException(status_code=500, detail="Generated audio file is missing or empty")
-        return {"audio_url": f"http://localhost:8000/temp_audio/{file_path.name}"}
-    except Exception as e:
-        print(f"[Error] TTS generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-from database.chart_db import get_chart_drawings, save_chart_drawings
-
-
-class ChartSaveRequest(BaseModel):
-    symbol: str
-    drawings_data: dict
-
-
-@app.get("/api/trading/chart-db")
-def get_chart_drawings_endpoint(symbol: str = "OANDA:NAS100USD"):
-    """Fetch saved chart drawings & layout data from SQLite database."""
-    return get_chart_drawings(symbol)
-
-
-@app.post("/api/trading/chart-db")
-def save_chart_drawings_endpoint(req: ChartSaveRequest):
-    """Save chart drawings & layout data to SQLite database."""
-    ok = save_chart_drawings(req.symbol, req.drawings_data)
-    if not ok:
-        raise HTTPException(status_code=500, detail="Failed to save chart drawings")
-    return {"status": "ok", "symbol": req.symbol.upper()}
-
-
-from services.gdrive_sync import start_background_gdrive_sync, perform_gdrive_sync, get_gdrive_sync_status
-
-# Start background 5TB Google Drive sync engine on server startup
-start_background_gdrive_sync(interval_seconds=30)
-
-
-@app.get("/api/gdrive/status")
-def get_gdrive_status_endpoint():
-    """Get 5TB Google Drive background sync status."""
-    return get_gdrive_sync_status()
-
-
-@app.post("/api/gdrive/sync-now")
-def trigger_gdrive_sync_endpoint():
-    """Trigger an instant background backup to Google Drive."""
-    res = perform_gdrive_sync()
-    return {"status": "ok", "gdrive": res}
-
-
-from services.market_data import fetch_live_market_prices
-from services.indian_market_data import get_indian_market_prices, is_market_open
-
-
-@app.get("/api/trading/live-prices")
-def get_live_prices_endpoint():
-    """Get live real-time market prices with micro tick fluctuations."""
-    prices = fetch_live_market_prices()
-    try:
-        indian = get_indian_market_prices()
-        if indian:
-            prices.update(indian)
-    except Exception as e:
-        print("[Live Prices] Error merging Indian prices:", e)
-    return prices
-
-
-@app.get("/api/trading/indian-prices")
-def get_indian_prices_endpoint():
-    """Get live Indian market data (NSE/BSE) via Yahoo Finance. Refreshes every 3 min."""
-    data = get_indian_market_prices()
-    return {
-        "market_open": is_market_open(),
-        "prices": data,
-        "timestamp": __import__('time').time(),
-    }
-
-@app.get("/api/trading/ohlcv")
-def get_ohlcv_endpoint(symbol: str = "FX:EURUSD", interval: str = "5"):
-    """
-    Fetch OHLCV candle data — Forex optimised, 24/5 always live.
-    Supports FX pairs, Gold, DXY, Crypto, US stocks, Indices.
-    interval: 1, 5, 15, 30, 60, 240 (minutes), D (daily), W (weekly)
-    """
-    import yfinance as yf
-
-    # TV symbol → Yahoo Finance ticker (Forex-first)
-    SYMBOL_MAP = {
-        # Forex major pairs
-        'FX:EURUSD': 'EURUSD=X', 'FX:GBPUSD': 'GBPUSD=X', 'FX:USDJPY': 'JPY=X',
-        'FX:USDCHF': 'CHF=X',    'FX:USDCAD': 'CAD=X',    'FX:AUDUSD': 'AUDUSD=X',
-        'FX:NZDUSD': 'NZDUSD=X',
-        # Forex cross pairs
-        'FX:EURJPY': 'EURJPY=X', 'FX:GBPJPY': 'GBPJPY=X', 'FX:EURGBP': 'EURGBP=X',
-        'FX:EURAUD': 'EURAUD=X',
-        # Commodities & Indices
-        'OANDA:XAUUSD': 'GC=F', 'OANDA:XAGUSD': 'SI=F', 'NYMEX:CL1!': 'CL=F',
-        'OANDA:NAS100USD': '^NDX', 'OANDA:SPX500USD': '^GSPC', 'CAPITALCOM:DXY': 'DX-Y.NYB',
-        'OANDA:UK100GBP': '^FTSE', 'OANDA:DE30EUR': '^GDAXI',
-        # Crypto
-        'BINANCE:BTCUSDT': 'BTC-USD', 'BINANCE:ETHUSDT': 'ETH-USD',
-        'BINANCE:SOLUSDT': 'SOL-USD',  'BINANCE:BNBUSDT': 'BNB-USD',
-        # US Stocks
-        'NASDAQ:AAPL': 'AAPL', 'NASDAQ:TSLA': 'TSLA', 'NASDAQ:NVDA': 'NVDA',
-        'NASDAQ:META': 'META', 'NASDAQ:AMZN': 'AMZN', 'NASDAQ:MSFT': 'MSFT',
-        'NASDAQ:GOOGL': 'GOOGL', 'NYSE:JPM': 'JPM', 'NYSE:GS': 'GS',
-    }
-
-    # TV interval → (yfinance_period, yfinance_interval)
-    # Forex = 24/5, use tighter windows so data is always fresh
-    INTERVAL_MAP = {
-        '1':   ('2d',  '1m'),   # last 2 days of 1-minute candles
-        '5':   ('5d',  '5m'),   # 5 days of 5-minute candles
-        '15':  ('10d', '15m'),  # 10 days of 15-minute candles
-        '30':  ('20d', '30m'),  # 20 days of 30-minute candles
-        '60':  ('60d', '60m'),  # 60 days of 1-hour candles
-        '240': ('60d', '60m'),  # 4H: fetch 1H and client resamples — yfinance has no 4H
-        'D':   ('2y',  '1d'),   # 2 years of daily
-        'W':   ('5y',  '1wk'),  # 5 years of weekly
-    }
-
-    yf_interval_key = str(interval)
-    period, yf_interval = INTERVAL_MAP.get(yf_interval_key, ('5d', '5m'))
-
-    # Resolve ticker
-    yf_ticker = SYMBOL_MAP.get(symbol, symbol)
-
-    # Determine decimal precision: Forex pairs = 5dp, JPY pairs = 3dp, Gold/indices = 2dp
-    is_jpy = 'JPY' in symbol.upper()
-    is_fx  = symbol.startswith('FX:')
-    if is_jpy:
-        digits = 3
-    elif is_fx:
-        digits = 5
-    else:
-        digits = 4
-
-    try:
-        tk  = yf.Ticker(yf_ticker)
-        df  = tk.history(period=period, interval=yf_interval, auto_adjust=True)
-        if df is None or df.empty:
-            return {"candles": [], "symbol": symbol, "yf_ticker": yf_ticker, "error": "No data returned"}
-
-        candles = []
-        for ts, row in df.iterrows():
-            t = int(ts.timestamp())
-            candles.append({
-                "time":   t,
-                "open":   round(float(row['Open']),  digits),
-                "high":   round(float(row['High']),  digits),
-                "low":    round(float(row['Low']),   digits),
-                "close":  round(float(row['Close']), digits),
-                "volume": int(row.get('Volume', 0) or 0),
-            })
-
-        print(f"[OHLCV] ✅ {symbol} ({yf_ticker}) {yf_interval}/{period} → {len(candles)} candles")
-        return {"candles": candles, "symbol": symbol, "yf_ticker": yf_ticker, "interval": yf_interval, "count": len(candles)}
-    except Exception as e:
-        print(f"[OHLCV] ❌ Error fetching {yf_ticker}: {e}")
-        return {"candles": [], "symbol": symbol, "error": str(e)}
-
-
-
-@app.get("/api/trading/search")
-def search_trading_symbols(q: str = ""):
-    """Live real-time search across ALL 5000+ stocks on Earth (NSE, BSE, NASDAQ, NYSE, Forex, Crypto)."""
-    query = q.strip()
-    if not query:
-        return {"results": []}
-
-    results = []
-    seen = set()
-
-    # Helper to append formatted ticker
-    def add_item(sym, name_str, exch_str, type_str):
-        if not sym or sym in seen:
-            return
-        seen.add(sym)
-
-        if sym.endswith(".NS"):
-            ticker = sym[:-3]
-            tv_symbol = f"NSE:{ticker}"
-            exchange = "NSE"
-            stype = "stock"
-            logo_img = f"https://www.google.com/s2/favicons?domain={ticker.lower()}.com&sz=64"
-            logo_img2 = "https://flagcdn.com/h24/in.png"
-        elif sym.endswith(".BO"):
-            ticker = sym[:-3]
-            tv_symbol = f"BSE:{ticker}"
-            exchange = "BSE"
-            stype = "stock"
-            logo_img = f"https://www.google.com/s2/favicons?domain={ticker.lower()}.com&sz=64"
-            logo_img2 = "https://flagcdn.com/h24/in.png"
-        elif "=X" in sym:
-            tv_symbol = f"FX:{sym.replace('=X', '')}"
-            exchange = "FX"
-            stype = "forex"
-            logo_img = "https://flagcdn.com/h24/eu.png"
-            logo_img2 = "https://flagcdn.com/h24/us.png"
-        elif "-USD" in sym:
-            ticker = sym.replace("-USD", "USDT")
-            tv_symbol = f"BINANCE:{ticker}"
-            exchange = "BINANCE"
-            stype = "crypto"
-            logo_img = "https://assets.coingecko.com/coins/images/1/small/bitcoin.png"
-            logo_img2 = None
-        else:
-            clean_sym = sym.replace("^", "")
-            tv_symbol = f"NASDAQ:{clean_sym}" if "NASDAQ" in exch_str.upper() else f"NYSE:{clean_sym}"
-            exchange = "NASDAQ" if "NASDAQ" in exch_str.upper() else ("NSE" if "NSE" in exch_str.upper() else "NYSE")
-            stype = "stock"
-            logo_img = f"https://www.google.com/s2/favicons?domain={clean_sym.lower()}.com&sz=64"
-            logo_img2 = "https://flagcdn.com/h24/us.png"
-
-        results.append({
-            "symbol": tv_symbol,
-            "name": sym.replace(".NS", "").replace(".BO", "").replace("^", ""),
-            "full": name_str or sym,
-            "type": stype,
-            "exchange": exchange,
-            "logoImg": logo_img,
-            "logoImg2": logo_img2,
-            "logoBg": "#1d4ed8" if "NSE" in exchange or "BSE" in exchange else "#0891b2",
-            "isPositive": True,
-        })
-
-    # Try yfinance.Search first
-    try:
-        import yfinance as yf
-        yf_search = yf.Search(query, max_results=12)
-        for item in yf_search.quotes:
-            sym = item.get("symbol")
-            name = item.get("shortname") or item.get("longname") or sym
-            exch = item.get("exchDisp") or ""
-            qtype = item.get("quoteType") or ""
-            add_item(sym, name, exch, qtype)
-    except Exception as e:
-        print("[yfinance Search Warning]", e)
-
-    # Fallback to direct requests if yfinance returns empty
-    if not results:
-        try:
-            import requests
-            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={requests.utils.quote(query)}&quotesCount=12"
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
-            resp = requests.get(url, headers=headers, timeout=4)
-            if resp.ok:
-                for item in resp.json().get("quotes", []):
-                    sym = item.get("symbol")
-                    name = item.get("shortname") or item.get("longname") or sym
-                    exch = item.get("exchDisp") or ""
-                    qtype = item.get("quoteType") or ""
-                    add_item(sym, name, exch, qtype)
-        except Exception as err:
-            print("[Direct Search Error]", err)
-
-    return {"results": results}
-
-
-# ── Watchlist DB endpoints ────────────────────────────────────────────────────
-
-from database.watchlist_db import (
-    get_watchlist, add_watchlist_item, remove_watchlist_item, seed_default_watchlist
-)
-
-# Seed default watchlist on startup (only if table is empty)
-DEFAULT_WATCHLIST_SEED = [
-    { "symbol": "CAPITALCOM:DXY",  "name": "DXY",    "full": "U.S. Dollar Index",         "logoImg": "https://flagcdn.com/h24/us.png",  "logoBg": "#059669", "type": "index",    "exchange": "CAPITALCOM", "isPositive": False, "price": "101.148", "change": "-0.045", "changePct": "-0.04%" },
-    { "symbol": "OANDA:XAUUSD",    "name": "XAUUSD",  "full": "Gold Spot / U.S. Dollar",   "logoImg": "https://assets.coingecko.com/coins/images/32324/small/gold.png", "logoImg2": "https://flagcdn.com/h24/us.png", "logoBg": "#d97706", "type": "commodity", "exchange": "OANDA", "isPositive": True,  "flagged": True },
-    { "symbol": "FX:USDCHF",       "name": "USDCHF",  "full": "USD / Swiss Franc",         "logoImg": "https://flagcdn.com/h24/us.png",  "logoImg2": "https://flagcdn.com/h24/ch.png", "logoBg": "#2563eb", "type": "forex", "exchange": "FX", "isPositive": False },
-    { "symbol": "FX:USDCAD",       "name": "USDCAD",  "full": "USD / Canadian Dollar",     "logoImg": "https://flagcdn.com/h24/us.png",  "logoImg2": "https://flagcdn.com/h24/ca.png", "logoBg": "#dc2626", "type": "forex", "exchange": "FX", "isPositive": False },
-    { "symbol": "FX:EURAUD",       "name": "EURAUD",  "full": "EUR / Australian Dollar",   "logoImg": "https://flagcdn.com/h24/eu.png",  "logoImg2": "https://flagcdn.com/h24/au.png", "logoBg": "#089981", "type": "forex", "exchange": "FX", "isPositive": True  },
-    { "symbol": "OANDA:NAS100USD", "name": "NASDAQ",  "full": "US Tech 100 Index",         "logoImg": "https://flagcdn.com/h24/us.png",  "logoBg": "#0891b2", "type": "index",    "exchange": "OANDA", "isPositive": False, "flagged": True },
-    { "symbol": "FX:EURUSD",       "name": "EURUSD",  "full": "EUR / U.S. Dollar",         "logoImg": "https://flagcdn.com/h24/eu.png",  "logoImg2": "https://flagcdn.com/h24/us.png", "logoBg": "#089981", "type": "forex", "exchange": "FX", "isPositive": True  },
-    { "symbol": "FX:GBPUSD",       "name": "GBPUSD",  "full": "GBP / U.S. Dollar",         "logoImg": "https://flagcdn.com/h24/gb.png",  "logoImg2": "https://flagcdn.com/h24/us.png", "logoBg": "#1e54e4", "type": "forex", "exchange": "FX", "isPositive": False },
-    { "symbol": "FX:NZDUSD",       "name": "NZDUSD",  "full": "NZD / U.S. Dollar",         "logoImg": "https://flagcdn.com/h24/nz.png",  "logoImg2": "https://flagcdn.com/h24/us.png", "logoBg": "#f23645", "type": "forex", "exchange": "FX", "isPositive": False },
-    { "symbol": "BINANCE:BTCUSDT", "name": "BTCUSD",  "full": "Bitcoin / Tether",          "logoImg": "https://assets.coingecko.com/coins/images/1/small/bitcoin.png", "logoBg": "#f59e0b", "type": "crypto", "exchange": "BINANCE", "isPositive": False, "flagged": True },
-    { "symbol": "FX:GBPJPY",       "name": "GBPJPY",  "full": "GBP / Japanese Yen",        "logoImg": "https://flagcdn.com/h24/gb.png",  "logoImg2": "https://flagcdn.com/h24/jp.png", "logoBg": "#b91c1c", "type": "forex", "exchange": "FX", "isPositive": False },
-]
-seed_default_watchlist(DEFAULT_WATCHLIST_SEED)
-
-
-class WatchlistAddRequest(BaseModel):
-    symbol:     str
-    name:       str
-    full:       str = ""
-    logoImg:    str = ""
-    logoImg2:   str = ""
-    logoBg:     str = "#2962ff"
-    logoText:   str = ""
-    type:       str = ""
-    exchange:   str = ""
-    isPositive: bool = True
-    flagged:    bool = False
-    price:      str = "—"
-    change:     str = "—"
-    changePct:  str = "—"
-
-
-def _row_to_frontend(row: dict) -> dict:
-    """Convert DB snake_case row → camelCase for frontend."""
-    return {
-        "symbol":     row.get("symbol", ""),
-        "name":       row.get("name", ""),
-        "full":       row.get("full_name", ""),
-        "logoImg":    row.get("logo_img", ""),
-        "logoImg2":   row.get("logo_img2", "") or None,
-        "logoBg":     row.get("logo_bg", "#2962ff"),
-        "logoText":   row.get("logo_text", ""),
-        "type":       row.get("type", ""),
-        "exchange":   row.get("exchange", ""),
-        "isPositive": bool(row.get("is_positive", True)),
-        "flagged":    bool(row.get("flagged", False)),
-        "price":      row.get("price", "—"),
-        "change":     row.get("change", "—"),
-        "changePct":  row.get("change_pct", "—"),
-    }
-
-
-@app.get("/api/watchlist")
-def get_watchlist_endpoint():
-    """Return all watchlist symbols ordered by position."""
-    rows = get_watchlist()
-    return {"items": [_row_to_frontend(r) for r in rows]}
-
-
-@app.post("/api/watchlist")
-def add_watchlist_endpoint(req: WatchlistAddRequest):
-    """Add or update a symbol in the watchlist DB."""
-    ok = add_watchlist_item(req.model_dump())
-    if not ok:
-        raise HTTPException(status_code=400, detail="Failed to save watchlist item")
-    return {"status": "ok", "symbol": req.symbol.upper()}
-
-
-@app.delete("/api/watchlist/{symbol}")
-def delete_watchlist_endpoint(symbol: str):
-    """Remove a symbol from the watchlist DB."""
-    ok = remove_watchlist_item(symbol)
-    if not ok:
-        raise HTTPException(status_code=404, detail=f"{symbol.upper()} not found in watchlist")
-    return {"status": "ok", "symbol": symbol.upper()}
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # proxy_headers=False: never trust X-Forwarded-For / X-Real-IP from
+    # clients. Otherwise any remote caller could spoof `X-Forwarded-For:
+    # 127.0.0.1` and bypass owner authentication (uvicorn rewrites
+    # request.client from those headers by default). FRIDAY is a direct local
+    # service — the Vite dev proxy connects from 127.0.0.1 anyway.
+    uvicorn.run(app, host="0.0.0.0", port=8000, proxy_headers=False)

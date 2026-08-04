@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Sliders, Maximize2, X, TrendingUp, BarChart2, Save, Undo, Redo, Plus, Minus, Mic, MicOff, Calculator } from 'lucide-react';
+import { Search, Maximize2, X, Minus, Mic, MicOff, Calculator } from 'lucide-react';
 import { useFriday } from '../../context/FridayContext';
 import { API_ENDPOINTS } from '../../api/config.js';
 import { stopSpeaking } from '../../services/ttsService';
@@ -26,8 +26,8 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
     const [showSymbolSearchModal, setShowSymbolSearchModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [layoutGrid, setLayoutGrid] = useState('single'); // 'single' | 'dual' | 'quad'
-    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
+    const [, setIsFullscreen] = useState(false);
 
     // Risk-Reward Lot Size Calculator State
     const [showRiskCalculatorModal, setShowRiskCalculatorModal] = useState(false);
@@ -54,8 +54,9 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
         loadChartFromDb();
     }, [selectedSymbol]);
 
-    // Save chart drawings & layout to SQLite database
-    const saveChartToDb = async () => {
+    // Save chart drawings & layout to SQLite database (memoized on the active
+    // symbol so the 5s autosave interval doesn't reset on every render)
+    const saveChartToDb = React.useCallback(async () => {
         setSaveStatus('saving');
         try {
             const drawingsObj = {};
@@ -81,13 +82,13 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
             console.warn('[Chart DB] Auto-save error:', err);
             setSaveStatus('error');
         }
-    };
+    }, [selectedSymbol]);
 
     // Auto-Save drawings & chart layout to SQLite DB silently every 5 seconds
     React.useEffect(() => {
         const iv = setInterval(saveChartToDb, 5000);
         return () => clearInterval(iv);
-    }, [selectedSymbol]);
+    }, [saveChartToDb]);
 
     const toggleMicSilence = () => {
         if (micEnabled) {

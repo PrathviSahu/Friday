@@ -35,6 +35,14 @@ const IDLE_MESSAGES = [
 
 const OrbContext = createContext(null);
 
+// Shortened authentication for faster unlock experience (module-scope constant
+// so it is referentially stable across renders — enables clean hook deps)
+const AUTH_STEPS = [
+    { id: 'voice_detected', label: 'VOICE',        icon: '🎙️', delay: 0     },  // Quick detection
+    { id: 'identity',       label: 'ID CONFIRMED', icon: '✓', delay: 500 },  // Fast identity check
+    { id: 'welcome',        label: 'WELCOME',    icon: '★', delay: 800 },  // Immediate welcome
+];
+
 export function OrbProvider({ children }) {
     const [appState,   setAppState]   = useState('BOOTING');
     const [stateLabel, setLabel]      = useState('INITIALIZING...');
@@ -111,7 +119,7 @@ export function OrbProvider({ children }) {
                 if (nextState === 'IDLE') startIdleRotation();
             },
         });
-    }, []);
+    }, [startIdleRotation]);
 
     // ── Idle message rotation ────────────────────────────────────────────────
     const startIdleRotation = useCallback(() => {
@@ -123,12 +131,6 @@ export function OrbProvider({ children }) {
     }, []);
 
     // ── Authentication sequence ──────────────────────────────────────────────
-    // Shortened authentication for faster unlock experience
-    const AUTH_STEPS = [
-        { id: 'voice_detected', label: 'VOICE',        icon: '🎙️', delay: 0     },  // Quick detection
-        { id: 'identity',       label: 'ID CONFIRMED', icon: '✓', delay: 500 },  // Fast identity check
-        { id: 'welcome',        label: 'WELCOME',    icon: '★', delay: 800 },  // Immediate welcome
-    ];
     useEffect(() => {
         return () => {
             (commandTimersRef.current || []).forEach((timerId) => clearTimeout(timerId));
@@ -173,9 +175,9 @@ export function OrbProvider({ children }) {
             setTimeout(() => {
                 gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
                 osc.stop(ctx.currentTime + 0.2);
-                setTimeout(() => { try { ctx.close(); } catch (e) {} }, 300);
+                setTimeout(() => { try { ctx.close(); } catch (_e) {} }, 300);
             }, 1);
-        } catch (e) {
+        } catch (_e) {
             // ignore tone failure
         }
     }, []);
@@ -208,13 +210,13 @@ export function OrbProvider({ children }) {
                     resolve(false);
                 });
             });
-        } catch (e) {
+        } catch (_e) {
             return false;
         }
     }, []);
 
     // Initialize audio queue for backend-played audio files
-    const { enqueue, stop: queueStop, clear: queueClear, isPlaying: queueIsPlaying } = useAudioQueue({
+    const { enqueue, isPlaying: queueIsPlaying } = useAudioQueue({
         audioContextRef: audioCtxRef,
         onStart: () => {
             setResponseMessage((msg) => msg);
@@ -263,7 +265,7 @@ export function OrbProvider({ children }) {
 
         try {
             window.speechSynthesis.resume?.();
-        } catch (e) {
+        } catch (_e) {
             // ignore resume failures
         }
 
@@ -340,7 +342,7 @@ export function OrbProvider({ children }) {
                 window.speechSynthesis.cancel();
                 window.speechSynthesis.speak(utterance);
                 timeoutId = setTimeout(() => finish(false), 4000);
-            } catch (e) {
+            } catch (_e) {
                 console.warn('SpeechSynthesis speak failed', e);
                 finish(false);
             }
@@ -373,7 +375,7 @@ export function OrbProvider({ children }) {
             src.start(0);
             // NOTE: intentionally do NOT close the context — it is reused for
             // all playback so audio is never autoplay-blocked.
-        } catch (e) {
+        } catch (_e) {
             // ignore; best-effort
         }
     }, []);
@@ -418,7 +420,7 @@ export function OrbProvider({ children }) {
         try {
             try {
                 window.speechSynthesis?.resume?.();
-            } catch (e) {
+            } catch (_e) {
                 // ignore resume failures
             }
             unlockAudio();
@@ -428,13 +430,13 @@ export function OrbProvider({ children }) {
             setMicEnabled(true);
             try {
                 if (typeof window !== 'undefined') localStorage.setItem('friday_audio_enabled', 'true');
-            } catch (e) {}
+            } catch (_e) {}
 
             if (opts.speakConfirmation) {
                 playTone();
                 try {
                     window.speechSynthesis?.resume?.();
-                } catch (e) {}
+                } catch (_e) {}
                 const conf = 'Voice engine online.';
                 const started = await speakText(conf);
                 setResponseMessage(conf);
@@ -444,24 +446,24 @@ export function OrbProvider({ children }) {
                 setTimeout(() => setResponseMessage(''), 1600);
             }
             return true;
-        } catch (e) {
+        } catch (_e) {
             console.warn('enableAudioFromGesture failed', e);
             return false;
         }
-    }, [unlockAudio, speakText, setMicEnabled]);
+    }, [unlockAudio, speakText, setMicEnabled, playTone]);
 
     // persist voice selection
     useEffect(() => {
         try {
             if (typeof window !== 'undefined') localStorage.setItem('friday_voice', voiceName || '');
-        } catch (e) {}
+        } catch (_e) {}
     }, [voiceName]);
 
     // persist whether audio was enabled via user gesture
     useEffect(() => {
         try {
             if (typeof window !== 'undefined') localStorage.setItem('friday_audio_enabled', audioEnabled ? 'true' : 'false');
-        } catch (e) {}
+        } catch (_e) {}
     }, [audioEnabled]);
 
     // ── Admin authentication ──────────────────────────────────────────────────
@@ -472,10 +474,10 @@ export function OrbProvider({ children }) {
         // Unlock is triggered by a user gesture (fingerprint / password submit),
         // so this is a valid moment to bring audio + mic online. FRIDAY should
         // start listening and be able to speak immediately after unlock.
-        try { unlockAudio(); } catch (e) { /* ignore */ }
+        try { unlockAudio(); } catch (_e) { /* ignore */ }
         setAudioEnabled(true);
         setMicEnabled(true);
-        try { if (typeof window !== 'undefined') localStorage.setItem('friday_audio_enabled', 'true'); } catch (e) {}
+        try { if (typeof window !== 'undefined') localStorage.setItem('friday_audio_enabled', 'true'); } catch (_e) {}
 
         transitionTo('LISTENING');
         setAuthStep(AUTH_STEPS[0]);
@@ -694,7 +696,7 @@ export function OrbProvider({ children }) {
             else if (command === 'career' || command === 'dashboard') setWorkspace('career');
             else setWorkspace('career');
         }, maxDelay + 600);
-    }, [transitionTo, speakText, audioEnabled, setWorkspace, micEnabled]);
+    }, [transitionTo, speakText, setWorkspace, micEnabled, unlockAudio, clearCommandTimers, scheduleTimer, wakeCount]);
 
     // ── Micro level + breathing loop ─────────────────────────────────────────
     useEffect(() => {
@@ -735,7 +737,7 @@ export function OrbProvider({ children }) {
             }
             stopMic();
         }
-    }, [locked, micEnabled, startMic, stopMic, transitionTo, appState]);
+    }, [locked, micEnabled, startMic, stopMic, transitionTo, appState, unlockAudio]);
 
     // ── Boot sequence ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -750,7 +752,7 @@ export function OrbProvider({ children }) {
         return () => {
             try {
                 if (window.fridayRunCommand) delete window.fridayRunCommand;
-            } catch (e) {}
+            } catch (_e) {}
         };
     }, [runAuthSequence]);
 

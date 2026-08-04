@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from 'framer-motion';
 import {
     CheckSquare, X, Plus, Trash2, Check,
-    GripHorizontal, Flag, ChevronDown, ClipboardList, Pencil
+    GripHorizontal, ClipboardList, Pencil
 } from 'lucide-react';
 
 import { API_ENDPOINTS } from '../../api/config.js';
@@ -19,7 +19,6 @@ import { useOrbState } from '../../hooks/useOrbState';
 
 export default function TodoCard() {
     const { workspace } = useOrbState();
-    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [todos, setTodos] = useState([]);
     const [input, setInput] = useState('');
@@ -111,6 +110,9 @@ export default function TodoCard() {
     const rawRotateY = useMotionValue(0);
     const rotateX = useSpring(rawRotateX, { stiffness: 180, damping: 14, mass: 0.35 });
     const rotateY = useSpring(rawRotateY, { stiffness: 180, damping: 14, mass: 0.35 });
+
+    // NOTE: this guard must stay after every hook call (rules-of-hooks).
+    if (workspace === 'career') return null;
 
     const handlePointerDownHeader = (e) => {
         if (cardRef.current) {

@@ -1,6 +1,6 @@
 import { useState, Suspense, lazy } from 'react';
 import {
-  LayoutDashboard, Briefcase, FileText, ListChecks,
+  Briefcase, FileText, ListChecks,
   Building2, Users, CalendarCheck, BarChart3,
   GraduationCap, SlidersHorizontal, Shield, KeyRound, X, ChevronLeft, Mic, MicOff, RotateCw
 } from 'lucide-react';

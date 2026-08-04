@@ -42,7 +42,6 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
 
 export default function SystemMonitorCard() {
     const { workspace } = useOrbState();
-    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [stats, setStats] = useState({
         cpu_percent: 0,
@@ -157,7 +156,8 @@ export default function SystemMonitorCard() {
         fetch(`${API_DISPLAY}/lock`, { method: 'POST' }).catch(() => {});
     };
 
-    if (workspace === 'trading') return null;
+    // NOTE: this guard must stay after every hook call (rules-of-hooks).
+    if (workspace === 'career' || workspace === 'trading') return null;
 
     if (!isVisible) {
         return (

@@ -3,7 +3,6 @@ import { getPreferences, updatePreferences, learnFromText } from '../../../api/c
 import { SkeletonCard } from '../components/Skeleton.jsx';
 import { Brain, Send } from 'lucide-react';
 
-const TAG_KEYS = ['preferred_tech_stack', 'avoided_tech_stack', 'preferred_roles', 'avoided_roles', 'preferred_countries', 'preferred_cities', 'preferred_industries', 'blacklisted_companies', 'favorite_companies', 'job_types'];
 
 export default function Preferences() {
   const [prefs, setPrefs]     = useState(null);
@@ -169,7 +168,7 @@ function RadioGroup({ value, options, onSave }) {
   );
 }
 
-function TagInput({ values = [], onSave, saving }) {
+function TagInput({ values = [], onSave }) {
   const [input, setInput] = useState('');
   const remove = (v) => onSave(values.filter(x => x !== v));
   const add = () => {

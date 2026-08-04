@@ -171,7 +171,7 @@ def _apply_micro_ticks():
 def _indian_bg_worker():
     """Background daemon: refresh Indian stock prices. Skips fetch when NSE is closed to avoid log spam."""
     global _last_fetch
-    while True:
+    while not _stop_event.is_set():
         try:
             if is_market_open():
                 if _fetch_from_yahoo():
@@ -183,7 +183,7 @@ def _indian_bg_worker():
                         _apply_micro_ticks()
         except Exception as e:
             logging.warning(f"[Indian BG Worker Error] {e}")
-        time.sleep(60)
+        _stop_event.wait(60)
 
 
 def get_indian_market_prices() -> dict:
@@ -199,10 +199,10 @@ def get_indian_market_prices() -> dict:
 def is_market_open() -> bool:
     """Check if NSE is currently open (Mon–Fri, 9:15 AM – 3:30 PM IST)."""
     import datetime
-    import pytz
+    from zoneinfo import ZoneInfo
 
     try:
-        ist = pytz.timezone("Asia/Kolkata")
+        ist = ZoneInfo("Asia/Kolkata")
         now_ist = datetime.datetime.now(ist)
         weekday = now_ist.weekday()  # 0=Mon, 6=Sun
         if weekday >= 5:  # Weekend
@@ -214,5 +214,24 @@ def is_market_open() -> bool:
         return True
 
 
-# Pre-warm cache and start background poller on module import
-threading.Thread(target=_indian_bg_worker, daemon=True).start()
+# ── Background poller lifecycle (started from FastAPI lifespan) ───────────────
+_stop_event = threading.Event()
+_poller_thread: list = []
+
+
+def start_indian_poller() -> None:
+    """Start the Indian market background worker (idempotent)."""
+    global _poller_thread
+    if _poller_thread:
+        return
+    _stop_event.clear()
+    t = threading.Thread(target=_indian_bg_worker, daemon=True, name="indian-market-poller")
+    t.start()
+    _poller_thread = [t]
+
+
+def stop_indian_poller() -> None:
+    """Signal the Indian market worker to stop."""
+    global _poller_thread
+    _stop_event.set()
+    _poller_thread = []

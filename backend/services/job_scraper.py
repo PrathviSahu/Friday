@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 from services.career_db import create_job, update_job, get_all_resumes, log_activity, upsert_preference
 from services.career_intelligence import analyze_job_match
 
-DB_FILE = Path(__file__).parent.parent / "data" / "career.db"
+DB_FILE = Path(__file__).parent.parent / "data" / "friday_brain.db"
 
 EXP_CONFIG = {
     "fresher": {
@@ -135,15 +135,18 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         job_data = {
             "title": raw["title"],
             "company": raw["company"],
-            "description": f"Real-time LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']}). Experience level: {cfg['label']}.",
+            "description": f"Live LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']}). Matched from a {cfg['label']} search.",
             "source": "linkedin",
             "url": raw["url"],
             "location": raw["location"],
-            "remote_type": "hybrid" if "remote" not in raw["location"].lower() else "remote",
-            "salary_raw": cfg["salary"],
+            # Only title/company/location/URL are scraped — salary, visa and
+            # deadline are NOT present on the listing card, so keep them
+            # explicitly unset instead of inventing values.
+            "remote_type": "unknown",
+            "salary_raw": "",
             "experience_required": cfg["label"],
-            "visa_sponsorship": 1,
-            "deadline": "2026-08-30"
+            "visa_sponsorship": 0,
+            "deadline": ""
         }
         
         jid = create_job(job_data)

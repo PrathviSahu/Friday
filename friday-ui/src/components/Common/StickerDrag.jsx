@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 
 // Default sticker image
 const DEFAULT_IMAGE =
@@ -525,7 +525,8 @@ export default function StickerDrag({
         };
 
         img.src = imageSrc;
-        return () => { stateRef.current.texReady = false; };
+        const state = stateRef.current;
+        return () => { state.texReady = false; };
     }, [image, handleResize, updateShadowCSS]);
 
     useEffect(() => {

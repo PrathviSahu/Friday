@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useSpring } from 'framer-motion';
-import { Sun, CloudRain, Cloud, Wind, Droplets, MapPin, X, GripHorizontal } from 'lucide-react';
+import { Sun, Wind, Droplets, MapPin, X, GripHorizontal } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 
 import { API_ENDPOINTS } from '../../api/config.js';
@@ -33,7 +33,6 @@ function AnimatedWeatherIcon({ condition = '', icon = '🌤️', isDragging = fa
 
 export default function WeatherCard() {
     const { workspace } = useOrbState();
-    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [weather, setWeather] = useState({
         city: 'Locating…',
@@ -90,7 +89,8 @@ export default function WeatherCard() {
         return () => clearInterval(iv);
     }, []);
 
-    if (workspace === 'trading') return null;
+    // NOTE: this guard must stay after every hook call (rules-of-hooks).
+    if (workspace === 'career' || workspace === 'trading') return null;
 
     if (!isVisible) {
         return (

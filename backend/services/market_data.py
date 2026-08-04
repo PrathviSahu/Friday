@@ -137,10 +137,10 @@ def _fetch_global_prices() -> bool:
 
 def _apply_micro_ticks():
     import datetime
-    import pytz
+    from zoneinfo import ZoneInfo
 
     try:
-        ist = pytz.timezone("Asia/Kolkata")
+        ist = ZoneInfo("Asia/Kolkata")
         now_ist = datetime.datetime.now(ist)
         is_weekend = now_ist.weekday() >= 5
     except Exception:
@@ -261,9 +261,9 @@ def fetch_tradingview_live_prices(symbols_list: list = None) -> dict:
 
 
 def _tradingview_poller_loop():
-    """Background daemon worker that fetches TradingView live prices asynchronously every 1.2 seconds with adaptive backoff."""
+    """Background daemon worker that fetches TradingView live prices every ~1.2s with adaptive backoff."""
     consecutive_errors = 0
-    while True:
+    while not _stop_event.is_set():
         try:
             tv_data = fetch_tradingview_live_prices()
             if tv_data:
@@ -275,9 +275,9 @@ def _tradingview_poller_loop():
         except Exception as err:
             consecutive_errors += 1
             logging.warning(f"[TV Poller Loop Error] {err}")
-        
+
         sleep_time = min(10.0, 1.2 * (1.5 ** min(consecutive_errors, 5)))
-        time.sleep(sleep_time)
+        _stop_event.wait(sleep_time)
 
 
 def fetch_live_market_prices() -> dict:
@@ -286,6 +286,38 @@ def fetch_live_market_prices() -> dict:
         return dict(_cache)
 
 
-# Warm cache & start background pollers on startup
-threading.Thread(target=_fetch_global_prices, daemon=True).start()
-threading.Thread(target=_tradingview_poller_loop, daemon=True).start()
+# ── Background poller lifecycle (started from FastAPI lifespan) ───────────────
+_stop_event = threading.Event()
+_poller_threads: list = []
+
+
+def _global_prices_loop():
+    """Warm the cache, then refresh periodically until stopped."""
+    _fetch_global_prices()
+    while not _stop_event.is_set():
+        try:
+            _fetch_global_prices()
+        except Exception as err:
+            logging.warning(f"[Global Prices Loop Error] {err}")
+        _stop_event.wait(REFRESH_INTERVAL)
+
+
+def start_market_pollers() -> None:
+    """Start the global + TradingView background pollers (idempotent)."""
+    global _poller_threads
+    if _poller_threads:
+        return
+    _stop_event.clear()
+    _poller_threads = [
+        threading.Thread(target=_global_prices_loop, daemon=True, name="global-prices-poller"),
+        threading.Thread(target=_tradingview_poller_loop, daemon=True, name="tradingview-poller"),
+    ]
+    for t in _poller_threads:
+        t.start()
+
+
+def stop_market_pollers() -> None:
+    """Signal the background pollers to stop (daemon threads exit on shutdown anyway)."""
+    global _poller_threads
+    _stop_event.set()
+    _poller_threads = []

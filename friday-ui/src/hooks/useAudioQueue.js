@@ -88,7 +88,7 @@ export function useAudioQueue({ onStart, onEnd, onError, audioContextRef } = {})
       playerRef.current?.cleanup();
       playerRef.current = null;
     };
-  }, [processQueue]);
+  }, [processQueue, audioContextRef]);
 
   return {
     enqueue,

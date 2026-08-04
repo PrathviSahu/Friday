@@ -12,13 +12,13 @@ import { useSpeech } from '../../hooks/useSpeech';
 import { useFriday } from '../../context/FridayContext';
 import { useFitScale } from '../../hooks/useFitScale';
 import { speak, stopSpeaking } from '../../services/ttsService';
+import { API_ENDPOINTS } from '../../api/config.js';
 
 export default function LockScreen() {
     const orb = useOrbState();
     const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled } = useFriday();
     const scale = useFitScale();
-    const isAmbient = !locked && workspace === 'unlocked';
 
     // FRIDAY's conversation loop: show text on screen when speech is returned.
     const handleConversation = React.useCallback(({ reply, action }) => {
@@ -29,7 +29,7 @@ export default function LockScreen() {
             if (action === 'trading')   setWorkspace?.('trading');
             else if (action === 'dashboard') setWorkspace?.('dashboard');
             else if (action === 'career')    setWorkspace?.('career');
-            else if (action === 'lock') lockNow?.();
+            else if (action === 'lock' || action === 'lock_screen') lockNow?.();
         }
     }, [setResponseMessage, setWorkspace, locked, lockNow]);
 
@@ -71,7 +71,7 @@ export default function LockScreen() {
         // What's playing on Spotify
         if (cmd === 'what_playing') {
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/spotify/current-track');
+                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
                 const data = await res.json();
                 if (data.title) {
                     const msg = `Now playing: ${data.title} by ${data.artist}.`;
@@ -94,7 +94,7 @@ export default function LockScreen() {
         if (cmd && typeof cmd === 'object' && cmd.type === 'open_app') {
             const appName = cmd.app;
             try {
-                await fetch('http://127.0.0.1:8000/api/open-app', {
+                await fetch(API_ENDPOINTS.openApp, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ app: appName }),
@@ -114,7 +114,7 @@ export default function LockScreen() {
         if (cmd && typeof cmd === 'object' && cmd.type === 'close_app') {
             const appName = cmd.app;
             try {
-                await fetch('http://127.0.0.1:8000/api/close-app', {
+                await fetch(API_ENDPOINTS.closeApp, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ app: appName }),
@@ -130,10 +130,34 @@ export default function LockScreen() {
             return;
         }
 
-        // Workspace commands
+        // Workspace / app commands
         if (cmd === 'trading') setWorkspace?.('trading');
-        else if (cmd === 'dashboard') setWorkspace?.('dashboard');
-        else if (cmd === 'lock') lockNow?.();
+        else if (cmd === 'dashboard' || cmd === 'unlocked') setWorkspace?.('unlocked');
+        else if (cmd === 'engineering' || cmd === 'vscode') {
+            // "engineering console" / "open vscode" → launch VS Code
+            fetch(API_ENDPOINTS.openApp, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app: 'Visual Studio Code' }),
+            }).catch(() => {});
+            const msg = 'Opening Visual Studio Code, Boss.';
+            setResponseMessage?.(msg);
+            try { await speak(msg); } catch (_) {}
+            setTimeout(() => setResponseMessage?.(''), 3000);
+        }
+        else if (cmd === 'browser') {
+            // "open browser" → launch Brave (falls back to default browser)
+            fetch(API_ENDPOINTS.openApp, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app: 'Brave Browser' }),
+            }).catch(() => {});
+            const msg = 'Opening the browser, Boss.';
+            setResponseMessage?.(msg);
+            try { await speak(msg); } catch (_) {}
+            setTimeout(() => setResponseMessage?.(''), 3000);
+        }
+        else if (cmd === 'lock' || cmd === 'lock_screen') lockNow?.();
     }, [setResponseMessage, setWorkspace, lockNow]);
 
     // Handle fingerprint unlock
@@ -151,7 +175,7 @@ export default function LockScreen() {
                 setFingerprintState('error');
                 setFingerprintError(result.error || result.reason || 'Failed');
             }
-        } catch (err) {
+        } catch (_err) {
             setFingerprintState('error');
             setFingerprintError('exception');
         }
@@ -163,8 +187,6 @@ export default function LockScreen() {
         enabled: micEnabled,
         onCommand: handleLocalCommand,
         onConversation: handleConversation,
-        enabled: micEnabled,
-        locked: locked,
     });
 
     return (
