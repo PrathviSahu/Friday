@@ -6,3 +6,7 @@ yfinance
 groq
 google-genai
 psutil
+python-dotenv
+pytz
+playwright
+slowapi

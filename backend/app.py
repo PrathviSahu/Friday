@@ -9,8 +9,38 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import uvicorn
+import asyncio
 import os
+
+# ── Required environment variable validation ───────────────────────────────────
+REQUIRED_ENV_VARS = [
+    ("GROQ_API_KEY",          "LLM voice responses will fail — brain is offline"),
+    ("GEMINI_API_KEY",        "Gemini fallback + STT will be unavailable"),
+    ("SPOTIFY_CLIENT_ID",     "Spotify control will be unavailable"),
+    ("SPOTIFY_CLIENT_SECRET", "Spotify control will be unavailable"),
+]
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: validate .env keys; warn loudly if anything is missing or stubbed."""
+    env_ok = True
+    for var, consequence in REQUIRED_ENV_VARS:
+        val = os.getenv(var, "").strip()
+        if not val or val in ("your_key_here", "your_spotify_client_id",
+                              "your_spotify_client_secret",
+                              "generated_by_spotify_auth_setup_py"):
+            if env_ok:
+                print("\n⚠️  FRIDAY Startup — Missing / stubbed environment variables:")
+            print(f"   • {var}: {consequence}")
+            env_ok = False
+    if not env_ok:
+        print("   → Copy backend/.env.example → backend/.env and fill in your API keys.\n")
+    else:
+        print("✅ FRIDAY environment validation passed — all keys present.")
+    yield  # App runs here
+    # Shutdown hook (nothing to clean up in MVP)
 
 from services.brain import respond, get_proactive_suggestion
 from services.tts import generate_speech
@@ -39,9 +69,9 @@ AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 # Career OS router
 from routers.career import router as career_router
 
-app = FastAPI(title="FRIDAY AI Core", version="2.0.0")
+app = FastAPI(title="FRIDAY AI Core", version="2.0.0", lifespan=lifespan)
 
-# Enable CORS securely for local frontend interaction
+# Enable CORS — frontend origins only (removed self-referential backend origin)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -49,12 +79,10 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
 app.mount('/temp_audio', StaticFiles(directory='temp_audio'), name='temp_audio')
@@ -126,10 +154,15 @@ def read_root():
 
 
 @app.post("/api/chat/text")
-def chat_text_endpoint(req: ChatTextRequest):
-    """Text-based chat endpoint for FRIDAY AI brain with memory learning"""
+async def chat_text_endpoint(req: ChatTextRequest):
+    """Text-based chat endpoint for FRIDAY AI brain with memory learning.
+    Uses asyncio.to_thread() to prevent blocking the event loop during
+    synchronous Groq/Gemini LLM calls (150ms–2s per request).
+    """
     try:
-        res = respond(req.text, is_boss=req.is_boss, silence_tts=req.silence_tts)
+        res = await asyncio.to_thread(
+            respond, req.text, req.is_boss, req.silence_tts
+        )
         return res
     except Exception as e:
         import traceback
