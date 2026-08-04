@@ -200,3 +200,36 @@ The attached `CHANGELOG_V3.md` spec is fully implemented on top of the fixes abo
 
 **§8 Verification**
 - 25 backend tests pass (auth gate, honest verify, TTS URL, upload cap, rate limiter, vault encryption, function engine, TA math/patterns, brain_v2 dispatch + fallback, telegram guard, route coverage). Frontend: 0 lint errors, build clean.
+
+
+---
+
+## ✅ v3.1 roadmap foundation implemented (same session)
+
+Per your vision doc ("do all three in priority order"):
+
+1. **Permission Center** (`services/permissions.py` + `routes/automation.py` + HUD `PermissionCenterCard`):
+   - 18-capability catalog with persisted modes (enabled / ask / disabled), defaults keep
+     the current UI working; high-stakes (trades.execute, jobs.apply, email.send,
+     whatsapp.send, phone.call, screen.capture) default to **ask**; files.delete = disabled.
+   - One-time approvals (`POST /api/permissions/approve`, default 300 s) + audit log.
+   - Real enforcement: `trades.execute` gates `POST /api/trading/order` (paper-only —
+     "trade execution never automatic"), `system.control` gates all machine-control writes.
+2. **Automation Engine** (`services/automation.py` + runner in lifespan): persisted
+   automations (interval/daily; briefing / job_scan / market_summary) → Notification Center.
+3. **Smart Daily Briefing** (`services/briefing.py` + `GET /api/briefing`): weather, tasks,
+   reminders, career pipeline, markets, inbox → greeting + spoken summary.
+4. **Multi-Agent framework** (`services/agents.py` + `routes/agents.py`): 6 agents with
+   capability-filtered tool sets; keyword router; `agent.autonomy` permission gating;
+   `brain_v2` accepts `tools_filter`.
+5. **Notification Center** (HUD `NotificationCenterCard`): inbox panel with unread badge,
+   mark-read, run-briefing button.
+6. Tests: 39 passing (permission modes/enforcement/approval flow, paper-order gate,
+   automation CRUD + run-now, briefing structure, agent routing + tool filtering).
+7. Docs: README §9–11 (Permission Center, Automation + Briefing, Multi-Agent),
+   architecture §7; API surface 68 → 81 paths.
+
+Roadmap items intentionally deferred (need external credentials/devices): Gmail/IMAP,
+WhatsApp, SMS/phone (KDE Connect/Phone Link), webcam vision, smart home. Their
+capabilities already exist in the Permission Center catalog, so wiring them in later
+is drop-in.

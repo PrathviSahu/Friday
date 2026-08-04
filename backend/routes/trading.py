@@ -9,6 +9,7 @@ from services.chart_data import fetch_ohlcv, search_symbols
 from services.market_data import fetch_live_market_prices
 from services.indian_market_data import get_indian_market_prices, is_market_open
 from services.technical_analysis import analyze_symbol
+from services.permissions import require_permission
 
 router = APIRouter(prefix="/api", tags=["trading"])
 
@@ -89,3 +90,35 @@ def trading_analysis_endpoint(symbol: str = "FX:EURUSD", interval: str = "15"):
 def search_trading_symbols(q: str = ""):
     """Live real-time search across ALL 5000+ stocks on Earth (NSE, BSE, NASDAQ, NYSE, Forex, Crypto)."""
     return {"results": search_symbols(q)}
+
+
+class PaperOrderRequest(BaseModel):
+    symbol: str
+    side: str  # buy | sell
+    quantity: int
+    order_type: str = "market"  # market | limit
+    limit_price: float = 0
+
+
+@router.post("/trading/order", dependencies=[Depends(require_boss),
+                                             Depends(require_permission("trades.execute"))])
+def place_paper_order(req: PaperOrderRequest):
+    """Place a PAPER (simulated) order.
+
+    Design constraint from the roadmap: trade execution NEVER happens
+    automatically — the `trades.execute` permission defaults to `ask`, so
+    this endpoint returns 403 (approval_required) until the owner grants a
+    short-lived one-time approval in the Permission Center.
+    """
+    if req.side not in ("buy", "sell"):
+        raise HTTPException(400, "side must be 'buy' or 'sell'")
+    if req.quantity <= 0:
+        raise HTTPException(400, "quantity must be positive")
+    return {
+        "status": "paper_order_accepted",
+        "symbol": req.symbol.upper(),
+        "side": req.side,
+        "quantity": req.quantity,
+        "order_type": req.order_type,
+        "note": "Paper/simulated only — no real execution. Confirmed by owner.",
+    }

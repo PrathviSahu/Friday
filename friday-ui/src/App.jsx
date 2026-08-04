@@ -10,6 +10,8 @@ import TodoCard from './components/Panels/TodoCard';
 import SystemMonitorCard from './components/Panels/SystemMonitorCard';
 import WeatherCard from './components/Panels/WeatherCard';
 import WebSearchCard from './components/Panels/WebSearchCard';
+import PermissionCenterCard from './components/Panels/PermissionCenterCard';
+import NotificationCenterCard from './components/Panels/NotificationCenterCard';
 import { FridayProvider } from './context/FridayContext';
 import FridaySync from './context/FridaySync';
 import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
@@ -68,6 +70,8 @@ function FridayCore() {
             {!isCareerWorkspace && <SystemMonitorCard />}
             {!isCareerWorkspace && <WeatherCard />}
             {!isCareerWorkspace && <WebSearchCard />}
+            {!isCareerWorkspace && <PermissionCenterCard />}
+            {!isCareerWorkspace && <NotificationCenterCard />}
             <DebugKeys />
 
             {/* ── Proactive Suggestion Toast ── */}

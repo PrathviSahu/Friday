@@ -176,7 +176,27 @@ All loops check a stop-event, so shutdown is prompt and tests run thread-free.
 
 ---
 
-## 7. Database Schema — Career OS Tables (in `friday_brain.db`)
+## 7. v3.1 Foundation Modules
+
+### Permission Center (`services/permissions.py`)
+- `permissions` table (capability → mode: enabled/ask/disabled) + `permission_audit` table.
+- Enforcement: `require_permission(cap)` FastAPI dependency → 403 with structured
+  detail (`permission`, `decision: approval_required`) when an `ask` capability
+  has no valid one-time approval.
+- Wired into: `trades.execute` (paper-order endpoint), `system.control`
+  (brightness/volume/lock/open-app/close-app), plus a ready catalog for
+  email/whatsapp/phone/jobs/files.
+
+### Automation Engine (`services/automation.py`) + Notifications + Briefing
+- `automations` table; runner thread (lifespan-managed) checks due workflows
+  every 30 s; actions push into `notifications` table.
+- `briefing.py` aggregates weather/tasks/reminders/career/markets/inbox.
+
+### Multi-Agent (`services/agents.py`)
+- 6 agents with capability-scoped tool filters; keyword router (deterministic);
+  `agent.autonomy` permission gates autonomous action.
+
+## 8. Database Schema — Career OS Tables (in `friday_brain.db`)
 
 All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL mode):
 
@@ -195,7 +215,7 @@ All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL
 
 ---
 
-## 8. Active API Endpoint Reference
+## 9. Active API Endpoint Reference
 
 ### Core Endpoints
 | Method | Endpoint | Description |
@@ -258,7 +278,7 @@ All 10 Career OS tables live in the same unified `friday_brain.db` database (WAL
 
 ---
 
-## 9. Voice Command Routing
+## 10. Voice Command Routing
 
 All workspace navigation is handled by `useOrbState.jsx`:
 
@@ -273,7 +293,7 @@ All workspace navigation is handled by `useOrbState.jsx`:
 
 ---
 
-## 10. Security & Protection Guidelines
+## 11. Security & Protection Guidelines
 
 1. **Owner Authentication**: Loopback clients are the owner; non-localhost callers must present `FRIDAY_API_TOKEN` via the `X-FRIDAY-Token` header (401 otherwise). `is_boss` is never accepted from the client body. Chat, machine-control, memory, and the whole `/api/career/*` router are owner-gated.
 2. **Proxy-Header Spoofing Defense**: uvicorn runs with `--no-proxy-headers` so client-supplied `X-Forwarded-For` / `X-Real-IP` are ignored — otherwise a remote caller could spoof `127.0.0.1` and bypass auth.

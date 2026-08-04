@@ -29,6 +29,8 @@ from routes.todos import router as todos_router
 from routes.utilities import router as utilities_router
 from routes.watchlist import router as watchlist_router, seed_watchlist
 from routes.trading import router as trading_router
+from routes.automation import router as automation_router
+from routes.agents import router as agents_router
 from routers.career import router as career_router
 
 from services.market_data import start_market_pollers, stop_market_pollers
@@ -37,6 +39,7 @@ from services.gdrive_sync import (
     start_background_gdrive_sync,
     stop_background_gdrive_sync,
 )
+from services.automation import start_automation_runner, stop_automation_runner
 from services.tts import cleanup_temp_audio
 from services.voice_auth import is_guest_permitted
 
@@ -101,6 +104,9 @@ async def lifespan(app: FastAPI):
     # Google Drive background sync (DB snapshot backup)
     start_background_gdrive_sync(interval_seconds=300)
 
+    # Automation Engine — scheduled workflows (briefing, job scans, ...)
+    start_automation_runner()
+
     # Temp audio cleanup: delete stale generated MP3s every 2 minutes
     audio_dir = Path("temp_audio")
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -112,6 +118,7 @@ async def lifespan(app: FastAPI):
     stop_market_pollers()
     stop_indian_poller()
     stop_background_gdrive_sync()
+    stop_automation_runner()
     cleanup_task.cancel()
     try:
         await cleanup_task
@@ -147,6 +154,8 @@ app.include_router(todos_router)
 app.include_router(utilities_router)
 app.include_router(watchlist_router)
 app.include_router(trading_router)
+app.include_router(automation_router)
+app.include_router(agents_router)
 app.include_router(career_router)
 
 

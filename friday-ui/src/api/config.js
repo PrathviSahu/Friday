@@ -26,6 +26,11 @@ export const API_ENDPOINTS = {
   watchlist: `${API_BASE_URL}/api/watchlist`,
   openApp: `${API_BASE_URL}/api/open-app`,
   closeApp: `${API_BASE_URL}/api/close-app`,
+  permissions: `${API_BASE_URL}/api/permissions`,
+  automations: `${API_BASE_URL}/api/automations`,
+  notifications: `${API_BASE_URL}/api/notifications`,
+  briefing: `${API_BASE_URL}/api/briefing`,
+  agents: `${API_BASE_URL}/api/agents`,
 };
 
 /**

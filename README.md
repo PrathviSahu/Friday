@@ -11,6 +11,10 @@
 | **Function Calling AI Brain** | `brain_v2.py` + `function_engine.py` — the LLM picks from 18 registered tools instead of 30 fragile regex patterns |
 | **Real Technical Analysis Engine** | `technical_analysis.py` — RSI, MACD, Bollinger, ATR, Stochastic, VWAP, candlestick patterns, support/resistance from live OHLCV |
 | **Telegram Bot Interface** | `telegram_bot.py` — control FRIDAY from your phone anywhere (`/time`, `/weather`, `/tasks`, `/market`, `/analyze`, free-form chat) |
+| **Permission Center** | Persisted capability policy (`enabled` / `ask` / `disabled`) + one-time approvals + enforcement on every sensitive endpoint + HUD panel |
+| **Automation Engine** | Scheduled workflows (`briefing`, `job_scan`, `market_summary`) with a lifespan-managed runner → Notification Center |
+| **Smart Daily Briefing** | Aggregates weather, tasks, reminders, career pipeline, markets, notifications into `GET /api/briefing` |
+| **Multi-Agent Framework** | 6 specialized agents (career, coding, research, finance, communication, automation) with filtered tool sets |
 | **Modular API Routes** | Monolithic `app.py` (667 lines) split into 7 focused route modules under `backend/routes/` |
 | **Lifespan-managed Background Tasks** | Market pollers, gdrive sync & audio cleanup now start/stop cleanly with the FastAPI lifespan (no import-time zombie threads) |
 | **Thread-safe SQLite** | `check_same_thread=False` + WAL + `busy_timeout` across all DB layers, `_db_lock` serializes writes |
@@ -144,6 +148,54 @@ FRIDAY is no longer Mac-only — reach it from your phone anywhere:
 **Security:** `TELEGRAM_OWNER_ID` — only your Telegram user id may interact; everyone else gets "⛔ Access denied".
 
 **Setup:** create a bot via @BotFather → set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_OWNER_ID` in `backend/.env` → run `python -m services.telegram_bot` from `backend/`.
+
+---
+
+### 🛡️ 9. Permission Center & Approval-First Design
+
+Every sensitive capability has a mode — `Enabled` / `Ask` / `Disabled` — persisted in SQLite and enforced server-side:
+
+| Capability | Default | | Capability | Default |
+|---|---|---|---|---|
+| system.control | enabled | | email.send | ask |
+| music.control | enabled | | whatsapp.send | ask |
+| tasks.write | enabled | | phone.call | ask |
+| web.search | enabled | | jobs.apply | ask |
+| screen.capture | ask | | trades.execute | ask |
+| vault.access | enabled | | files.delete | disabled |
+
+- `Ask` = one-time approval (default 5 min) via `POST /api/permissions/approve` — nothing sensitive runs without your explicit grant.
+- Every enforcement decision is audit-logged (`GET /api/permissions` returns the log; HUD Permission Center shows it).
+- Trade execution **never happens automatically**: `POST /api/trading/order` (paper/simulated) returns 403 `approval_required` until you approve — matching the roadmap constraint.
+
+### 🤖 10. Automation Engine & Smart Daily Briefing
+
+Persisted workflows run on a background scheduler (lifespan-managed):
+
+```
+POST /api/automations   {"name": "Morning Briefing", "trigger_type": "daily",
+                         "daily_time": "09:00", "action": "briefing"}
+```
+
+Actions: `briefing` (smart daily briefing), `job_scan` (notify on high-match /
+high-salary jobs), `market_summary`. Results land in the **Notification Center**
+(`GET /api/notifications`) instead of interrupting — the HUD Inbox panel shows
+them, and `GET /api/briefing` gives the full morning report (weather, tasks,
+reminders, career pipeline, markets, inbox).
+
+### 🧠 11. Multi-Agent Framework
+
+FRIDAY routes requests to specialized agents — Career, Coding, Research,
+Finance, Communication, Automation — each running the same function-calling
+brain but with a **filtered tool set** (an agent can only call its capabilities).
+`POST /api/agent/chat` handles routing + execution; `GET /api/agents` lists them.
+Agent autonomy is gated by the `agent.autonomy` permission (default `ask`).
+
+```
+"what's the trend on gold?"      → Finance Agent (technical_analysis tool)
+"debug this React error"         → Coding Agent
+"apply for Java jobs in Mumbai"  → Career Agent
+```
 
 ---
 

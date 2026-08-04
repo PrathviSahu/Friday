@@ -96,8 +96,13 @@ def _call_gemini_fallback(text: str) -> dict:
         raise RuntimeError(f"Gemini returned invalid JSON: {raw[:200]}")
 
 
-def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False) -> dict:
-    """Full function-calling brain entrypoint. Returns {'reply', 'action', ...}."""
+def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False,
+               tools_filter: list = None) -> dict:
+    """Full function-calling brain entrypoint. Returns {'reply', 'action', ...}.
+
+    `tools_filter`: optional list of function names to expose to the LLM
+    (used by the multi-agent framework to scope each agent's capabilities).
+    """
     text = (text or "").strip()
     if not text:
         return {"reply": "", "action": "none"}
@@ -107,6 +112,9 @@ def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False) -> di
     # Step 1: Groq function calling
     try:
         tools = function_engine.get_tools_schema()
+        if tools_filter:
+            allowed = set(tools_filter)
+            tools = [t for t in tools if t["function"]["name"] in allowed]
         result = _call_groq_with_tools(text, tools)
         tool_calls = result["tool_calls"]
         if tool_calls:
