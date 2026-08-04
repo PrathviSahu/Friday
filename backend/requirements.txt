@@ -2,11 +2,20 @@ fastapi
 uvicorn[standard]
 edge-tts
 httpx
+requests
 yfinance
 groq
 google-genai
 psutil
 python-dotenv
 pytz
+numpy
+python-telegram-bot
 playwright
-slowapi
+pypdf
+cryptography
+python-multipart
+
+# Dev / test
+pytest
+pytest-asyncio

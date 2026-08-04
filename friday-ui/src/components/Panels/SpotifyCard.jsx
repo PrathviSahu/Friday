@@ -51,7 +51,7 @@ export default function SpotifyCard() {
     const [searching, setSearching] = useState(false);
     const [showSearch, setShowSearch] = useState(true);
     const [suggestions, setSuggestions] = useState([]);
-    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    const [, setLoadingSuggestions] = useState(false);
     const progressBarRef = useRef(null);
 
     // Create New Playlist Modal State

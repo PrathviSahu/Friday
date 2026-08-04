@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Sliders, Maximize2, X, TrendingUp, BarChart2, Save, Undo, Redo, Plus, Minus, Mic, MicOff, Calculator } from 'lucide-react';
+import { Search, Maximize2, X, Minus, Mic, MicOff, Calculator } from 'lucide-react';
 import { useFriday } from '../../context/FridayContext';
 import { API_ENDPOINTS } from '../../api/config.js';
 import { stopSpeaking } from '../../services/ttsService';
@@ -26,8 +26,8 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
     const [showSymbolSearchModal, setShowSymbolSearchModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [layoutGrid, setLayoutGrid] = useState('single'); // 'single' | 'dual' | 'quad'
-    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
+    const [, setIsFullscreen] = useState(false);
 
     // Risk-Reward Lot Size Calculator State
     const [showRiskCalculatorModal, setShowRiskCalculatorModal] = useState(false);

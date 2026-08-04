@@ -135,15 +135,18 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         job_data = {
             "title": raw["title"],
             "company": raw["company"],
-            "description": f"Real-time LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']}). Experience level: {cfg['label']}.",
+            "description": f"Live LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']}). Matched from a {cfg['label']} search.",
             "source": "linkedin",
             "url": raw["url"],
             "location": raw["location"],
-            "remote_type": "hybrid" if "remote" not in raw["location"].lower() else "remote",
-            "salary_raw": cfg["salary"],
+            # Only title/company/location/URL are scraped — salary, visa and
+            # deadline are NOT present on the listing card, so keep them
+            # explicitly unset instead of inventing values.
+            "remote_type": "unknown",
+            "salary_raw": "",
             "experience_required": cfg["label"],
-            "visa_sponsorship": 1,
-            "deadline": "2026-08-30"
+            "visa_sponsorship": 0,
+            "deadline": ""
         }
         
         jid = create_job(job_data)

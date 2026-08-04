@@ -7,8 +7,11 @@ All endpoints under /api/career/*
 import json
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
+
+from auth import require_boss
+from ratelimit import rate_limit
 
 from services.career_db import (
     get_all_preferences, upsert_preference, update_preferences_bulk,
@@ -31,7 +34,15 @@ from services.career_intelligence import (
 )
 from services.job_scraper import fetch_live_linkedin_jobs
 
-router = APIRouter(prefix="/api/career", tags=["career"])
+# Career OS is fully personal data + expensive Groq calls: owner-only router.
+router = APIRouter(
+    prefix="/api/career",
+    tags=["career"],
+    dependencies=[Depends(require_boss)],
+)
+
+# Shared limiter for the Groq-consuming AI endpoints (credits cost money).
+_ai_limit = rate_limit(limit=20, window=60)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -163,7 +174,7 @@ class InterviewQuestionsRequest(BaseModel):
 # DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(_ai_limit)])
 def get_dashboard():
     """Dashboard summary: stats + briefing + recommendations + activity."""
     stats = get_dashboard_stats()
@@ -194,7 +205,7 @@ def update_preferences(req: PreferencesUpdate):
     return {"status": "ok", "preferences": get_all_preferences()}
 
 
-@router.post("/learn")
+@router.post("/learn", dependencies=[Depends(_ai_limit)])
 def learn_preference(req: LearnRequest):
     """Parse natural language feedback and update career preferences."""
     prefs = get_all_preferences()
@@ -253,52 +264,7 @@ def remove_resume(resume_id: str):
     return {"status": "ok", "deleted": res}
 
 
-@router.post("/accounts/verify/{platform_key}")
-@router.get("/accounts/verify/{platform_key}")
-def verify_platform_account(platform_key: str):
-    """Performs live account verification and health check for a connected career platform."""
-    profile = get_profile()
-    val = profile.get(f"{platform_key}_email", {}).get("value", "") or profile.get(f"{platform_key}_token", {}).get("value", "") or profile.get(f"{platform_key}_key", {}).get("value", "")
-    
-    if not val:
-        return {
-            "status": "needs_login",
-            "healthy": False,
-            "message": "No credentials stored. Please configure username & password.",
-            "verified": False
-        }
-    
-    platform_names = {
-        "linkedin": "LinkedIn",
-        "naukri": "Naukri",
-        "internshala": "Internshala",
-        "wellfound": "Wellfound",
-        "indeed": "Indeed",
-        "glassdoor": "Glassdoor",
-        "foundit": "Foundit (Monster)",
-        "hirist": "Hirist",
-        "github": "GitHub",
-        "openai": "OpenAI"
-    }
-
-    p_name = platform_names.get(platform_key, platform_key.title())
-    user_name = profile.get("full_name", {}).get("value", "Prathvi Sahu") or "Prathvi Sahu"
-
-    return {
-        "status": "connected",
-        "healthy": True,
-        "verified": True,
-        "platform": p_name,
-        "account_user": user_name if "email" in platform_key or "linkedin" in platform_key or "naukri" in platform_key else val[:10] + "...",
-        "headline": "Java Developer | AI Systems Enthusiast",
-        "last_verified": "Just now",
-        "session_valid": True,
-        "cookie_expires_days": 14,
-        "permissions": ["Read profile", "Search jobs", "Auto-fill applications"],
-        "message": f"Successfully authenticated with {p_name}. Session active and verified."
-    }
-
-@router.get("/candidate-intelligence/{resume_id}")
+@router.get("/candidate-intelligence/{resume_id}", dependencies=[Depends(_ai_limit)])
 def get_candidate_intelligence_endpoint(resume_id: str):
     """Retrieve complete Candidate Intelligence report for a specific resume."""
     resume = get_resume(resume_id)
@@ -320,10 +286,13 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 import io
 import re
 
-@router.post("/resumes/upload")
+@router.post("/resumes/upload", dependencies=[Depends(_ai_limit)])
 async def upload_resume_file(file: UploadFile = File(...)):
     filename = file.filename or "Uploaded Resume"
-    contents = await file.read()
+    # Cap upload size (5 MB) to avoid unbounded memory + parse cost.
+    contents = await file.read(5 * 1024 * 1024 + 1)
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Upload too large (max 5 MB).")
     extracted_text = ""
 
     if filename.lower().endswith(".pdf"):
@@ -517,7 +486,7 @@ def add_job(req: JobCreate):
     return {"status": "ok", "job_id": job_id}
 
 
-@router.post("/jobs/fetch-linkedin")
+@router.post("/jobs/fetch-linkedin", dependencies=[Depends(_ai_limit)])
 async def fetch_linkedin_jobs(
     query: Optional[str] = "Java Software Engineer",
     location: Optional[str] = "India",
@@ -542,7 +511,7 @@ def update_job_endpoint(job_id: int, req: JobStatusUpdate):
     return {"status": "ok" if ok else "no_change"}
 
 
-@router.post("/jobs/analyze")
+@router.post("/jobs/analyze", dependencies=[Depends(_ai_limit)])
 def analyze_job(req: AnalyzeJobRequest):
     """Run AI match analysis for a job against a resume."""
     job = get_job(req.job_id)
@@ -600,7 +569,7 @@ def update_application_endpoint(app_id: int, req: ApplicationUpdate):
 # COVER LETTERS
 # ══════════════════════════════════════════════════════════════════════════════
 
-@router.post("/cover-letter")
+@router.post("/cover-letter", dependencies=[Depends(_ai_limit)])
 def generate_cover_letter_endpoint(req: CoverLetterRequest):
     """Generate a unique AI cover letter for a job."""
     job = get_job(req.job_id)
@@ -671,7 +640,7 @@ def update_interview_endpoint(interview_id: int, req: InterviewUpdate):
     return {"status": "ok" if ok else "no_change"}
 
 
-@router.post("/interviews/questions")
+@router.post("/interviews/questions", dependencies=[Depends(_ai_limit)])
 def get_interview_questions(req: InterviewQuestionsRequest):
     """Generate AI interview prep questions for a job."""
     job = get_job(req.job_id)
@@ -719,7 +688,7 @@ def get_career_analytics():
     return {"analytics": get_analytics()}
 
 
-@router.get("/skill-gap")
+@router.get("/skill-gap", dependencies=[Depends(_ai_limit)])
 def get_skill_gap(resume_id: Optional[int] = None):
     """Analyze skill gaps from available job listings."""
     jobs = get_jobs(min_score=0)

@@ -6,9 +6,20 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent.parent / "data" / "friday_trading_db.sqlite"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+
+def _get_conn():
+    """Thread-safe SQLite connection with WAL journaling and busy timeout."""
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
+
+
 def init_trading_db():
     """Initialize SQLite database table for TradingView chart drawings and layouts."""
-    with sqlite3.connect(DB_PATH) as conn:
+    with _get_conn() as conn:
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS chart_drawings (
@@ -26,7 +37,7 @@ def get_chart_drawings(symbol: str) -> dict:
     if not symbol:
         return {}
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT drawings_data, updated_at FROM chart_drawings WHERE symbol = ?", (symbol.upper(),))
             row = cursor.fetchone()
@@ -47,7 +58,7 @@ def save_chart_drawings(symbol: str, drawings_data: dict) -> bool:
     try:
         data_str = json.dumps(drawings_data)
         now = time.time()
-        with sqlite3.connect(DB_PATH) as conn:
+        with _get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO chart_drawings (symbol, drawings_data, updated_at)

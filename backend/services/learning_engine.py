@@ -15,19 +15,25 @@ Tables:
 import sqlite3
 import json
 import re
+import threading
 from pathlib import Path
 from datetime import datetime
 
 DB_PATH = Path(__file__).parent.parent / "data" / "friday_brain.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# Serializes writes so concurrent FastAPI threads can't interleave
+# read-modify-write sequences on the same tables.
+_db_lock = threading.RLock()
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10.0)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -131,15 +137,16 @@ init_brain_db()
 
 def save_fact(key: str, value: str, category: str = "preference"):
     """Save or update a persistent fact about Prem."""
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO memories (category, key_fact, value_fact, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(key_fact) DO UPDATE SET
-            value_fact = excluded.value_fact,
-            updated_at = CURRENT_TIMESTAMP
-        """, (category, key.strip().lower(), value.strip()))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            INSERT INTO memories (category, key_fact, value_fact, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key_fact) DO UPDATE SET
+                value_fact = excluded.value_fact,
+                updated_at = CURRENT_TIMESTAMP
+            """, (category, key.strip().lower(), value.strip()))
+            conn.commit()
 
 
 def get_all_memories() -> list:
@@ -175,17 +182,18 @@ def log_conversation(role: str, message: str):
     if not message.strip():
         return
     tokens = json.dumps(_keywords(message))
-    with _db() as conn:
-        conn.execute(
-            "INSERT INTO conversation_history (role, message, tokens) VALUES (?, ?, ?)",
-            (role, message.strip(), tokens)
-        )
-        # Trim to last 20 turns
-        conn.execute("""
-        DELETE FROM conversation_history
-        WHERE id NOT IN (SELECT id FROM conversation_history ORDER BY id DESC LIMIT 20)
-        """)
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute(
+                "INSERT INTO conversation_history (role, message, tokens) VALUES (?, ?, ?)",
+                (role, message.strip(), tokens)
+            )
+            # Trim to last 20 turns
+            conn.execute("""
+            DELETE FROM conversation_history
+            WHERE id NOT IN (SELECT id FROM conversation_history ORDER BY id DESC LIMIT 20)
+            """)
+            conn.commit()
 
 
 def get_recent_conversation(limit: int = 6) -> list:
@@ -236,15 +244,16 @@ def log_user_action(action_type: str):
     if action_type not in HIGH_VALUE_ACTIONS:
         return
     now = datetime.now()
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO user_action_habits (action_type, hour_of_day, day_of_week, frequency, last_executed)
-        VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
-        ON CONFLICT(action_type, hour_of_day, day_of_week) DO UPDATE SET
-            frequency = frequency + 1,
-            last_executed = CURRENT_TIMESTAMP
-        """, (action_type, now.hour, now.weekday()))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            INSERT INTO user_action_habits (action_type, hour_of_day, day_of_week, frequency, last_executed)
+            VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT(action_type, hour_of_day, day_of_week) DO UPDATE SET
+                frequency = frequency + 1,
+                last_executed = CURRENT_TIMESTAMP
+            """, (action_type, now.hour, now.weekday()))
+            conn.commit()
 
 
 def get_proactive_habit_suggestion() -> dict | None:
@@ -446,14 +455,16 @@ def get_pending_jobs() -> list:
 
 def update_job_status(job_id: int, status: str, notes: str = ""):
     """Update a job application status (approved, applied, rejected, interview)."""
-    with _db() as conn:
-        applied_at = "CURRENT_TIMESTAMP" if status == "applied" else "NULL"
-        conn.execute(f"""
-        UPDATE job_applications
-        SET status = ?, notes = ?, applied_at = {applied_at}
-        WHERE id = ?
-        """, (status, notes, job_id))
-        conn.commit()
+    # Parameterized query — never interpolate SQL fragments (see changelog v3 §1.2).
+    applied_at = datetime.now().isoformat() if status == "applied" else None
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            UPDATE job_applications
+            SET status = ?, notes = ?, applied_at = ?
+            WHERE id = ?
+            """, (status, notes, applied_at, job_id))
+            conn.commit()
 
 
 def extract_job_profile_from_text(text: str) -> dict:

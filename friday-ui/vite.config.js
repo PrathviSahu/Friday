@@ -12,8 +12,18 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
+    // Accept any host: the dev server is often reached through a proxy /
+    // preview hostname, not just localhost.
+    allowedHosts: true,
     proxy: {
       '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // Generated TTS audio is served by the backend; proxy it too so the
+      // frontend can use relative URLs.
+      '/temp_audio': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,

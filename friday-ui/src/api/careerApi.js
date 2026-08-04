@@ -123,7 +123,7 @@ export const deleteResume = async (id) => {
   let result;
   try {
     result = await api('DELETE', `/resumes/${id}`);
-  } catch (err) {
+  } catch (_err) {
     result = await api('POST', `/resumes/${id}/delete`);
   }
   invalidate('resumes_false', 'resumes_true');

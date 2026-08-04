@@ -60,11 +60,11 @@ async def launch_real_browser_login(platform_key: str):
                 if 'feed' in curr_url or 'in/' in curr_url or 'mynetwork' in curr_url or has_li_cookie or ('naukri.com' in curr_url and 'mnjuser' in curr_url):
                     cookies_json = json.dumps(cookies)
                     
-                    account_name = "Prathvi Sahu"
-                    headline = "Full Stack & AI Engineer"
-                    connections = 842
-                    open_to_work = 1
-                    
+                    account_name = ""
+                    headline = ""
+                    connections = 0
+                    open_to_work = 0
+
                     try:
                         if 'linkedin.com' in curr_url:
                             name_el = await page.query_selector(".profile-rail-card__actor-link, .identity-headline")
@@ -104,13 +104,17 @@ async def launch_real_browser_login(platform_key: str):
             return {"status": "error", "verified": False, "message": str(e)}
 
 def get_platform_session_status(platform_key: str):
-    """Retrieves verified session metadata for platform."""
+    """Retrieves verified session metadata for platform.
+
+    Returns an honest `needs_login` status when no session has been captured
+    yet — never a fabricated "connected" response.
+    """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("SELECT account_name, headline, connections_count, open_to_work, cookies_json, verified_at FROM platform_sessions WHERE platform_key = ?", (platform_key,))
     row = c.fetchone()
     conn.close()
-    
+
     if row:
         account_name, headline, connections, open_to_work, cookies_json, verified_at = row
         return {
@@ -118,25 +122,29 @@ def get_platform_session_status(platform_key: str):
             "healthy": True,
             "verified": True,
             "platform": platform_key.capitalize(),
-            "account_user": account_name or "Prathvi Sahu",
-            "headline": headline or "Full Stack & AI Engineer",
-            "connections": connections or 842,
+            "account_user": account_name or "Unknown account",
+            "headline": headline or "",
+            "connections": int(connections or 0),
             "open_to_work": bool(open_to_work),
             "last_verified": verified_at or "Recently",
             "cookie_expires_days": 14,
             "permissions": ["Read profile", "Search jobs", "Fill applications safely"]
         }
-    
+
     return {
-        "status": "connected",
-        "healthy": True,
-        "verified": True,
+        "status": "needs_login",
+        "healthy": False,
+        "verified": False,
         "platform": platform_key.capitalize(),
-        "account_user": "Prathvi Sahu",
-        "headline": "Java & AI Systems Developer",
-        "connections": 842,
-        "open_to_work": True,
-        "last_verified": "Active Session",
-        "cookie_expires_days": 14,
-        "permissions": ["Read profile", "Search jobs", "Fill applications safely"]
+        "account_user": None,
+        "headline": None,
+        "connections": 0,
+        "open_to_work": False,
+        "last_verified": None,
+        "cookie_expires_days": 0,
+        "permissions": [],
+        "message": (
+            f"No stored session for {platform_key}. "
+            "Use 'Connect' to log in once in a real browser and capture a session."
+        )
     }

@@ -42,3 +42,8 @@ graphify-out/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Runtime state (never commit personal data / logs)
+backend/backend.log
+backend/data/*.json
+backend/data/.vault_key

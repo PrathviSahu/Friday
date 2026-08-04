@@ -5,7 +5,6 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import Skeleton from '../components/Skeleton.jsx';
 
 const STAGES = ['phone', 'technical', 'hr', 'final', 'offer'];
-const OUTCOMES = ['pending', 'passed', 'failed'];
 
 export default function InterviewCenter() {
   const [interviews, setInterviews] = useState([]);

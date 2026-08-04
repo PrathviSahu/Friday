@@ -1,4 +1,4 @@
-export function createAudioPlayer({ onEnded, onError, audioContextRef } = {}) {
+export function createAudioPlayer({ onEnded, onError: _onError, audioContextRef } = {}) {
   const audio = new Audio();
   audio.preload = 'auto';
   let currentUrl = '';

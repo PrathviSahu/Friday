@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { TECHNICAL_INDICATORS, AI_PATTERNS, ECONOMIC_NEWS } from '../data/marketData';
-import { Cpu, Brain, Zap, TrendingUp, AlertTriangle, ShieldCheck, Newspaper, Calendar, CheckCircle2 } from 'lucide-react';
+import { AI_PATTERNS, ECONOMIC_NEWS } from '../data/marketData';
+import { Brain } from 'lucide-react';
 
-export default function AIAssistantPanel({ symbol, currentPrice }) {
+export default function AIAssistantPanel() {
     const [tab, setTab] = useState('sentiment'); // sentiment | patterns | trade | news
 
     return (

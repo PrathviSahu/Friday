@@ -1,16 +1,12 @@
-"""
-backend/speech package initialization.
+"""backend/speech package initialization.
+
+Only the personal vocabulary engine remains — the STT provider layer
+(OpenAI / faster-whisper) was removed as dead code; FRIDAY transcribes via
+the browser Web Speech API and backend/services/stt-style Gemini fallback.
 """
 
-from .speech_engine import SpeechEngine, speech_engine
-from .router import STTRouter
-from .transcript_cleaner import clean_transcript
 from .personal_vocabulary import PersonalVocabularyEngine
 
 __all__ = [
-    "SpeechEngine",
-    "speech_engine",
-    "STTRouter",
-    "clean_transcript",
     "PersonalVocabularyEngine",
 ]

@@ -173,9 +173,9 @@ export function OrbProvider({ children }) {
             setTimeout(() => {
                 gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
                 osc.stop(ctx.currentTime + 0.2);
-                setTimeout(() => { try { ctx.close(); } catch (e) {} }, 300);
+                setTimeout(() => { try { ctx.close(); } catch (_e) {} }, 300);
             }, 1);
-        } catch (e) {
+        } catch (_e) {
             // ignore tone failure
         }
     }, []);
@@ -214,7 +214,7 @@ export function OrbProvider({ children }) {
     }, []);
 
     // Initialize audio queue for backend-played audio files
-    const { enqueue, stop: queueStop, clear: queueClear, isPlaying: queueIsPlaying } = useAudioQueue({
+    const { enqueue, isPlaying: queueIsPlaying } = useAudioQueue({
         audioContextRef: audioCtxRef,
         onStart: () => {
             setResponseMessage((msg) => msg);

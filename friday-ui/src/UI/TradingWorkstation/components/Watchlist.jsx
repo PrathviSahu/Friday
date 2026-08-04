@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useFriday } from '../../../context/FridayContext';
 import { API_ENDPOINTS } from '../../../api/config.js';
 import { 
     Search, Plus, Trash2, ChevronDown, ChevronRight, Clock, Layers, MessageSquare, 
@@ -255,7 +254,6 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         try { localStorage.setItem('friday_watchlist_width', String(targetWidth)); } catch (_) {}
     };
 
-    const [apiLoading, setApiLoading] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState(null);
 
     // Persistent state helper (writes to current watchlist storage key)
@@ -301,7 +299,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
         e.dataTransfer.effectAllowed = 'move';
     };
 
-    const handleDragOver = (e, index) => {
+    const handleDragOver = (e, _index) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
     };
@@ -398,7 +396,7 @@ export default function CustomWatchlist({ currentSymbol, onSelectSymbol }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('all');
     const [remoteResults, setRemoteResults] = useState([]);
-    const [isSearchingRemote, setIsSearchingRemote] = useState(false);
+    const [, setIsSearchingRemote] = useState(false);
     const searchInputRef = useRef(null);
 
     useEffect(() => {

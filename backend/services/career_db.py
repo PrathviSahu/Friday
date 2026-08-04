@@ -7,12 +7,65 @@ Zero interference with existing tables.
 
 import sqlite3
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
+from cryptography.fernet import Fernet
+
 DB_PATH = Path(__file__).parent.parent / "data" / "friday_brain.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+# ── At-rest encryption for sensitive profile fields ──────────────────────────
+# Sensitive values (passwords, tokens, API keys) are encrypted with Fernet
+# (AES-128-CBC + HMAC) before being written to SQLite. The key comes from the
+# FRIDAY_VAULT_KEY env var or, when unset, from a local key file
+# (backend/data/.vault_key, created on first use, chmod 600).
+_ENCRYPTED_PREFIX = "enc:v1:"
+_VAULT_KEY_FILE = Path(__file__).parent.parent / "data" / ".vault_key"
+
+
+def _load_or_create_vault_key() -> bytes:
+    env_key = (os.getenv("FRIDAY_VAULT_KEY") or "").strip()
+    if env_key:
+        return env_key.encode()
+    if _VAULT_KEY_FILE.exists():
+        return _VAULT_KEY_FILE.read_bytes().strip()
+    key = Fernet.generate_key()
+    try:
+        _VAULT_KEY_FILE.write_bytes(key)
+        os.chmod(_VAULT_KEY_FILE, 0o600)
+    except OSError:
+        pass  # non-fatal: in-memory key still works for this process
+    return key
+
+
+_fernet = None
+
+
+def _get_fernet() -> Fernet:
+    global _fernet
+    if _fernet is None:
+        _fernet = Fernet(_load_or_create_vault_key())
+    return _fernet
+
+
+def _encrypt_value(value: str) -> str:
+    if not value:
+        return value
+    token = _get_fernet().encrypt(value.encode()).decode()
+    return f"{_ENCRYPTED_PREFIX}{token}"
+
+
+def _decrypt_value(value: str) -> str:
+    if isinstance(value, str) and value.startswith(_ENCRYPTED_PREFIX):
+        try:
+            return _get_fernet().decrypt(value[len(_ENCRYPTED_PREFIX):].encode()).decode()
+        except Exception:
+            return ""  # key mismatch / tampered blob — never surface ciphertext
+    return value  # legacy plaintext value (from before encryption was enabled)
 
 
 def _db():
@@ -210,16 +263,33 @@ def update_preferences_bulk(updates: dict, source: str = "user"):
 
 # ── Profile ────────────────────────────────────────────────────────────────────
 
-SENSITIVE_FIELDS = {"email", "phone", "address", "salary", "password"}
+# Fields whose values are secrets and must be encrypted at rest. The match is a
+# substring test on the lowercased field name, so `linkedin_password`,
+# `github_token`, `openai_key`, etc. are all covered.
+SENSITIVE_HINTS = ("password", "token", "secret", "api_key", "apikey", "key",
+                   "email", "phone", "address", "salary")
+
+
+def _is_sensitive_field(field: str) -> bool:
+    f = field.strip().lower()
+    return any(hint in f for hint in SENSITIVE_HINTS)
 
 
 def get_profile() -> dict:
     with _db() as conn:
         rows = conn.execute("SELECT field, value, is_sensitive FROM career_profile").fetchall()
-    return {r["field"]: {"value": r["value"], "sensitive": bool(r["is_sensitive"])} for r in rows}
+    return {
+        r["field"]: {
+            "value": _decrypt_value(r["value"]),
+            "sensitive": bool(r["is_sensitive"]),
+        }
+        for r in rows
+    }
 
 
 def upsert_profile_field(field: str, value: str, is_sensitive: bool = False):
+    field = field.strip().lower()
+    stored = _encrypt_value(value.strip()) if is_sensitive else value.strip()
     with _db() as conn:
         conn.execute("""
         INSERT INTO career_profile (field, value, is_sensitive, updated_at)
@@ -227,13 +297,13 @@ def upsert_profile_field(field: str, value: str, is_sensitive: bool = False):
         ON CONFLICT(field) DO UPDATE SET
             value = excluded.value, is_sensitive = excluded.is_sensitive,
             updated_at = CURRENT_TIMESTAMP
-        """, (field.strip().lower(), value.strip(), int(is_sensitive)))
+        """, (field, stored, int(is_sensitive)))
         conn.commit()
 
 
 def update_profile_bulk(fields: dict):
     for field, value in fields.items():
-        upsert_profile_field(field, str(value), field.lower() in SENSITIVE_FIELDS)
+        upsert_profile_field(field, str(value), _is_sensitive_field(field))
 
 
 # ── Resumes ────────────────────────────────────────────────────────────────────

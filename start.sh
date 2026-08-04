@@ -25,6 +25,13 @@ echo ""
 
 # ── Kill any stale instances ──────────────────
 echo "  [1/3] Cleaning up old processes..."
+for pidfile in "$FRIDAY_ROOT/logs/backend.pid" "$FRIDAY_ROOT/logs/frontend.pid"; do
+  if [ -f "$pidfile" ]; then
+    kill -9 "$(cat "$pidfile")" 2>/dev/null
+    rm -f "$pidfile"
+  fi
+done
+# Fallback: anything still squatting on our ports
 kill -9 $(lsof -t -i:8000) 2>/dev/null
 kill -9 $(lsof -t -i:5173) 2>/dev/null
 sleep 1
@@ -32,7 +39,7 @@ sleep 1
 # ── Start Backend ─────────────────────────────
 echo "  [2/3] Starting backend (port 8000)..."
 cd "$BACKEND"
-./venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000 > "$BACKEND_LOG" 2>&1 &
+./venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000 --no-proxy-headers > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 sleep 4
 

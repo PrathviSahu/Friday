@@ -1,6 +1,21 @@
-# ⚡ F.R.I.D.A.Y. — Voice-Controlled AI Operating System & Career Intelligence Center
+# ⚡ F.R.I.D.A.Y. v3.0 — Voice-Controlled AI Operating System & Quantum Trading Workstation
 
 > **F.R.I.D.A.Y.** is a full-stack, voice-controlled AI desktop operating system inspired by Iron Man's J.A.R.V.I.S., built using **React 19**, **Vite 8**, **Python FastAPI**, **Groq (Llama 3.3 70B)**, and **Google Gemini 2.5**.
+
+---
+
+## 🆕 What's New in v3.0
+
+| Feature | Description |
+|---|---|
+| **Function Calling AI Brain** | `brain_v2.py` + `function_engine.py` — the LLM picks from 18 registered tools instead of 30 fragile regex patterns |
+| **Real Technical Analysis Engine** | `technical_analysis.py` — RSI, MACD, Bollinger, ATR, Stochastic, VWAP, candlestick patterns, support/resistance from live OHLCV |
+| **Telegram Bot Interface** | `telegram_bot.py` — control FRIDAY from your phone anywhere (`/time`, `/weather`, `/tasks`, `/market`, `/analyze`, free-form chat) |
+| **Modular API Routes** | Monolithic `app.py` (667 lines) split into 7 focused route modules under `backend/routes/` |
+| **Lifespan-managed Background Tasks** | Market pollers, gdrive sync & audio cleanup now start/stop cleanly with the FastAPI lifespan (no import-time zombie threads) |
+| **Thread-safe SQLite** | `check_same_thread=False` + WAL + `busy_timeout` across all DB layers, `_db_lock` serializes writes |
+| **SQL Injection Fix** | `update_job_status` now fully parameterized |
+| **Startup Env Validation** | Clear warnings for every missing/stubbed API key |
 
 ---
 
@@ -9,10 +24,11 @@
 **F.R.I.D.A.Y.** is a comprehensive personal AI assistant designed to streamline career management, trading, daily productivity, media control, and macOS system automation.
 
 Key architectural pillars:
-- **Dual-Engine Hybrid AI Brain**: Sub-150ms voice interactions via Groq Llama 3.3 70B + complex reasoning & fallbacks via Google Gemini 2.5.
-- **Strict Female Voice Engine**: Microsoft Edge-TTS neural voice (`en-GB-SoniaNeural`) with a browser fallback filter that strictly enforces female voice selection (e.g. Samantha, Victoria, Karen, Zira) while excluding male voices.
+- **Function-Calling AI Brain (v3)**: Groq Llama 3.3 70B receives 18 tool schemas and dispatches to real handlers; Gemini failover; legacy regex brain retained as final fallback.
+- **Dual-Engine Hybrid AI Brain**: Low-latency voice interactions via Groq Llama 3.3 70B + complex reasoning & fallbacks via Google Gemini 2.5.
+- **Female Voice Engine**: Microsoft Edge-TTS neural voices (`en-IN-NeerjaNeural` for English, `hi-IN-SwaraNeural` for Hindi) with a browser fallback filter that prefers female voices.
 - **Career Intelligence Center (Career OS)**: A fully operational AI-powered career operating system — not a job portal. Analyzes opportunities, drafts cover letters, tracks interviews, manages resumes, and learns your preferences. Never submits without your final approval.
-- **Quantum Trading Workstation**: TradingView Lightweight Charts with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, and a drag-and-drop watchlist backed by SQLite persistence.
+- **Quantum Trading Workstation**: TradingView Lightweight Charts with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, a drag-and-drop watchlist backed by SQLite persistence, and **real technical analysis on demand**.
 - **Zero-Config Spotify Automation**: Control music playback, track search, volume, and progress seek bar via an anonymous web player token without manual OAuth setup.
 - **macOS Automation & Hardware Telemetry**: Voice-driven application management, system volume control, and real-time CPU, RAM, Disk, and Power monitoring.
 
@@ -21,7 +37,8 @@ Key architectural pillars:
 ## ✨ Full Feature Breakdown
 
 ### 🧠 1. Adaptive Self-Learning AI Brain & Memory Core (`learning_engine.py`)
-- **Sub-150ms Dual-Engine LLM**: Groq Llama 3.3 70B primary (~150ms) + Google Gemini 2.5 failover.
+- **Function Calling Brain v2** (`brain_v2.py` + `function_engine.py`): 18 registered tools (time, weather, Spotify, todos, reminders, apps, system control, web search, navigation, screenshots, guest permission, memory, technical analysis). The LLM picks the tool; no regex ordering.
+- **Low-latency Dual-Engine LLM**: Groq Llama 3.3 70B primary + Google Gemini 2.5 failover.
 - **Unified SQLite Brain Database (`friday_brain.db`)**:
   - `memories`: Permanent facts & user preferences.
   - `conversation_history`: Short-term context & RAG keyword-token semantic memory.
@@ -29,7 +46,7 @@ Key architectural pillars:
   - `user_corrections`: Voice correction detection with -40.0 soft penalty weights.
   - 10 Career OS tables — see §6 below.
 - **Dynamic Brevity Controller**: Auto-adjusts response length based on query complexity.
-- **Voice Fingerprint & Security**: Owner authorization ("Prem") with guest permission gating.
+- **Owner Authentication & Security**: loopback/`FRIDAY_API_TOKEN` gating (see Security Policy) + guest permission gating.
 
 ### 🎵 2. Zero-Config Spotify Automation & Smart Audio Ducking
 - **Zero-OAuth Token Engine**: Anonymous token resolver for instant playback without credentials.
@@ -91,9 +108,42 @@ F.R.I.D.A.Y.'s Career OS is a fully operational AI career operating system with 
 - Skill gap analysis & learning roadmap generation
 - Daily career briefing & proactive recommendations
 
-**Backend**: `career_db.py` (10 SQLite tables in `friday_brain.db`) + `career_intelligence.py` (AI engine) + `routers/career.py` (37 REST endpoints at `/api/career/*`).
+**Backend**: `career_db.py` (10 SQLite tables in `friday_brain.db`) + `career_intelligence.py` (AI engine) + `routers/career.py` (42 endpoints across 31 paths at `/api/career/*`).
 
 **Voice**: Say `"career"` → F.R.I.D.A.Y. navigates to Career OS.
+
+---
+
+### 📈 7. Real Technical Analysis Engine (`technical_analysis.py`)
+
+No more hardcoded "RSI is at 64" — every value is computed from live OHLCV data:
+
+| Indicator | Period | | Indicator | Period |
+|---|---|---|---|---|
+| SMA | 200 | | ATR | 14 |
+| EMA | 9 / 20 / 50 | | Stochastic | %K(14) / %D(3) |
+| RSI (Wilder) | 14 | | VWAP | volume-weighted |
+| MACD | 12/26/9 + histogram | | Bollinger Bands | 20, 2σ |
+
+Plus candlestick patterns (Doji, Hammer, Shooting Star, Bullish/Bearish Engulfing), trend bias with confidence, golden/death cross detection, support & resistance from swing points, and 5-candle momentum.
+
+**Endpoint:** `GET /api/trading/analysis?symbol=FX:EURUSD&interval=15` returns structured indicators + a natural-language spoken summary. Also registered as the `technical_analysis` function tool, so you can just say *"what's the trend on gold?"*
+
+### 📱 8. Telegram Bot Interface (`telegram_bot.py`)
+
+FRIDAY is no longer Mac-only — reach it from your phone anywhere:
+
+| Command | Action |
+|---|---|
+| `/time` `/weather` `/tasks` | Time, live weather, pending tasks |
+| `/market` | Quick overview (EURUSD, Gold, NASDAQ, BTC, DXY) |
+| `/spotify` | What's currently playing |
+| `/analyze <SYMBOL>` | Real technical analysis |
+| *any text* | Free-form chat through the same brain_v2 engine |
+
+**Security:** `TELEGRAM_OWNER_ID` — only your Telegram user id may interact; everyone else gets "⛔ Access denied".
+
+**Setup:** create a bot via @BotFather → set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_OWNER_ID` in `backend/.env` → run `python -m services.telegram_bot` from `backend/`.
 
 ---
 
@@ -102,10 +152,10 @@ F.R.I.D.A.Y.'s Career OS is a fully operational AI career operating system with 
 | Domain | Technologies |
 |---|---|
 | **Frontend UI** | React 19, Vite 8, Tailwind CSS, Framer Motion, Inter (Google Fonts), TradingView Lightweight Charts, Web Speech API, WebGL GLSL Shaders |
-| **Backend API** | Python 3.14, FastAPI, Uvicorn, SQLite (WAL mode), yfinance, psutil, asyncio |
-| **AI Models** | Groq (Llama 3.3 70B Versatile), Google Gemini 2.5 |
-| **Audio / Speech** | Web Speech API (STT), Microsoft Edge-TTS `en-GB-SoniaNeural` (Neural TTS) |
-| **Integrations** | Spotify Web Player API, Open-Meteo, Google Drive API, AppleScript (`osascript`) |
+| **Backend API** | Python 3.11+, FastAPI, Uvicorn, SQLite (WAL mode, thread-safe), yfinance, numpy, psutil, asyncio |
+| **AI Models** | Groq (Llama 3.3 70B Versatile — function calling), Google Gemini 2.5 |
+| **Audio / Speech** | Web Speech API (STT), Microsoft Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` (Neural TTS) |
+| **Integrations** | Spotify Web Player API, Open-Meteo, Google Drive API, AppleScript (`osascript`), Telegram Bot API (`python-telegram-bot`) |
 | **Career OS** | Groq Llama 3.3 70B (scoring, letters, skill gap), SQLite WAL (10 career tables) |
 
 ---
@@ -121,36 +171,45 @@ FRIDAY/
 ├── stop.sh                            # Graceful shutdown script
 │
 ├── backend/                           # Python FastAPI Backend (:8000)
-│   ├── app.py                         # Main FastAPI server + router registration
+│   ├── app.py                         # Thin wiring: app assembly + lifespan (~150 lines)
 │   ├── requirements.txt               # Python dependencies
 │   ├── data/                          # Persistent databases & JSON
 │   │   ├── friday_brain.db            # Unified SQLite DB (AI memory + Career OS tables)
 │   │   ├── friday_trading_db.sqlite   # Trading watchlist & chart state
-│   │   ├── todos.json                 # Persistent task list
-│   │   └── reminders.json            # Persistent reminders
+│   │   └── .vault_key                 # Auto-generated Fernet key for the career vault
+│   ├── routes/                        # v3 modular route split
+│   │   ├── chat.py                    # /api/chat/text, memory, permission, proactive
+│   │   ├── system.py                  # /api/system/*, open/close-app
+│   │   ├── spotify.py                 # /api/spotify/* (current-track, seek, duck)
+│   │   ├── todos.py                   # /api/todos CRUD
+│   │   ├── utilities.py               # /api/tts, weather, search, reminders, gdrive
+│   │   ├── watchlist.py               # /api/watchlist CRUD + default seed
+│   │   └── trading.py                 # /api/trading/* (ohlcv, analysis, search…)
 │   ├── routers/
-│   │   └── career.py                  # 37 Career OS REST endpoints (/api/career/*)
+│   │   └── career.py                  # Career OS REST endpoints (/api/career/*)
 │   └── services/
-│       ├── brain.py                   # Groq/Gemini LLM dual-engine + intent routing
+│       ├── brain.py                   # Legacy Groq/Gemini regex brain (fallback)
+│       ├── brain_v2.py                # v3 Function-Calling AI Brain (tools + failover)
+│       ├── function_engine.py         # 18-tool function registry + dispatcher
+│       ├── technical_analysis.py      # Real TA engine (RSI, MACD, BB, ATR, patterns)
+│       ├── telegram_bot.py            # Telegram interface for phone access
 │       ├── learning_engine.py         # Adaptive self-learning, habit tracking, RAG memory
-│       ├── career_db.py               # Career OS DB layer (10 SQLite tables)
+│       ├── career_db.py               # Career OS DB layer (10 SQLite tables, encrypted vault)
 │       ├── career_intelligence.py     # Career OS AI engine (Groq: scoring/letters/gaps)
 │       ├── system_control.py          # macOS AppleScript & Spotify automation
 │       ├── mac_controls.py            # Brightness, Dark Mode, volume hardware control
-│       ├── market_data.py             # Live prices & Yahoo Finance OHLCV generator
-│       ├── indian_market_data.py      # NSE/BSE market data adapter
-│       ├── todos.py                   # Task CRUD service
-│       ├── reminders.py               # Reminders service
+│       ├── market_data.py             # Live prices + background pollers (lifespan-managed)
+│       ├── indian_market_data.py      # NSE/BSE market data adapter (lifespan-managed)
+│       ├── chart_data.py              # Shared OHLCV fetch + symbol search
+│       ├── todos.py / reminders.py    # Task & reminder services
 │       ├── system_stats.py            # psutil system telemetry
-│       ├── weather.py                 # Open-Meteo API wrapper
-│       ├── web_search.py              # Web search service
+│       ├── weather.py / web_search.py # Open-Meteo / DuckDuckGo wrappers
 │       ├── memory.py                  # Long-term memory store
-│       ├── tts.py                     # Edge-TTS en-GB-SoniaNeural text-to-speech
-│       ├── stt.py                     # Speech-to-text service
-│       ├── voice_auth.py              # Voice fingerprint & owner authentication
-│       ├── formatter.py               # Response formatting utilities
-│       ├── gdrive_api.py              # Google Drive API integration
-│       └── gdrive_sync.py             # Google Drive sync service
+│       ├── tts.py                     # Edge-TTS neural text-to-speech + audio cleanup
+│       ├── auth.py                    # Owner auth (loopback / FRIDAY_API_TOKEN)
+│       ├── ratelimit.py               # Per-IP sliding-window rate limiter
+│       ├── gdrive_api.py / gdrive_sync.py  # Google Drive integration
+│       └── voice_auth.py              # Guest permission gate
 │
 └── friday-ui/                         # React 19 Frontend (Vite 8, :5173)
     ├── index.html                     # Inter font, SEO meta
@@ -215,8 +274,12 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 8000
+uvicorn app:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 ```
+
+> `--no-proxy-headers` is important: it stops uvicorn from trusting
+> client-supplied `X-Forwarded-For`, which would otherwise let anyone spoof
+> `127.0.0.1` and bypass owner authentication.
 
 **Frontend:**
 ```bash
@@ -229,12 +292,30 @@ npm run dev
 1. Unlock F.R.I.D.A.Y. → go to Dashboard → click **"Career OS"** button in the HUD header, or
 2. Say **"career"** via voice command.
 
+### Telegram Bot (phone access)
+```bash
+cd backend
+# set TELEGRAM_BOT_TOKEN + TELEGRAM_OWNER_ID in backend/.env
+python -m services.telegram_bot
+```
+Message your bot from your phone: `/time`, `/weather`, `/market`, `/analyze OANDA:XAUUSD`, or just chat.
+
+### Running Tests
+```bash
+cd backend
+python -m pytest tests/ -q
+```
+
 ---
 
 ## 🔒 Security Policy
-- **CORS Isolation**: API restricted to `http://localhost:5173`, `http://127.0.0.1:5173`.
+- **Owner Authentication**: Requests from localhost are treated as the owner. Requests from any other machine are rejected with HTTP 401 unless they present the `FRIDAY_API_TOKEN` (from `backend/.env`) as the `X-FRIDAY-Token` header. The API never trusts a client-supplied "I am the boss" flag.
+- **Machine-control gating**: chat, app open/close, display controls, memory, permission changes, and write endpoints all require owner authentication; the entire `/api/career/*` router is owner-only.
+- **Rate limiting**: LLM-backed endpoints (chat + career AI) are rate-limited per IP to protect API credits.
+- **Encrypted at rest**: sensitive Career OS profile fields (passwords, tokens, API keys) are encrypted with Fernet (AES + HMAC) before being written to SQLite. The key lives in `FRIDAY_VAULT_KEY` or an auto-generated `backend/data/.vault_key` (chmod 600).
+- **Honest status reporting**: platform account verification returns `needs_login` until a real session exists — no fabricated "connected" responses.
+- **CORS Isolation**: API restricted to `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, `http://127.0.0.1:3000`.
 - **Input Sanitization**: AppleScript triggers use strict regex sanitization to prevent injection.
-- **Career Vault**: Credentials stored in local `friday_brain.db` — never sent externally.
 - **No Blind Submissions**: Career OS never submits an application without explicit user confirmation.
 - **Defensive Data Handling**: All DB & dictionary operations use safe fallback getters (`dict.get()`).
 

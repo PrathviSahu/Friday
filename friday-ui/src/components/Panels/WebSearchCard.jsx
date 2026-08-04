@@ -9,7 +9,6 @@ const API = API_ENDPOINTS.search;
 
 export default function WebSearchCard() {
     const { workspace } = useOrbState();
-    if (workspace === 'career') return null;
     const [isVisible, setIsVisible] = useState(false);
     const [query, setQuery] = useState('');
     const [searching, setSearching] = useState(false);
@@ -47,7 +46,8 @@ export default function WebSearchCard() {
         rawRotateY.set(0);
     };
 
-    if (workspace === 'trading') return null;
+    // NOTE: this guard must stay after every hook call (rules-of-hooks).
+    if (workspace === 'career' || workspace === 'trading') return null;
 
     const handleSearch = async (e) => {
         if (e) e.preventDefault();

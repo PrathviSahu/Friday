@@ -428,7 +428,7 @@ const renderFormattedSection = (section, value) => {
   // 1. Tag Pills for Skills / Languages / Certifications
   if (['skills', 'languages', 'certifications'].includes(section.toLowerCase())) {
     const tags = strValue
-      .split(/[,;\n•\-\*]+/)
+      .split(/[,;\n•\-*]+/)
       .map(t => t.trim())
       .filter(t => t.length > 0);
 
@@ -456,7 +456,7 @@ const renderFormattedSection = (section, value) => {
   return (
     <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {lines.map((line, idx) => {
-        const cleanLine = line.replace(/^[\s•\-\*\d\.\)\:]+/, '').trim();
+        const cleanLine = line.replace(/^[\s•\-*\d.):]+/, '').trim();
         const isHeader = line.includes(':') || (line.length < 35 && line === line.toUpperCase());
 
         return (

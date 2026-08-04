@@ -32,7 +32,7 @@ function BarChart({ data = [], color = '#6366f1', height = 120, label = '' }) {
   );
 }
 
-function DonutChart({ segments = [], size = 120, label = '' }) {
+function DonutChart({ segments = [], size = 120, _label = '' }) {
   if (!segments.length) return <EmptyChart />;
   const total = segments.reduce((s, d) => s + (d.value || 0), 0);
   if (total === 0) return <EmptyChart />;

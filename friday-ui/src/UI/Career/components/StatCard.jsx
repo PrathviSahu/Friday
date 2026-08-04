@@ -1,4 +1,4 @@
-export default function StatCard({ value, label, icon: Icon, color = '#6366f1', trend = null, suffix = '' }) {
+export default function StatCard({ value, label, icon: Icon, trend = null, suffix = '' }) {
   return (
     <div style={{
       padding: '16px 20px', borderRadius: 10,
