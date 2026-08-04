@@ -41,6 +41,7 @@ CAPABILITIES = {
     "gdrive.write":    ("enabled", "Google Drive Backup", "Write DB backups to Drive"),
     "email.read":      ("ask",     "Read Email", "Read and summarize inbox (needs Gmail/IMAP)"),
     "email.send":      ("ask",     "Send Email", "Draft and send emails (always ask)"),
+    "calendar.read":   ("ask",     "Read Calendar", "Read calendar events (needs Google Calendar)"),
     "whatsapp.read":   ("ask",     "Read WhatsApp", "Read and summarize chats (needs WhatsApp)"),
     "whatsapp.send":   ("ask",     "Send WhatsApp", "Send messages (always ask)"),
     "phone.call":      ("ask",     "Phone Calls", "Make calls (always ask, needs phone link)"),

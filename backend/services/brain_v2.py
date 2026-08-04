@@ -136,6 +136,18 @@ def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False,
                         "subject": pending["subject"],
                         "body": pending["body"],
                     }
+            # Calendar drafts likewise require explicit confirmation.
+            if name == "create_calendar_event":
+                pending = function_engine.get_pending_calendar_draft()
+                if pending:
+                    result["action"] = "calendar_confirm"
+                    result["calendar_draft_id"] = pending["id"]
+                    result["calendar_preview"] = {
+                        "summary": pending["summary"],
+                        "start": pending["start"],
+                        "end": pending["end"],
+                        "description": pending["description"],
+                    }
             return result
         if result["content"]:
             return {"reply": result["content"], "action": "none", "engine": "brain_v2"}

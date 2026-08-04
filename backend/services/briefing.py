@@ -9,6 +9,14 @@ summary, and unread notifications. Used by GET /api/briefing and by the
 from datetime import datetime
 
 
+def _time_hm(iso: str) -> str:
+    """'15:30' from an ISO datetime (empty on parse failure)."""
+    try:
+        return datetime.fromisoformat(iso).strftime("%I:%M %p")
+    except Exception:
+        return iso
+
+
 def generate_daily_briefing() -> dict:
     """Build the full briefing as structured sections + a spoken summary."""
     from services.weather import get_weather
@@ -40,7 +48,20 @@ def generate_daily_briefing() -> dict:
                   if pending else ["All caught up — no pending tasks."]),
     })
 
-    # 3. Reminders / timers
+    # 3. Calendar — today's events (the "Chief of Staff" moment)
+    try:
+        from services.calendar_agent import is_configured, get_today, format_events_for_speech
+        if is_configured():
+            events = get_today()
+            lines = ([f"• {e['summary']} at {_time_hm(e['start'])}"
+                      for e in events[:5]] if events else ["Nothing scheduled today."])
+            sections.append({"title": "Calendar", "lines": lines})
+        else:
+            sections.append({"title": "Calendar", "lines": ["Calendar not connected."]})
+    except Exception:
+        sections.append({"title": "Calendar", "lines": ["Calendar unavailable."]})
+
+    # 4. Reminders / timers
     reminders = get_active_reminders() or []
     sections.append({
         "title": "Reminders",

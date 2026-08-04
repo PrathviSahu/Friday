@@ -26,6 +26,8 @@ services:
     environment:
       # Fail fast with a clear message if the token is missing
       FRIDAY_API_TOKEN: ${FRIDAY_API_TOKEN:?Set FRIDAY_API_TOKEN in .env — see .env.example}
+      # Local timezone — Calendar/reminder times depend on it (default IST)
+      TZ: ${TZ:-Asia/Kolkata}
     volumes:
       # Persistent data: DB, memories, todos, cache (back these up!)
       - ./backend/data:/app/data

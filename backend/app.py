@@ -24,6 +24,7 @@ import uvicorn
 
 from routes.chat import router as chat_router
 from routes.email import router as email_router
+from routes.calendar import router as calendar_router
 from routes.system import router as system_router
 from routes.spotify import router as spotify_router
 from routes.todos import router as todos_router
@@ -154,6 +155,7 @@ app.mount('/temp_audio', StaticFiles(directory=Path(__file__).parent / "temp_aud
 # Route modules (v3 modular split)
 app.include_router(chat_router)
 app.include_router(email_router)
+app.include_router(calendar_router)
 app.include_router(system_router)
 app.include_router(spotify_router)
 app.include_router(todos_router)

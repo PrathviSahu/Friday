@@ -375,6 +375,67 @@ def _h_send_email(args) -> str:
             "I won't send it until you confirm.")
 
 
+# ── Calendar Agent handlers ──────────────────────────────────────────────
+
+_pending_calendar_draft = None
+
+
+def get_pending_calendar_draft() -> dict | None:
+    """Return and clear the most recently created calendar draft."""
+    global _pending_calendar_draft
+    draft = _pending_calendar_draft
+    _pending_calendar_draft = None
+    return draft
+
+
+def _h_check_calendar(args) -> str:
+    from services import calendar_agent
+    if not calendar_agent.is_configured():
+        return ("Calendar isn't connected yet, Boss. Add a Google OAuth client as "
+                "backend/credentials.json with the Calendar API enabled.")
+    try:
+        events = calendar_agent.get_today()
+    except Exception as err:
+        return f"I couldn't reach your calendar: {err}"
+    return calendar_agent.format_events_for_speech(events, "today")
+
+
+def _h_search_calendar(args) -> str:
+    from services import calendar_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your calendar for?"
+    if not calendar_agent.is_configured():
+        return "Calendar isn't connected yet, Boss."
+    try:
+        events = calendar_agent.search_events(query)
+    except Exception as err:
+        return f"I couldn't search your calendar: {err}"
+    if not events:
+        return f"No events matched '{query}'."
+    lines = [f"Found {len(events)} event(s):"]
+    for e in events[:5]:
+        lines.append(f"- {calendar_agent._pretty_time(e['start'])}: {e['summary']}")
+    return " ".join(lines)
+
+
+def _h_create_calendar_event(args) -> str:
+    from services import calendar_agent
+    if not calendar_agent.is_configured():
+        return "Calendar isn't connected yet, Boss."
+    try:
+        draft = calendar_agent.create_draft(
+            args.get("summary") or "", args.get("start") or "",
+            args.get("end") or "", args.get("description") or "",
+        )
+    except ValueError as err:
+        return str(err)
+    global _pending_calendar_draft
+    _pending_calendar_draft = draft
+    return (f"Event ready — {calendar_agent.format_event_preview(draft)}. "
+            "I won't create it until you confirm.")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Registrations (18 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -685,4 +746,41 @@ register_function(
         "required": ["to", "subject", "body"],
     },
     handler=_h_send_email,
+)
+
+register_function(
+    name="check_calendar",
+    description="Check the user's calendar: today's events with times.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_check_calendar,
+)
+
+register_function(
+    name="search_calendar",
+    description="Search the user's calendar events by title/keyword.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_calendar,
+)
+
+register_function(
+    name="create_calendar_event",
+    description=(
+        "Create a calendar event. NEVER creates anything: it only makes a preview "
+        "and the user must explicitly confirm. Use 24h ISO dates like 2026-08-06T15:00:00."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string", "description": "Event title"},
+            "start": {"type": "string", "description": "Start, YYYY-MM-DDTHH:MM:SS (24h)"},
+            "end": {"type": "string", "description": "End, YYYY-MM-DDTHH:MM:SS (24h)"},
+            "description": {"type": "string", "description": "Optional details"},
+        },
+        "required": ["summary", "start"],
+    },
+    handler=_h_create_calendar_event,
 )

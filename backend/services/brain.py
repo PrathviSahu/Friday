@@ -340,6 +340,27 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "dashboard"}
 
+        # 📅 CALENDAR AGENT (read: today / tomorrow / this week)
+        # "what's on my calendar today", "any meetings tomorrow", "this week"
+        if re.search(r'\b(?:calendar|schedule|meetings?|appointments?)\b', lower_text) or \
+           re.search(r'\bwhat.*\b(?:today|tomorrow|week|upcoming)\b.*\b(?:plan|on)\b', lower_text):
+            try:
+                from services import calendar_agent
+                if calendar_agent.is_configured():
+                    if re.search(r'\btomorrow\b', lower_text):
+                        events = calendar_agent.get_day(1)
+                        reply_msg = calendar_agent.format_events_for_speech(events, "tomorrow")
+                    elif re.search(r'\b(?:this\s+week|week\b|upcoming)\b', lower_text):
+                        events = calendar_agent.get_upcoming(days=7)
+                        reply_msg = calendar_agent.format_events_for_speech(events, "this week")
+                    else:
+                        events = calendar_agent.get_today()
+                        reply_msg = calendar_agent.format_events_for_speech(events, "today")
+                    log_conversation(role="assistant", message=reply_msg)
+                    return {"reply": reply_msg, "action": "none"}
+            except Exception:
+                pass  # fall through to the LLM if calendar is unavailable
+
         # ✉️ EMAIL AGENT (approval-first: draft → confirm → send)
         # "check my email" / "any new emails" / "email summary"
         if re.search(r'\b(?:check|read|any|new|open|show|summar|what.*in)\b.*\b(?:email|emails|inbox|mail)\b|\b(?:email|mail|inbox)\s+(?:summary|update|status)\b', lower_text):

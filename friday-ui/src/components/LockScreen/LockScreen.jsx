@@ -14,6 +14,8 @@ import { useFitScale } from '../../hooks/useFitScale';
 import { speak, stopSpeaking } from '../../services/ttsService';
 import { API_ENDPOINTS } from '../../api/config.js';
 import { approveAndSendEmail, cancelEmailDraft } from '../../api/email';
+import { approveAndCreateEvent, cancelEventDraft } from '../../api/calendar';
+import PendingApprovalCard from '../Common/PendingApprovalCard';
 
 export default function LockScreen() {
     const orb = useOrbState();
@@ -26,6 +28,10 @@ export default function LockScreen() {
     const [pendingEmail, setPendingEmail] = React.useState(null);
     const pendingEmailRef = React.useRef(null);
     React.useEffect(() => { pendingEmailRef.current = pendingEmail; }, [pendingEmail]);
+
+    const [pendingCalendar, setPendingCalendar] = React.useState(null);
+    const pendingCalendarRef = React.useRef(null);
+    React.useEffect(() => { pendingCalendarRef.current = pendingCalendar; }, [pendingCalendar]);
 
     // Push-to-talk HUD: shows a live "speaking" state while Space is held.
     const [pttHeld, setPttHeld] = React.useState(false);
@@ -43,6 +49,10 @@ export default function LockScreen() {
         if (action === 'email_confirm' && email_draft_id) {
             // Approval-first email flow: show the preview, wait for explicit confirm.
             setPendingEmail({ draftId: email_draft_id, preview: email_preview || {} });
+            return;
+        }
+        if (action === 'calendar_confirm' && calendar_draft_id) {
+            setPendingCalendar({ draftId: calendar_draft_id, preview: calendar_preview || {} });
             return;
         }
         if (action && action !== 'none' && !locked) {
@@ -227,23 +237,54 @@ export default function LockScreen() {
         return true;
     }, [setResponseMessage]);
 
-    // Voice confirmation: "yes / send it" → send; "no / cancel" → discard.
+    // ── Calendar approval helpers ────────────────────────────────────────
+    const createPendingCalendar = React.useCallback(async () => {
+        const pending = pendingCalendarRef.current;
+        if (!pending) return false;
+        try {
+            await approveAndCreateEvent(pending.draftId);
+            setResponseMessage?.('Event created on your calendar.');
+        } catch (err) {
+            setResponseMessage?.(`Calendar failed: ${err.message || 'unknown error'}`);
+        } finally {
+            pendingCalendarRef.current = null;
+            setPendingCalendar(null);
+        }
+        return true;
+    }, [setResponseMessage]);
+
+    const cancelPendingCalendar = React.useCallback(async () => {
+        const pending = pendingCalendarRef.current;
+        if (!pending) return false;
+        await cancelEventDraft(pending.draftId).catch(() => {});
+        pendingCalendarRef.current = null;
+        setPendingCalendar(null);
+        setResponseMessage?.('Event cancelled.');
+        return true;
+    }, [setResponseMessage]);
+
+    // Voice confirmation for any pending approval (email then calendar):
+    // "yes / send it / create it" → confirm; "no / cancel" → discard.
     React.useEffect(() => {
-        window.fridayCheckPendingEmailConfirm = async (transcript) => {
+        window.fridayCheckPendingApproval = async (transcript) => {
             const t = (transcript || '').trim().toLowerCase();
-            if (!pendingEmailRef.current) return false;
-            if (/^(yes|yeah|yep|yup|sure|ok|okay|confirm|send|send it|send it now|go ahead|do it|haan|ha)$/i.test(t)) {
-                await sendPendingEmail();
-                return true;
+            const YES = /^(yes|yeah|yep|yup|sure|ok|okay|confirm|send|send it|send it now|create|create it|go ahead|do it|haan|ha)$/i;
+            const NO = /^(no|nope|nah|cancel|cancel it|never mind|don'?t send|don'?t create|skip|mat bhejo)$/i;
+
+            if (pendingEmailRef.current) {
+                if (YES.test(t)) { await sendPendingEmail(); return true; }
+                if (NO.test(t)) { await cancelPendingEmail(); return true; }
+                return false; // pending approval exists — don't route elsewhere
             }
-            if (/^(no|nope|nah|cancel|cancel it|never mind|don'?t send|skip|mat bhejo)$/i.test(t)) {
-                await cancelPendingEmail();
-                return true;
+            if (pendingCalendarRef.current) {
+                if (YES.test(t)) { await createPendingCalendar(); return true; }
+                if (NO.test(t)) { await cancelPendingCalendar(); return true; }
+                return false;
             }
             return false;
         };
-        return () => { delete window.fridayCheckPendingEmailConfirm; };
-    }, [sendPendingEmail, cancelPendingEmail]);
+        return () => { delete window.fridayCheckPendingApproval; };
+    }, [sendPendingEmail, cancelPendingEmail, createPendingCalendar, cancelPendingCalendar]);
 
     useSpeech({
         locked,
@@ -448,57 +489,39 @@ export default function LockScreen() {
                 </div>
             ) : null}
 
-            {/* ── Pending email approval card (approval-first send) ── */}
+            {/* ── Pending approval cards (approval-first: email + calendar) ── */}
             {pendingEmail && (
-                <motion.div
-                    initial={{ opacity: 0, y: 24 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 24 }}
-                    className="fixed left-1/2 -translate-x-1/2 z-[70] w-[460px] max-w-[92vw]"
-                    style={{ bottom: 120, pointerEvents: 'auto' }}
-                >
-                    <div className="rounded-2xl border border-[#00B7FF]/40 bg-[#001018]/95 p-5 shadow-[0_0_60px_rgba(0,183,255,0.25)] backdrop-blur-xl">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="font-orbitron text-[9px] tracking-[0.4em] text-[#00D9FF] uppercase">
-                                ✉ Email Approval Required
-                            </span>
-                            <button
-                                onClick={cancelPendingEmail}
-                                className="text-[#DFFAFF]/40 hover:text-[#DFFAFF] text-sm leading-none"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="font-grotesk text-[12px] text-[#DFFAFF]/80 space-y-1.5 mb-4">
-                            <div><span className="text-[#00B7FF]">To:</span> {pendingEmail.preview?.to || '—'}</div>
-                            <div><span className="text-[#00B7FF]">Subject:</span> {pendingEmail.preview?.subject || '(none)'}</div>
-                            <div className="border-t border-[#00B7FF]/20 pt-2 text-[#DFFAFF]/60 leading-5 whitespace-pre-wrap max-h-28 overflow-y-auto">
-                                {pendingEmail.preview?.body || '—'}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="font-grotesk text-[9px] text-[#DFFAFF]/40 uppercase tracking-[0.2em]">
-                                Say "yes" to send · "no" to cancel
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={cancelPendingEmail}
-                                    className="px-4 py-2 rounded-lg border border-[#ff4d6d]/40 text-[#ff8fa3] text-[10px] uppercase tracking-[0.2em] hover:bg-[#ff4d6d]/10"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={sendPendingEmail}
-                                    className="px-5 py-2 rounded-lg bg-[#00B7FF] text-[#001018] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-[#00d1ff]"
-                                >
-                                    Send
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
+                <PendingApprovalCard
+                    title="✉ Email Approval Required"
+                    rows={[
+                        { label: 'To', value: pendingEmail.preview?.to || '—' },
+                        { label: 'Subject', value: pendingEmail.preview?.subject || '(none)' },
+                    ]}
+                    body={pendingEmail.preview?.body || '—'}
+                    hint='Say "yes" to send · "no" to cancel'
+                    confirmLabel="Send"
+                    onConfirm={sendPendingEmail}
+                    onCancel={cancelPendingEmail}
+                />
+            )}
+            {pendingCalendar && (
+                <PendingApprovalCard
+                    title="📅 Calendar Approval Required"
+                    rows={[
+                        { label: 'Event', value: pendingCalendar.preview?.summary || '—' },
+                        {
+                            label: 'When',
+                            value: pendingCalendar.preview?.start
+                                ? `${new Date(pendingCalendar.preview.start).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })} → ${new Date(pendingCalendar.preview.end).toLocaleString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+                                : '—',
+                        },
+                    ]}
+                    body={pendingCalendar.preview?.description || ''}
+                    hint='Say "yes" to create · "no" to cancel'
+                    confirmLabel="Create"
+                    onConfirm={createPendingCalendar}
+                    onCancel={cancelPendingCalendar}
+                />
             )}
 
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>

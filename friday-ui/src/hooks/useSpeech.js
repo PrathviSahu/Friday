@@ -233,11 +233,11 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           }
         }
 
-        // Pending email draft approval ("yes" → send, "no" → cancel)
-        if (window.fridayCheckPendingEmailConfirm) {
-          const handled = await window.fridayCheckPendingEmailConfirm(query);
+        // Pending approval-first actions (email send, calendar create, …)
+        if (window.fridayCheckPendingApproval) {
+          const handled = await window.fridayCheckPendingApproval(query);
           if (handled) {
-            console.log('[Voice] Pending email action resolved by voice.');
+            console.log('[Voice] Pending approval resolved by voice.');
             return;
           }
         }

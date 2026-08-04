@@ -40,6 +40,7 @@ remembers you over time.
 | Spotify ducking | Music dips to 20% while F.R.I.D.A.Y. speaks, restores after |
 | Speech corrections | "No, I meant X" → permanently stored in personal vocabulary |
 | Email Agent | Gmail/Outlook via IMAP+SMTP (app password): unread inbox, search, priority detection, summary, drafts — **approval-first send**: nothing is sent until you confirm (voice "yes"/"no" or the on-screen preview) |
+| Calendar Agent | Google Calendar: today/upcoming/search, **approval-first create** (preview → confirm → insert), Calendar section in the Daily Briefing; OAuth via `credentials.json` (own `calendar_token.json`) |
 
 ### Voice command patterns (frontend fast-path)
 
