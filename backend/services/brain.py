@@ -412,6 +412,17 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             except Exception:
                 pass  # fall through to the LLM
 
+        # 📄 DOCUMENT AI ("ask my documents about X", "summarize the pdf", "search my documents")
+        if re.search(r'\b(?:documents?|pdfs?|docs?|resume files?)\b', lower_text) and \
+           re.search(r'\b(?:ask|summar|search|find|read|what|about|list|show)\b', lower_text):
+            try:
+                from services import document_agent
+                reply_msg = document_agent.handle_voice_request(lower_text)
+                log_conversation(role="assistant", message=reply_msg)
+                return {"reply": reply_msg, "action": "none"}
+            except Exception:
+                pass  # fall through to the LLM
+
         # 📅 CALENDAR AGENT (read: today / tomorrow / this week)
         # "what's on my calendar today", "any meetings tomorrow", "this week"
         if re.search(r'\b(?:calendar|schedule|meetings?|appointments?)\b', lower_text) or \

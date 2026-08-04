@@ -9,7 +9,7 @@ import pytest
 def test_function_engine_registers_tools():
     from services import function_engine
     tools = function_engine.get_tools_schema()
-    assert len(tools) == 36  # + check_whatsapp, search_whatsapp, send_whatsapp
+    assert len(tools) == 39  # + search_documents, ask_document, summarize_document
     names = {t["function"]["name"] for t in tools}
     assert {"get_time", "get_weather", "play_spotify", "control_spotify",
             "add_todo", "get_todos", "set_reminder", "open_app",

@@ -44,6 +44,8 @@ CAPABILITIES = {
     "calendar.read":   ("ask",     "Read Calendar", "Read calendar events (needs Google Calendar)"),
     "meetings.read":   ("enabled", "Meetings", "Read meeting summaries and action items"),
     "meetings.create": ("enabled", "Meetings", "Transcribe & process meeting recordings (Groq credits)"),
+    "documents.read":  ("enabled", "Documents", "Read, search, ask & summarize uploaded documents"),
+    "documents.upload": ("enabled", "Documents", "Upload documents for the Document AI (Groq credits)"),
     "whatsapp.read":   ("ask",     "Read WhatsApp", "Read and summarize chats (needs WhatsApp)"),
     "whatsapp.send":   ("ask",     "Send WhatsApp", "Send messages (always ask)"),
     "phone.call":      ("ask",     "Phone Calls", "Make calls (always ask, needs phone link)"),

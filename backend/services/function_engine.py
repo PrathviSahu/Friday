@@ -535,6 +535,46 @@ def _h_send_whatsapp(args) -> str:
             "I won't send it until you confirm.")
 
 
+# ── Document AI handlers ─────────────────────────────────────────────────
+
+def _h_search_documents(args) -> str:
+    from services import document_agent
+    query = (args.get("query") or "").strip()
+    results = document_agent.search_documents(query) if query else document_agent.list_documents(limit=5)
+    if not results:
+        return "No documents found, Boss."
+    lines = [f"Found {len(results)} document(s):"]
+    lines += [f"- {d['title']} ({d['ext']})" for d in results[:5]]
+    return " ".join(lines)
+
+
+def _h_ask_document(args) -> str:
+    from services import document_agent
+    query = (args.get("document") or "").strip()
+    question = (args.get("question") or "").strip()
+    if not question:
+        return "What would you like to ask about the document?"
+    doc = document_agent.find_document_by_keyword(query) if query else None
+    if not doc:
+        return "I couldn't find a matching document, Boss."
+    try:
+        return document_agent.ask_document(doc["id"], question)
+    except document_agent.DocumentUnavailableError as err:
+        return f"I couldn't answer that: {err}"
+
+
+def _h_summarize_document(args) -> str:
+    from services import document_agent
+    query = (args.get("document") or "").strip()
+    doc = document_agent.find_document_by_keyword(query) if query else None
+    if not doc:
+        return "I couldn't find a matching document, Boss."
+    try:
+        return document_agent.summarize_document(doc["id"])
+    except document_agent.DocumentUnavailableError as err:
+        return f"I couldn't summarize that: {err}"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Registrations (18 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -942,4 +982,40 @@ register_function(
         "required": ["phone", "message"],
     },
     handler=_h_send_whatsapp,
+)
+
+register_function(
+    name="search_documents",
+    description="Search the user's uploaded documents (PDF/DOCX/PPTX/XLSX/TXT) by keyword.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_documents,
+)
+
+register_function(
+    name="ask_document",
+    description="Ask a question about an uploaded document (find it by title/keyword first).",
+    parameters={
+        "type": "object",
+        "properties": {
+            "document": {"type": "string", "description": "Title or keyword identifying the document"},
+            "question": {"type": "string", "description": "The question to answer from the document"},
+        },
+        "required": ["document", "question"],
+    },
+    handler=_h_ask_document,
+)
+
+register_function(
+    name="summarize_document",
+    description="Summarize an uploaded document (find it by title/keyword first).",
+    parameters={
+        "type": "object",
+        "properties": {"document": {"type": "string", "description": "Title or keyword identifying the document"}},
+        "required": ["document"],
+    },
+    handler=_h_summarize_document,
 )

@@ -43,6 +43,7 @@ remembers you over time.
 | Calendar Agent | Google Calendar: today/upcoming/search, **approval-first create** (preview → confirm → insert), Calendar section in the Daily Briefing; OAuth via `credentials.json` (own `calendar_token.json`) |
 | Meeting Assistant | Upload a recording (Groq Whisper, free tier) or paste a transcript → LLM extracts summary, key points, decisions & **action items** → saved to SQLite + mirrored to Knowledge OS; action items can be pushed to Todos; voice: "what were the action items?", "summarize my last meeting" |
 | WhatsApp Agent (experimental) | Opt-in (`FRIDAY_WHATSAPP_ENABLED=1`); FRIDAY's own Playwright driver for WhatsApp Web (no third-party libs — the PyPI package is a typosquat, the original is dead). QR pairing in the UI, unread chats, **approval-first send** ("message 91XXXXXXXXXX that …" → preview → confirm) |
+| Document AI | Upload PDF/DOCX/PPTX/XLSX/TXT → text extracted & stored (originals discarded) → **ask questions, summarize, compare** via Groq; voice: "ask my documents about X", "summarize the pdf", "search my documents for Y" |
 
 ### Voice command patterns (frontend fast-path)
 

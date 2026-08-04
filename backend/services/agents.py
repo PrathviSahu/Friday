@@ -36,11 +36,13 @@ AGENTS = {
     },
     "research": {
         "name": "Research Agent",
-        "blurb": "Web research, explanations, comparisons, summaries.",
+        "blurb": "Web research, explanations, comparisons, summaries, documents.",
         "capabilities": ["search_web", "get_time", "get_weather", "add_todo",
-                         "navigate_to"],
+                         "navigate_to", "search_documents", "ask_document",
+                         "summarize_document"],
         "keywords": ["research", "explain", "compare", "summar", "what is",
-                     "how does", "paper", "document", "learn", "tell me about"],
+                     "how does", "paper", "document", "pdf", "resume file",
+                     "learn", "tell me about"],
     },
     "finance": {
         "name": "Finance Agent",
