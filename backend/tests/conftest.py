@@ -32,6 +32,7 @@ _DB_MODULES = [
     ("services.platform_session", "init_session_db"),
     ("services.meeting_agent", "init_meetings_db"),
     ("services.document_agent", "init_documents_db"),
+    ("services.embeddings", "init_embeddings_db"),
     ("database.watchlist_db", "init_watchlist_table"),
     ("database.chart_db", "init_trading_db"),
     ("database.connection", None),  # holds DB_PATH used by speech/personal_vocabulary

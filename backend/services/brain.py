@@ -751,6 +751,13 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
         recent_history = get_recent_conversation(limit=4)
         history_str = "\n".join([f"{h['role'].upper()}: {h['message']}" for h in recent_history])
 
+        # ── Semantic memory (Gemini embeddings RAG) — recall in your words ──
+        try:
+            from services.embeddings import semantic_context
+            semantic_str = semantic_context(text, k=3)
+        except Exception:
+            semantic_str = ""
+
         # ── Smarter context: live track + time + pending todos ──
         track = get_spotify_current_track()
         track_context = f"'{track.get('title')}' by {track.get('artist')} ({track.get('state')})" if track.get("title") else "Nothing playing."
@@ -793,6 +800,7 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             f"[RESPONSE LENGTH INSTRUCTION] {BREVITY_INSTRUCTIONS.get(brevity_mode, '')}\n\n"
             f"[PERMANENT MEMORY & USER PREFERENCES]\n{memory_str}\n\n"
             f"[RECENT CONVERSATION HISTORY]\n{history_str}"
+            + (f"\n\n[SEMANTICALLY RELEVANT MEMORIES]\n{semantic_str}" if semantic_str else "")
         )
 
     elif guest_active:

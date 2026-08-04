@@ -118,7 +118,17 @@ def add_note(title: str, content: str, note_type: str = None, tags: list = None,
             (ntype, title[:300], content[:10000], json.dumps(tags or []),
              (project or "").strip() or None, source_url))
         conn.commit()
-        return cur.lastrowid
+        row_id = cur.lastrowid
+    _embed_note(row_id, title, content)
+    return row_id
+
+
+def _embed_note(note_id, title, content):
+    try:
+        from services.embeddings import on_note_added
+        on_note_added(title, content, note_id)
+    except Exception:
+        pass
 
 
 def list_notes(note_type: str = None, project: str = None, limit: int = 100) -> list:
