@@ -819,16 +819,18 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     if groq_client:
         try:
             start_time = time.time()
-            completion = groq_client.chat.completions.create(
-                model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-                messages=[
-                    {"role": "system", "content": full_system_prompt},
-                    {"role": "user", "content": f"User said: {text}"}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3,
-                max_tokens=400,
-            )
+            from services.metrics import timed as _timed
+            with _timed("llm", meta="groq-v1"):
+                completion = groq_client.chat.completions.create(
+                    model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                    messages=[
+                        {"role": "system", "content": full_system_prompt},
+                        {"role": "user", "content": f"User said: {text}"}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.3,
+                    max_tokens=400,
+                )
             elapsed = (time.time() - start_time) * 1000
             raw = completion.choices[0].message.content or ""
             data = _extract_json(raw)
