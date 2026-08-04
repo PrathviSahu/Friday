@@ -233,6 +233,15 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           }
         }
 
+        // Pending email draft approval ("yes" → send, "no" → cancel)
+        if (window.fridayCheckPendingEmailConfirm) {
+          const handled = await window.fridayCheckPendingEmailConfirm(query);
+          if (handled) {
+            console.log('[Voice] Pending email action resolved by voice.');
+            return;
+          }
+        }
+
         // Stop listening while the command is handled (mic comes back in
         // handleCmd's finally — during TTS — so the user can barge in).
         teardownBrowserRec();

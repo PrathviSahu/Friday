@@ -340,6 +340,55 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=reply_msg)
             return {"reply": reply_msg, "action": "dashboard"}
 
+        # ✉️ EMAIL AGENT (approval-first: draft → confirm → send)
+        # "check my email" / "any new emails" / "email summary"
+        if re.search(r'\b(?:check|read|any|new|open|show|summar|what.*in)\b.*\b(?:email|emails|inbox|mail)\b|\b(?:email|mail|inbox)\s+(?:summary|update|status)\b', lower_text):
+            try:
+                from services import email_agent
+                if email_agent.is_configured():
+                    summary = email_agent.summarize_inbox(limit=15)
+                    lines = [f"You have {summary['unread_count']} unread emails."]
+                    if summary["priority"]:
+                        lines.append("Priority: " + "; ".join(
+                            f"{m['from_name']} — {m['subject'][:40]}" for m in summary["priority"][:3]) + ".")
+                    if summary["by_sender"]:
+                        lines.append("Top senders: " + ", ".join(
+                            f"{m['name']} ({m['count']})" for m in summary["by_sender"][:4]) + ".")
+                    reply_msg = " ".join(lines)
+                    log_conversation(role="assistant", message=reply_msg)
+                    return {"reply": reply_msg, "action": "none"}
+            except Exception:
+                pass  # fall through to the LLM if email is unavailable
+
+        # "email <addr> that <message>" / "mail <addr> saying <message>"
+        email_send_match = re.search(
+            r'\b(?:email|mail|write|send\s+(?:an?\s+)?email|draft)\s+(?:to\s+)?([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})\s+(?:that|saying|stating|about|re|subject)\s+(.+)$',
+            lower_text,
+        )
+        if email_send_match:
+            try:
+                from services import email_agent
+                if email_agent.is_configured():
+                    to = email_send_match.group(1)
+                    message = email_send_match.group(2).strip()
+                    subject = "From F.R.I.D.A.Y." if len(message) > 60 else "Quick note"
+                    draft = email_agent.create_draft(to, subject, message)
+                    preview = email_agent.format_email_preview(draft)
+                    reply_msg = f"Draft ready, Prem — {preview}. I won't send it until you confirm."
+                    log_conversation(role="assistant", message=reply_msg)
+                    return {
+                        "reply": reply_msg,
+                        "action": "email_confirm",
+                        "email_draft_id": draft["id"],
+                        "email_preview": {
+                            "to": draft["to"],
+                            "subject": draft["subject"],
+                            "body": draft["body"],
+                        },
+                    }
+            except Exception:
+                pass  # fall through to the LLM
+
         # Close Spotify & App Shortcuts (English + Hinglish: close spotify, quit spotify, band karo spotify)
         if re.search(r'\b(?:close|quit|stop|exit|band\s+karo)\s+(?:the\s+)?spotify\b|\bspotify\s+(?:close|quit|band\s+karo)\b', lower_text):
             close_app("Spotify")

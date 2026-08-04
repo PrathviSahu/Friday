@@ -39,6 +39,7 @@ remembers you over time.
 | Audio queue | Non-blocking queue; `stopSpeaking()` interrupts instantly |
 | Spotify ducking | Music dips to 20% while F.R.I.D.A.Y. speaks, restores after |
 | Speech corrections | "No, I meant X" → permanently stored in personal vocabulary |
+| Email Agent | Gmail/Outlook via IMAP+SMTP (app password): unread inbox, search, priority detection, summary, drafts — **approval-first send**: nothing is sent until you confirm (voice "yes"/"no" or the on-screen preview) |
 
 ### Voice command patterns (frontend fast-path)
 

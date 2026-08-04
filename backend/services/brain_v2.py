@@ -123,8 +123,20 @@ def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False,
             name, args = tc["name"], tc["arguments"]
             logging.info(f"[Brain v2] Calling function: {name}({args})")
             reply = function_engine.dispatch(name, args)
-            return {"reply": reply, "action": "none", "engine": "brain_v2",
-                    "function": name}
+            result = {"reply": reply, "action": "none", "engine": "brain_v2",
+                      "function": name}
+            # Email drafts must go through the approval-first confirm flow.
+            if name == "send_email":
+                pending = function_engine.get_pending_email_draft()
+                if pending:
+                    result["action"] = "email_confirm"
+                    result["email_draft_id"] = pending["id"]
+                    result["email_preview"] = {
+                        "to": pending["to"],
+                        "subject": pending["subject"],
+                        "body": pending["body"],
+                    }
+            return result
         if result["content"]:
             return {"reply": result["content"], "action": "none", "engine": "brain_v2"}
         raise RuntimeError("Groq returned no content and no tool calls")

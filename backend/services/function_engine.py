@@ -305,6 +305,76 @@ def _h_technical_analysis(args) -> str:
     return result.get("summary") or result.get("error", "Analysis unavailable.")
 
 
+# ── Email Agent handlers ─────────────────────────────────────────────────
+
+# Set whenever send_email creates a draft, so brain_v2 can surface the
+# email_confirm action (the frontend then drives the approval flow).
+_pending_email_draft = None
+
+
+def get_pending_email_draft() -> dict | None:
+    """Return and clear the most recently created email draft (for confirm flow)."""
+    global _pending_email_draft
+    draft = _pending_email_draft
+    _pending_email_draft = None
+    return draft
+
+
+def _h_check_email(args) -> str:
+    from services import email_agent
+    if not email_agent.is_configured():
+        return ("Email isn't configured yet, Boss. Add FRIDAY_EMAIL_HOST, "
+                "FRIDAY_EMAIL_USER and FRIDAY_EMAIL_PASS to backend/.env to enable it.")
+    try:
+        s = email_agent.summarize_inbox(limit=20)
+    except Exception as err:
+        return f"I couldn't reach your inbox: {err}"
+    lines = [f"You have {s['unread_count']} unread emails."]
+    if s["priority"]:
+        top = "; ".join(f"{m['from_name']} — {m['subject'][:48]}" for m in s["priority"][:3])
+        lines.append(f"Priority: {top}.")
+    if s["by_sender"]:
+        senders = ", ".join(f"{m['name']} ({m['count']})" for m in s["by_sender"][:4])
+        lines.append(f"Top senders: {senders}.")
+    return " ".join(lines)
+
+
+def _h_search_email(args) -> str:
+    from services import email_agent
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "What should I search your email for?"
+    if not email_agent.is_configured():
+        return "Email isn't configured yet, Boss."
+    try:
+        results = email_agent.search_emails(query, limit=5)
+    except Exception as err:
+        return f"I couldn't search your inbox: {err}"
+    if not results:
+        return f"No emails matched '{query}'."
+    lines = [f"Found {len(results)} email(s) matching '{query}':"]
+    for m in results:
+        lines.append(f"- {m['from_name']}: {m['subject'][:60]}")
+    return " ".join(lines)
+
+
+def _h_send_email(args) -> str:
+    from services import email_agent
+    to = (args.get("to") or "").strip()
+    subject = (args.get("subject") or "").strip()
+    body = (args.get("body") or "").strip()
+    if not email_agent.is_configured():
+        return "Email isn't configured yet, Boss."
+    try:
+        draft = email_agent.create_draft(to, subject, body)
+    except ValueError as err:
+        return str(err)
+    global _pending_email_draft
+    _pending_email_draft = draft
+    return (f"Draft ready for {draft['to']} — subject: {draft['subject'] or '(none)'}. "
+            "I won't send it until you confirm.")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Registrations (18 functions)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -579,4 +649,40 @@ register_function(
         "required": ["title"],
     },
     handler=_h_update_goal,
+)
+
+register_function(
+    name="check_email",
+    description="Check the user's email inbox: unread count, priority emails and top senders.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_check_email,
+)
+
+register_function(
+    name="search_email",
+    description="Search the user's email inbox by subject or sender.",
+    parameters={
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Search term"}},
+        "required": ["query"],
+    },
+    handler=_h_search_email,
+)
+
+register_function(
+    name="send_email",
+    description=(
+        "Draft an email to a recipient. NEVER sends anything: it only creates a "
+        "preview and the user must explicitly confirm before it is sent."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "to": {"type": "string", "description": "Recipient email address"},
+            "subject": {"type": "string", "description": "Email subject"},
+            "body": {"type": "string", "description": "Email body text"},
+        },
+        "required": ["to", "subject", "body"],
+    },
+    handler=_h_send_email,
 )
