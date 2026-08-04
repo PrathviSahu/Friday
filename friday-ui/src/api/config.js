@@ -14,6 +14,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const API_ENDPOINTS = {
   chatText: `${API_BASE_URL}/api/chat/text`,
+  speechTranscribe: `${API_BASE_URL}/api/speech/transcribe`,
   tts: `${API_BASE_URL}/api/tts`,
   career: `${API_BASE_URL}/api/career`,
   trading: `${API_BASE_URL}/api/trading`,

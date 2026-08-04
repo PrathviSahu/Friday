@@ -255,6 +255,16 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     if not text:
         return {"reply": "", "action": "none"}
 
+    # Apply permanent personal speech corrections (STT mishearing fixes from
+    # "No, I meant X" corrections) before anything else processes the text.
+    try:
+        from speech.personal_vocabulary import PersonalVocabularyEngine
+        corrected = PersonalVocabularyEngine().apply_corrections(text)
+        if corrected:
+            text = corrected
+    except Exception:
+        pass  # vocabulary engine must never break the brain
+
     lower_text = text.lower()
     guest_active = is_guest_permitted()
     authorized = is_boss or guest_active

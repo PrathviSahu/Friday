@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { matchVoiceCommand } from './voiceCommands';
 import { fetchChatText } from '../api/chatText';
+import { transcribeAudioBlob } from '../api/speech';
 import { speak, stopSpeaking } from '../services/ttsService';
 
 const withTimeout = (promise, ms) =>
@@ -14,7 +15,7 @@ const withTimeout = (promise, ms) =>
 export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, onCommand, onConversation }) {
   // Support both prop name variants: locked (LockScreen) and isLocked (legacy)
   const _locked = locked ?? isLocked ?? false;
-  const activeRef         = useRef(false);  // true while SpeechRecognition is running
+  const activeRef         = useRef(false);  // true while a mic/recognizer is live
   const processingRef     = useRef(false);  // true while a command is being handled
   const speakingRef       = useRef(false);  // true while FRIDAY's TTS is playing
   const enabledRef        = useRef(enabled); // mirrors the enabled prop reactively
@@ -25,17 +26,36 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   const lastTranscriptRef = useRef(null); // { text, ts } — dedup guard for double-fired transcripts
   const lastSpokenTtsRef  = useRef({ text: '', ts: 0 }); // stores FRIDAY's own spoken text to prevent self-echo loops
 
+  // STT engine mode: 'browser' (Web Speech API) or 'whisper' (backend
+  // Groq Whisper free tier via recorded clips). We auto-switch to 'whisper'
+  // when the browser engine is unsupported or keeps failing.
+  const modeRef          = useRef('browser');
+  const micBlockedRef    = useRef(false); // mic permission denied — stop retrying
+
+  // Whisper-mode resources (stream / VAD / MediaRecorder)
+  const streamRef        = useRef(null);
+  const audioCtxRef      = useRef(null);
+  const analyserRef      = useRef(null);
+  const recorderRef      = useRef(null);
+  const chunksRef        = useRef([]);
+  const vadRef           = useRef({ state: 'idle', speechStart: 0, lastVoice: 0 });
+  const vadFrameRef      = useRef(null);
+
   // Keep refs in sync with props every render — no re-mount needed
   useEffect(() => { lockedRef.current = _locked; }, [_locked]);
   useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
   useEffect(() => { onConvRef.current = onConversation; }, [onConversation]);
 
-  // When enabled flips OFF → abort recognizer immediately.
+  // When enabled flips OFF → abort recognizer + whisper resources immediately.
   useEffect(() => {
     enabledRef.current = enabled;
     if (!enabled) {
       stopRecognizer();
+    } else {
+      // Give the user a fresh chance after granting mic permission in browser
+      // settings (or toggling the mic off/on).
+      micBlockedRef.current = false;
     }
   }, [enabled]);
 
@@ -51,35 +71,12 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     let restartTimer     = null;
     let keepAlive        = null;
     let noSpeechStreak   = 0;
-
-    stopRecognizerRef.current = () => {
-      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
-      if (rec) {
-        rec.onend    = null;
-        rec.onerror  = null;
-        rec.onresult = null;
-        try { rec.abort(); } catch (_) {}
-        activeRef.current = false;
-      }
-    };
+    let networkErrors    = 0;
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRec) {
-      console.warn('[Voice] SpeechRecognition not supported in this browser.');
-      return;
-    }
 
-    const scheduleRestart = (ms) => {
-      if (cancelled || restartTimer || !enabledRef.current) return;
-      restartTimer = setTimeout(() => {
-        restartTimer = null;
-        if (!cancelled && enabledRef.current) start();
-      }, ms);
-    };
-
-    const start = () => {
-      if (cancelled || !enabledRef.current) return;
-
+    // ── Browser recognizer teardown ─────────────────────────────────────
+    const teardownBrowserRec = () => {
       if (rec) {
         rec.onend    = null;
         rec.onerror  = null;
@@ -87,162 +84,130 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         try { rec.abort(); } catch (_) {}
         rec = null;
       }
+    };
 
-      rec = new SpeechRec();
-      rec.continuous     = true;
-      rec.interimResults = false;
-      rec.lang           = 'en-US';
+    // ── Whisper-mode teardown (stream / VAD / recorder) ──────────────────
+    const teardownWhisper = () => {
+      if (vadFrameRef.current) {
+        cancelAnimationFrame(vadFrameRef.current);
+        vadFrameRef.current = null;
+      }
+      if (recorderRef.current) {
+        try { recorderRef.current.onstop = null; recorderRef.current.stop(); } catch (_) {}
+        recorderRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch (_) {} });
+        streamRef.current = null;
+      }
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch (_) {}
+        audioCtxRef.current = null;
+        analyserRef.current = null;
+      }
+      activeRef.current = false;
+    };
 
-      rec.onstart = () => {
-        console.log('[Voice] Microphone actively Listening...');
-        activeRef.current = true;
-        noSpeechStreak = 0;
-      };
+    stopRecognizerRef.current = () => {
+      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+      teardownBrowserRec();
+      teardownWhisper();
+    };
 
-      rec.onerror = (e) => {
-        activeRef.current = false;
-        if (cancelled || !enabledRef.current) return;
-        console.warn('[Voice] Recognition error:', e.error);
+    const scheduleRestart = (ms) => {
+      if (cancelled || restartTimer || !enabledRef.current) return;
+      restartTimer = setTimeout(() => {
+        restartTimer = null;
+        if (!cancelled && enabledRef.current) startAfterIdle();
+      }, ms);
+    };
 
-        if (e.error === 'no-speech') {
-          noSpeechStreak += 1;
-          const delay = Math.min(500 * Math.pow(2, noSpeechStreak - 1), 5000);
-          scheduleRestart(delay);
-        } else if (e.error === 'network') {
-          scheduleRestart(1000);
+    // ── Shared transcript pipeline (both engines feed this) ─────────────
+    const processTranscript = async (rawTranscript) => {
+      if (!enabledRef.current || !rawTranscript) return;
+      const normRaw = rawTranscript.toLowerCase().trim();
+      if (!normRaw) return;
+
+      console.log('[Voice] Raw speech recognized:', rawTranscript);
+
+      // 🛡️ SELF-ECHO REJECTION GUARD:
+      // Ignore audio if it's FRIDAY's own spoken TTS output or matches recent response
+      const now = Date.now();
+      const spokenInfo = lastSpokenTtsRef.current;
+      const isRecentTts = spokenInfo.text && (now - spokenInfo.ts < 5000);
+      const containsTtsSnippet = isRecentTts && (
+        normRaw.includes(spokenInfo.text) ||
+        spokenInfo.text.includes(normRaw) ||
+        /\b(?:brightness|set to|percent|standing by|prem|at your service|opening|closing|system is locked|enabled|disabled|locking display)\b/.test(normRaw)
+      );
+
+      if (speakingRef.current || containsTtsSnippet) {
+        // Check for explicit user barge-in stop command
+        const isExplicitStop = /\b(?:stop|shut up|quiet|pause|hush|wait)\b/.test(normRaw);
+        if (isExplicitStop) {
+          console.log('[Voice Interrupt] 🛑 User explicit stop command — aborting TTS.');
+          stopSpeaking();
+          speakingRef.current = false;
+        } else {
+          console.log('[Voice Self-Echo Blocked] Suppressing speaker audio capture:', rawTranscript);
+          return;
         }
-      };
+      }
 
-      rec.onend = () => {
-        activeRef.current = false;
-        if (cancelled || !enabledRef.current) return;
-        const delay = noSpeechStreak > 0 ? Math.min(500 * noSpeechStreak, 3000) : 300;
-        scheduleRestart(delay);
-      };
+      // ── Wake-word stripping ─────────────────────────────────────────────
+      let query = rawTranscript.trim()
+        .replace(/^ready\s*(?:film|feel|fill)/i, 'play')
+        .replace(/^if\s+friday\s+please/i, 'play')
+        .replace(/^suno\s+friday/i, '')
+        .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno|aye)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday|fri\s*day)\b\s*/gi, '')
+        .trim();
 
-      rec.onresult = async (e) => {
-        if (!enabledRef.current) return;
+      if (!query) {
+        console.log('[Voice Interrupt] Wake-word only — listening for command...');
+        noSpeechStreak = 0;
+        return;
+      }
 
-        const idx = e.resultIndex ?? 0;
-        const rawTranscript = e.results[idx]?.[0]?.transcript ?? '';
-        const normRaw = rawTranscript.toLowerCase().trim();
-        if (!normRaw) return;
+      // ── Minimal Noise Filter (grunts only) ──────────────────────────────
+      const NOISE_ONLY = new Set(['uh', 'um', 'hmm', 'hm', 'ah', 'oh']);
+      if (NOISE_ONLY.has(query.toLowerCase().trim())) {
+        console.log('[Voice] Ignored grunt noise:', query);
+        return;
+      }
 
-        console.log('[Voice] Raw speech recognized:', rawTranscript);
+      // ── Dedup guard ─────────────────────────────────────────────────────
+      const lastRaw = lastTranscriptRef.current;
+      if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 3000) {
+        console.log('[Voice] Suppressing duplicate transcript within 3s:', rawTranscript);
+        return;
+      }
+      lastTranscriptRef.current = { text: rawTranscript.trim(), ts: now };
 
-        // 🛡️ SELF-ECHO REJECTION GUARD:
-        // Ignore audio if it's FRIDAY's own spoken TTS output or matches recent response
-        const now = Date.now();
-        const spokenInfo = lastSpokenTtsRef.current;
-        const isRecentTts = spokenInfo.text && (now - spokenInfo.ts < 5000);
-        const containsTtsSnippet = isRecentTts && (
-          normRaw.includes(spokenInfo.text) ||
-          spokenInfo.text.includes(normRaw) ||
-          /\b(?:brightness|set to|percent|standing by|prem|at your service|opening|closing|system is locked|enabled|disabled|locking display)\b/.test(normRaw)
-        );
+      if (/^at\s+this\s+song/i.test(query)) {
+        query = query.replace(/^at\s+this\s+song/i, 'add this song');
+      }
 
-        if (speakingRef.current || containsTtsSnippet) {
-          // Check for explicit user barge-in stop command
-          const isExplicitStop = /\b(?:stop|shut up|quiet|pause|hush|wait)\b/.test(normRaw);
-          if (isExplicitStop) {
-            console.log('[Voice Interrupt] 🛑 User explicit stop command — aborting TTS.');
-            stopSpeaking();
-            speakingRef.current = false;
-          } else {
-            console.log('[Voice Self-Echo Blocked] Suppressing speaker audio capture:', rawTranscript);
+      console.log('[Voice] Valid command recognized:', rawTranscript.trim(), '-> query:', query);
+
+      if (query.length > 0) {
+        if (window.fridayCheckPendingConfirmation) {
+          const handled = await window.fridayCheckPendingConfirmation(query);
+          if (handled) {
+            console.log('[Voice] Pending proactive action confirmed.');
             return;
           }
         }
 
-        // ── Wake-word stripping ─────────────────────────────────────────────
-        let query = rawTranscript.trim()
-          .replace(/^ready\s*(?:film|feel|fill)/i, 'play')
-          .replace(/^if\s+friday\s+please/i, 'play')
-          .replace(/^suno\s+friday/i, '')
-          .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno|aye)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday|fri\s*day)\b\s*/gi, '')
-          .trim();
-
-        if (!query) {
-          console.log('[Voice Interrupt] Wake-word only — listening for command...');
-          noSpeechStreak = 0;
-          return;
-        }
-
-        // ── Minimal Noise Filter (grunts only) ──────────────────────────────
-        const NOISE_ONLY = new Set(['uh', 'um', 'hmm', 'hm', 'ah', 'oh']);
-        if (NOISE_ONLY.has(query.toLowerCase().trim())) {
-          console.log('[Voice] Ignored grunt noise:', query);
-          start();
-          return;
-        }
-
-        // ── Dedup guard ─────────────────────────────────────────────────────
-        const lastRaw = lastTranscriptRef.current;
-        if (lastRaw && lastRaw.text === rawTranscript.trim() && now - lastRaw.ts < 3000) {
-          console.log('[Voice] Suppressing duplicate transcript within 3s:', rawTranscript);
-          return;
-        }
-        lastTranscriptRef.current = { text: rawTranscript.trim(), ts: now };
-
-        // Stop recognizer while processing
-        if (rec) {
-          rec.onend    = null;
-          rec.onerror  = null;
-          rec.onresult = null;
-          try { rec.abort(); } catch (_) {}
-          rec = null;
-          activeRef.current = false;
-        }
-
-        noSpeechStreak = 0;
-
-        if (/^at\s+this\s+song/i.test(query)) {
-          query = query.replace(/^at\s+this\s+song/i, 'add this song');
-        }
-
-        console.log('[Voice] Valid command recognized:', rawTranscript.trim(), '-> query:', query);
-
-        if (query.length > 0) {
-          if (window.fridayCheckPendingConfirmation) {
-            const handled = await window.fridayCheckPendingConfirmation(query);
-            if (handled) {
-              console.log('[Voice] Pending proactive action confirmed.');
-              start();
-              return;
-            }
-          }
-
-          handleCmd(query);
-        } else {
-          start();
-        }
-      };
-
-      try {
-        rec.start();
-      } catch (err) {
-        console.warn('[Voice] start() threw:', err.message || err);
-        scheduleRestart(800);
+        await handleCmd(query);
       }
     };
-
-    // ── Watchdog: revive if mic silently died ─────────────────────────────
-    keepAlive = setInterval(() => {
-      if (enabledRef.current && !activeRef.current && !processingRef.current && !speakingRef.current) {
-        console.log('[Voice Watchdog] Mic inactive, reviving...');
-        start();
-      }
-    }, 5000);
-
-    let lastProcessedCmd = '';
-    let lastProcessedTime = 0;
 
     // ── Command handler ───────────────────────────────────────────────────
     const handleCmd = async (cmd) => {
       const now = Date.now();
       if (processingRef.current || (cmd === lastProcessedCmd && now - lastProcessedTime < 3000)) {
         console.log('[Voice] Suppressing duplicate rapid command:', cmd);
-        if (!activeRef.current) start();
+        if (!activeRef.current) startAfterIdle();
         return;
       }
       processingRef.current = true;
@@ -312,12 +277,309 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       } finally {
         processingRef.current = false;
         if (!cancelled && enabledRef.current && !activeRef.current) {
-          start();
+          startAfterIdle();
         }
       }
     };
 
-    const bootTimer = setTimeout(() => { if (enabledRef.current) start(); }, 0);
+    let lastProcessedCmd = '';
+    let lastProcessedTime = 0;
+
+    // ── Restart whatever engine is currently active ───────────────────────
+    const startAfterIdle = () => {
+      if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+      if (modeRef.current === 'whisper') startWhisper();
+      else start();
+    };
+
+    // ══════════════════ ENGINE 1: BROWSER WEB SPEECH API ══════════════════
+    const start = () => {
+      if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+
+      if (!SpeechRec) {
+        // Browser engine unavailable (Firefox, old webviews…) — use the
+        // backend Whisper engine instead.
+        console.warn('[Voice] SpeechRecognition not supported — switching to Whisper backend STT (Groq free tier).');
+        modeRef.current = 'whisper';
+        startWhisper();
+        return;
+      }
+
+      teardownBrowserRec();
+
+      rec = new SpeechRec();
+      rec.continuous     = true;
+      rec.interimResults = true; // interim for responsiveness; finals drive commands
+      rec.lang           = 'en-US';
+
+      rec.onstart = () => {
+        console.log('[Voice] Microphone actively Listening...');
+        activeRef.current = true;
+        noSpeechStreak = 0;
+      };
+
+      rec.onerror = (e) => {
+        activeRef.current = false;
+        if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+        console.warn('[Voice] Recognition error:', e.error);
+
+        if (e.error === 'no-speech') {
+          noSpeechStreak += 1;
+          if (noSpeechStreak >= 6) {
+            console.log('[Voice] Browser STT repeatedly silent — switching to Whisper backend STT.');
+            switchToWhisper('no-speech');
+            return;
+          }
+          const delay = Math.min(500 * Math.pow(2, noSpeechStreak - 1), 5000);
+          scheduleRestart(delay);
+        } else if (e.error === 'network') {
+          networkErrors += 1;
+          if (networkErrors >= 2) {
+            console.log('[Voice] Browser STT network failures — switching to Whisper backend STT.');
+            switchToWhisper('network');
+            return;
+          }
+          scheduleRestart(1000);
+        } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+          console.warn('[Voice] Microphone permission denied — voice disabled. Allow mic access to use voice.');
+          micBlockedRef.current = true;
+        } else {
+          scheduleRestart(1200);
+        }
+      };
+
+      rec.onend = () => {
+        activeRef.current = false;
+        if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+        if (modeRef.current !== 'browser') return; // engine switched underneath us
+        const delay = noSpeechStreak > 0 ? Math.min(500 * noSpeechStreak, 3000) : 300;
+        scheduleRestart(delay);
+      };
+
+      rec.onresult = (e) => {
+        if (!enabledRef.current) return;
+
+        // Collect final results only (interim transcripts are just logging).
+        let finalText = '';
+        let bestConfidence = 1;
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const res = e.results[i];
+          if (!res.isFinal) {
+            if (res[0]?.transcript) console.log('[Voice] Interim:', res[0].transcript);
+            continue;
+          }
+          const t = res[0]?.transcript ?? '';
+          if (t) {
+            finalText += ' ' + t;
+            bestConfidence = Math.min(bestConfidence, Number(res[0].confidence) || 1);
+          }
+        }
+        finalText = finalText.trim();
+        if (!finalText) return;
+
+        console.log(`[Voice] Final transcript (confidence ${bestConfidence.toFixed(2)}):`, finalText);
+
+        // Low-confidence short utterances are usually room noise / false wake.
+        if (bestConfidence < 0.4 && finalText.split(/\s+/).length <= 2) {
+          console.log('[Voice] Low-confidence short utterance ignored as noise.');
+          return;
+        }
+
+        // Stop recognizer while processing
+        teardownBrowserRec();
+
+        noSpeechStreak = 0;
+        processTranscript(finalText);
+      };
+
+      try {
+        rec.start();
+      } catch (err) {
+        console.warn('[Voice] start() threw:', err.message || err);
+        scheduleRestart(800);
+      }
+    };
+
+    // ══════════════════ ENGINE 2: WHISPER BACKEND (GROQ FREE TIER) ══════════════════
+    const switchToWhisper = (reason) => {
+      if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+      if (modeRef.current === 'whisper') return;
+      console.log(`[Voice] Switching to Whisper backend STT (reason: ${reason}) — Groq free tier / Gemini fallback.`);
+      modeRef.current = 'whisper';
+      teardownBrowserRec();
+      startWhisper();
+    };
+
+    const VAD_RMS_THRESHOLD = 0.025;  // voice activity threshold (RMS)
+    const VAD_SILENCE_MS    = 900;    // silence that ends a clip
+    const VAD_MIN_SPEECH_MS = 300;    // ignore sub-300ms blips
+    const VAD_MAX_CLIP_MS   = 15000;  // safety cap per clip
+
+    const pickRecorderMime = () => {
+      const candidates = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/mp4'];
+      if (typeof MediaRecorder === 'undefined') return '';
+      for (const m of candidates) {
+        try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (_) {}
+      }
+      return '';
+    };
+
+    const startWhisper = async () => {
+      if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+      if (streamRef.current && activeRef.current) return; // already live
+
+      teardownWhisper();
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        console.warn('[Voice] mediaDevices unavailable (insecure context?) — Whisper STT unavailable.');
+        micBlockedRef.current = true;
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        if (cancelled || !enabledRef.current) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new Ctx();
+        audioCtxRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+
+        activeRef.current = true;
+        noSpeechStreak = 0;
+        console.log('[Voice] Whisper mic active — listening for speech segments (Groq Whisper free tier).');
+        vadLoop();
+      } catch (err) {
+        console.warn('[Voice] Mic unavailable for Whisper mode:', err?.message || err);
+        activeRef.current = false;
+        teardownWhisper();
+        if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+          micBlockedRef.current = true;
+          console.warn('[Voice] Microphone permission denied — voice disabled.');
+        }
+      }
+    };
+
+    // ── Voice activity detection loop (AnalyserNode RMS) ─────────────────
+    const vadLoop = () => {
+      if (cancelled || !enabledRef.current || modeRef.current !== 'whisper') {
+        vadFrameRef.current = null;
+        return;
+      }
+      const analyser = analyserRef.current;
+      const ctx = audioCtxRef.current;
+      if (!analyser || !ctx || !streamRef.current) { vadFrameRef.current = null; return; }
+
+      const buf = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = (buf[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buf.length);
+      const now = Date.now();
+      const vad = vadRef.current;
+
+      // Don't start clips while FRIDAY is speaking or a command is processing
+      const blocked = speakingRef.current || processingRef.current;
+
+      if (!blocked && rms > VAD_RMS_THRESHOLD) {
+        if (vad.state === 'idle') {
+          vad.state = 'speech';
+          vad.speechStart = now;
+          vad.lastVoice = now;
+          startRecorder();
+        } else {
+          vad.lastVoice = now;
+        }
+      } else if (vad.state === 'speech') {
+        const dur = now - vad.speechStart;
+        const silentFor = now - vad.lastVoice;
+        if (dur > VAD_MIN_SPEECH_MS && (silentFor > VAD_SILENCE_MS || dur > VAD_MAX_CLIP_MS)) {
+          vad.state = 'idle';
+          stopRecorder();
+        }
+      }
+
+      vadFrameRef.current = requestAnimationFrame(vadLoop);
+    };
+
+    const startRecorder = () => {
+      if (recorderRef.current || !streamRef.current) return;
+      try {
+        const mime = pickRecorderMime();
+        const rec = mime
+          ? new MediaRecorder(streamRef.current, { mimeType: mime })
+          : new MediaRecorder(streamRef.current);
+        chunksRef.current = [];
+
+        rec.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+        };
+
+        rec.onstop = async () => {
+          recorderRef.current = null;
+          const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/ogg' });
+          chunksRef.current = [];
+          if (blob.size === 0) return;
+
+          const mimeType = rec.mimeType || '';
+          const ext = mimeType.includes('mp4') ? 'clip.m4a'
+            : mimeType.includes('webm') ? 'clip.webm'
+            : 'clip.ogg';
+          console.log('[Voice] Whisper clip captured:', (blob.size / 1024).toFixed(0) + ' KB');
+
+          try {
+            const transcript = await withTimeout(transcribeAudioBlob(blob, ext), 20000);
+            if (transcript) {
+              await processTranscript(transcript);
+            } else {
+              console.log('[Voice] Whisper returned empty transcript — ignoring.');
+            }
+          } catch (err) {
+            console.warn('[Voice] Whisper transcription failed:', err?.message || err);
+            // Free-tier rate limit (429) — back off briefly before next clip.
+            if (/429|Too many|rate.?limit/i.test(err?.message || '')) {
+              await new Promise(r => setTimeout(r, 3000));
+            }
+          }
+        };
+
+        rec.start(200); // timeslice → periodic dataavailable chunks
+        recorderRef.current = rec;
+      } catch (err) {
+        console.warn('[Voice] Recorder start failed:', err?.message || err);
+      }
+    };
+
+    const stopRecorder = () => {
+      const rec = recorderRef.current;
+      if (!rec) return;
+      try { rec.stop(); } catch (_) { recorderRef.current = null; }
+    };
+
+    // ── Watchdog: revive if mic silently died ─────────────────────────────
+    keepAlive = setInterval(() => {
+      if (!enabledRef.current || micBlockedRef.current) return;
+      if (activeRef.current || processingRef.current || speakingRef.current) return;
+      if (modeRef.current === 'whisper') {
+        console.log('[Voice Watchdog] Whisper mic inactive, reviving...');
+        startWhisper();
+      } else {
+        console.log('[Voice Watchdog] Mic inactive, reviving...');
+        start();
+      }
+    }, 5000);
+
+    const bootTimer = setTimeout(() => { if (enabledRef.current) startAfterIdle(); }, 0);
 
     return () => {
       cancelled = true;
@@ -327,12 +589,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       if (keepAlive)    clearInterval(keepAlive);
       if (restartTimer) clearTimeout(restartTimer);
       if (bootTimer)    clearTimeout(bootTimer);
-      if (rec) {
-        rec.onend    = null;
-        rec.onerror  = null;
-        rec.onresult = null;
-        try { rec.abort(); } catch (_) {}
-      }
+      teardownBrowserRec();
+      teardownWhisper();
     };
   }, []);
 }

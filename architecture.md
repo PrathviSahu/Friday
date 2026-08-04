@@ -165,7 +165,7 @@ All loops check a stop-event, so shutdown is prompt and tests run thread-free.
 |---|---|---|
 | **Frontend Core** | React 19, Vite 8, Framer Motion | Dynamic HUD dashboard, panel routing, animations |
 | **Charting Engine** | Lightweight Charts (TradingView) | Canvas rendering, OHLCV candles, Volume histogram |
-| **Voice & Audio** | Web Speech API + Edge-TTS `en-GB-SoniaNeural` | STT input, Neural TTS output queue |
+| **Voice & Audio** | Web Speech API + Groq Whisper `whisper-large-v3-turbo` fallback (free tier) + Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` | STT input, Neural TTS output queue |
 | **Backend Framework** | FastAPI + Uvicorn | Async ASGI REST backend (:8000) |
 | **Market Data** | yfinance + TradingView Scanner API | Multi-exchange market quotes & candle history |
 | **AI LLMs** | Groq Llama 3.3 70B + Gemini 2.5 | Intent extraction, career intelligence, natural dialogue |

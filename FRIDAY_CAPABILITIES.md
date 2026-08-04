@@ -18,7 +18,7 @@ remembers you over time.
 | Layer | What it does | Where |
 |---|---|---|
 | **AI Core** | Conversation, intent routing, tool calling, memory | `brain.py`, `brain_v2.py`, `function_engine.py` |
-| **Voice** | Wake word, STT (browser + Gemini fallback), neural TTS, audio queue | `useSpeech.js`, `stt.py`, `tts.py` |
+| **Voice** | Wake word, STT (browser + Groq Whisper free tier fallback), neural TTS, audio queue | `useSpeech.js`, `services/stt.py`, `tts.py` |
 | **Career OS** | Resumes, jobs, applications, interviews, recruiters | `routers/career.py` (42 endpoints) |
 | **Developer OS** | Trading workstation, technical analysis, devtools | `routes/trading.py`, `routes/devtools.py` |
 | **Knowledge OS** | Second brain, memory timeline, life memory, goals | `routes/knowledge.py`, `services/*` |
@@ -32,7 +32,7 @@ remembers you over time.
 | Capability | Detail |
 |---|---|
 | Wake word | "Hey Friday", "OK Friday", "Friday…" (stripped before processing) |
-| Speech-to-text | Browser Web Speech API; Gemini (`gemini-2.5-flash`) backend fallback |
+| Speech-to-text | Browser Web Speech API (instant path); auto-fallback to **Groq Whisper `whisper-large-v3-turbo`** (free tier) → Gemini `gemini-2.5-flash` audio when the browser engine is unsupported or flaky. Whisper is Hinglish-aware, so Hindi commands transcribe correctly |
 | Text-to-speech | Microsoft Edge-TTS — `en-IN-NeerjaNeural` (English), `hi-IN-SwaraNeural` (Hindi); auto-detects Devanagari |
 | Audio queue | Non-blocking queue; `stopSpeaking()` interrupts instantly |
 | Spotify ducking | Music dips to 20% while F.R.I.D.A.Y. speaks, restores after |

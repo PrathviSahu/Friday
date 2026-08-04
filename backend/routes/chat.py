@@ -2,16 +2,20 @@
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from auth import require_boss, is_boss_request
 from ratelimit import is_rate_limited
 from services.brain import respond, get_proactive_suggestion
+from services.stt import transcribe_audio, STTUnavailableError
 from services.voice_auth import is_guest_permitted, set_guest_permission
 from services.memory import get_all_memories, save_fact
 
 router = APIRouter(prefix="/api", tags=["chat"])
+
+# Groq free tier caps uploads at 25 MB; 10 MB is plenty for a voice clip.
+MAX_STT_AUDIO_BYTES = 10 * 1024 * 1024
 
 
 class ChatTextRequest(BaseModel):
@@ -81,6 +85,56 @@ def record_speech_correction(req: SpeechCorrectionRequest):
     from speech.personal_vocabulary import PersonalVocabularyEngine
     ok = PersonalVocabularyEngine().record_correction(req.original_text, req.corrected_text)
     return {"status": "ok" if ok else "error"}
+
+
+@router.post("/speech/transcribe", dependencies=[Depends(require_boss)])
+async def speech_transcribe_endpoint(request: Request, audio: UploadFile = File(...)):
+    """Transcribe a voice clip with the best free-tier STT engine.
+
+    Engine order: Groq Whisper `whisper-large-v3-turbo` (free tier) →
+    Gemini 2.5 Flash audio (free tier). The transcript then passes through
+    the personal vocabulary correction engine, so saved "No, I meant X"
+    corrections apply to voice input too.
+
+    Rate limited: 30 requests / 60s per IP (Groq's free tier allows 20 RPM;
+    Gemini absorbs the overflow).
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if is_rate_limited(client_ip, limit=30, window=60):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many transcriptions. Please slow down, Prem."
+        )
+
+    data = await audio.read()
+    if len(data) > MAX_STT_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio clip too large (max 10 MB).")
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty audio clip.")
+
+    filename = audio.filename or "clip.ogg"
+    mime_type = audio.content_type or "audio/ogg"
+
+    try:
+        result = await asyncio.to_thread(transcribe_audio, data, filename, mime_type)
+    except STTUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    transcript = (result.get("transcript") or "").strip()
+    # Apply permanent personal corrections (user's "No, I meant X" fixes).
+    if transcript:
+        try:
+            from speech.personal_vocabulary import PersonalVocabularyEngine
+            corrected = PersonalVocabularyEngine().apply_corrections(transcript)
+            transcript = corrected or transcript
+        except Exception:
+            pass  # vocabulary engine must never break transcription
+
+    return {
+        "transcript": transcript,
+        "language": result.get("language", "auto"),
+        "source": result.get("source", ""),
+    }
 
 
 @router.post("/permission", dependencies=[Depends(require_boss)])

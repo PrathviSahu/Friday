@@ -38,6 +38,7 @@ Key architectural pillars:
 - **Function-Calling AI Brain (v3)**: Groq Llama 3.3 70B receives 18 tool schemas and dispatches to real handlers; Gemini failover; legacy regex brain retained as final fallback.
 - **Dual-Engine Hybrid AI Brain**: Low-latency voice interactions via Groq Llama 3.3 70B + complex reasoning & fallbacks via Google Gemini 2.5.
 - **Female Voice Engine**: Microsoft Edge-TTS neural voices (`en-IN-NeerjaNeural` for English, `hi-IN-SwaraNeural` for Hindi) with a browser fallback filter that prefers female voices.
+- **Free-Tier Whisper STT**: Speech-to-text runs on the browser Web Speech API for instant recognition and automatically fails over to **Groq Whisper `whisper-large-v3-turbo`** (free tier, 2,000 requests/day) with a Gemini `gemini-2.5-flash` audio fallback — so voice keeps working in Firefox/webviews and Hinglish commands transcribe correctly.
 - **Career Intelligence Center (Career OS)**: A fully operational AI-powered career operating system — not a job portal. Analyzes opportunities, drafts cover letters, tracks interviews, manages resumes, and learns your preferences. Never submits without your final approval.
 - **Quantum Trading Workstation**: TradingView Lightweight Charts with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, a drag-and-drop watchlist backed by SQLite persistence, and **real technical analysis on demand**.
 - **Zero-Config Spotify Automation**: Control music playback, track search, volume, and progress seek bar via an anonymous web player token without manual OAuth setup.
@@ -281,7 +282,7 @@ roles, missing skills. Transparent instead of mysterious.
 | **Frontend UI** | React 19, Vite 8, Tailwind CSS, Framer Motion, Inter (Google Fonts), TradingView Lightweight Charts, Web Speech API, WebGL GLSL Shaders |
 | **Backend API** | Python 3.11+, FastAPI, Uvicorn, SQLite (WAL mode, thread-safe), yfinance, numpy, psutil, asyncio |
 | **AI Models** | Groq (Llama 3.3 70B Versatile — function calling), Google Gemini 2.5 |
-| **Audio / Speech** | Web Speech API (STT), Microsoft Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` (Neural TTS) |
+| **Audio / Speech** | Web Speech API (STT, instant) + Groq Whisper `whisper-large-v3-turbo` free-tier fallback (Gemini `gemini-2.5-flash` audio last resort), Microsoft Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` (Neural TTS) |
 | **Integrations** | Spotify Web Player API, Open-Meteo, Google Drive API, AppleScript (`osascript`), Telegram Bot API (`python-telegram-bot`) |
 | **Career OS** | Groq Llama 3.3 70B (scoring, letters, skill gap), SQLite WAL (10 career tables) |
 
@@ -333,6 +334,7 @@ FRIDAY/
 │       ├── weather.py / web_search.py # Open-Meteo / DuckDuckGo wrappers
 │       ├── memory.py                  # Long-term memory store
 │       ├── tts.py                     # Edge-TTS neural text-to-speech + audio cleanup
+│       ├── stt.py                     # Speech-to-text: Groq Whisper (free tier) + Gemini fallback
 │       ├── auth.py                    # Owner auth (loopback / FRIDAY_API_TOKEN)
 │       ├── ratelimit.py               # Per-IP sliding-window rate limiter
 │       ├── gdrive_api.py / gdrive_sync.py  # Google Drive integration
