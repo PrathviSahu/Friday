@@ -5,7 +5,7 @@ from pathlib import Path
 env_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -13,6 +13,28 @@ from contextlib import asynccontextmanager
 import uvicorn
 import asyncio
 import os
+import time
+import threading
+
+# ── Simple in-process rate limiter (token bucket) ───────────────────────
+# 30 requests / 60s window per IP. Protects Groq/Gemini API credits.
+_rate_store: dict = {}   # {ip: [timestamps]}
+_rate_lock  = threading.Lock()
+RATE_LIMIT  = 30         # max requests
+RATE_WINDOW = 60         # per N seconds
+
+def _is_rate_limited(ip: str) -> bool:
+    now = time.time()
+    with _rate_lock:
+        timestamps = _rate_store.get(ip, [])
+        # Keep only timestamps within the window
+        timestamps = [t for t in timestamps if now - t < RATE_WINDOW]
+        if len(timestamps) >= RATE_LIMIT:
+            _rate_store[ip] = timestamps
+            return True
+        timestamps.append(now)
+        _rate_store[ip] = timestamps
+        return False
 
 # ── Required environment variable validation ───────────────────────────────────
 REQUIRED_ENV_VARS = [
@@ -154,11 +176,18 @@ def read_root():
 
 
 @app.post("/api/chat/text")
-async def chat_text_endpoint(req: ChatTextRequest):
+async def chat_text_endpoint(req: ChatTextRequest, request: Request):
     """Text-based chat endpoint for FRIDAY AI brain with memory learning.
+    Rate limited: 30 requests / 60s per IP to protect Groq/Gemini API credits.
     Uses asyncio.to_thread() to prevent blocking the event loop during
     synchronous Groq/Gemini LLM calls (150ms–2s per request).
     """
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please slow down, Prem — even I need a breather!"
+        )
     try:
         res = await asyncio.to_thread(
             respond, req.text, req.is_boss, req.silence_tts

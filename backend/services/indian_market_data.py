@@ -15,6 +15,8 @@ import logging
 try:
     import yfinance as yf
     YFINANCE_AVAILABLE = True
+    # Suppress yfinance's noisy error logger — it spams "possibly delisted" during market close hours
+    logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 except ImportError:
     YFINANCE_AVAILABLE = False
     logging.warning("[IndianMarket] yfinance not installed. Run: pip install yfinance")
@@ -49,7 +51,7 @@ INDIAN_SYMBOLS = {
     "TITAN.NS":      {"key": "NSE:TITAN",      "name": "TITAN",       "type": "stock"},
     "BHARTIARTL.NS": {"key": "NSE:BHARTIARTL", "name": "BHARTIARTL",  "type": "stock"},
     "BEL.NS":        {"key": "NSE:BEL",        "name": "BEL",         "type": "stock"},
-    "LTIMINDTREE.NS": {"key": "NSE:LTIM",       "name": "LTIMindtree",  "type": "stock"},
+    "LTIM.NS":       {"key": "NSE:LTIM",       "name": "LTIMindtree",  "type": "stock"},
     "AXISBANK.NS":   {"key": "NSE:AXISBANK",   "name": "AXISBANK",    "type": "stock"},
     "SUNPHARMA.NS":  {"key": "NSE:SUNPHARMA",  "name": "SUNPHARMA",   "type": "stock"},
     "ITC.NS":        {"key": "NSE:ITC",        "name": "ITC",         "type": "stock"},
@@ -167,12 +169,18 @@ def _apply_micro_ticks():
 
 
 def _indian_bg_worker():
-    """Background daemon thread that refreshes Indian stock prices asynchronously without blocking API requests."""
+    """Background daemon: refresh Indian stock prices. Skips fetch when NSE is closed to avoid log spam."""
     global _last_fetch
     while True:
         try:
-            if _fetch_from_yahoo():
-                _last_fetch = time.time()
+            if is_market_open():
+                if _fetch_from_yahoo():
+                    _last_fetch = time.time()
+            else:
+                # Market closed — apply micro ticks to existing cache only, no network calls
+                with _fetch_lock:
+                    if _cache:
+                        _apply_micro_ticks()
         except Exception as e:
             logging.warning(f"[Indian BG Worker Error] {e}")
         time.sleep(60)
