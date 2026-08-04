@@ -12,6 +12,27 @@
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// API token for non-loopback deployments (Docker). Baked in at build time
+// via VITE_FRIDAY_TOKEN (docker-compose passes FRIDAY_API_TOKEN). Empty in
+// the native/dev setup, where loopback auth applies instead.
+export const FRIDAY_TOKEN = (import.meta.env.VITE_FRIDAY_TOKEN || '').trim();
+
+// When a token is configured, attach X-FRIDAY-Token to every fetch so the
+// backend accepts requests that arrive from non-loopback addresses (e.g.
+// Docker's bridge network). This wraps window.fetch once at import time and
+// covers every API module automatically.
+if (FRIDAY_TOKEN && typeof window !== 'undefined' && !window.fetch.__fridayAuthWrapped) {
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const headers = new Headers(init && init.headers);
+    if (!headers.has('X-FRIDAY-Token')) {
+      headers.set('X-FRIDAY-Token', FRIDAY_TOKEN);
+    }
+    return originalFetch(input, { ...init, headers });
+  };
+  window.fetch.__fridayAuthWrapped = true;
+}
+
 export const API_ENDPOINTS = {
   chatText: `${API_BASE_URL}/api/chat/text`,
   speechTranscribe: `${API_BASE_URL}/api/speech/transcribe`,

@@ -382,6 +382,43 @@ FRIDAY/
 
 ## 🚀 Quick Start Guide
 
+### Option A — Docker (recommended for Windows & sharing with family/friends)
+
+No Python/Node setup needed. Works identically on **Windows, macOS and Linux**.
+
+```bash
+# 1. Install Docker Desktop (Windows: use the WSL2 backend) and start it.
+
+# 2. Get Friday and configure it
+git clone https://github.com/PrathviSahu/Friday.git && cd Friday
+cp .env.example .env            # then fill in GROQ_API_KEY, GEMINI_API_KEY,
+                                # FRIDAY_API_TOKEN (generate a long random string)
+
+# 3. Build and launch
+docker compose up -d --build
+
+# 4. Open Friday
+#    → http://localhost:8080
+```
+
+Notes for the Docker setup:
+
+- **Auth**: in Docker every request arrives from the bridge network, so all
+  API access is gated by `FRIDAY_API_TOKEN` (same value is baked into the
+  frontend automatically). Keep it secret if you expose the ports.
+- **What works everywhere**: AI brain (Groq/Gemini), voice — Web Speech API +
+  Groq Whisper STT fallback, Edge-TTS voice output, Spotify web-player
+  controls, todos/reminders, trading workstation, Career OS (enable job
+  scraping with `INSTALL_BROWSERS=1` in `.env`), memory, Telegram.
+- **What's Mac-only and auto-disabled in Docker**: opening/closing desktop
+  apps, system volume, display lock/brightness (`IS_MAC` guards return
+  gracefully). The System Monitor shows the *container's* stats on Windows.
+- **Data persists** in `./backend/data` (DB + memories) — back it up.
+- **Updates**: `git pull && docker compose up -d --build`.
+- **Stop**: `docker compose down` (add `-v` to also wipe volumes).
+
+### Option B — Native (macOS with full system automation)
+
 ### Prerequisites
 - Node.js (v18+)
 - Python (v3.11+)

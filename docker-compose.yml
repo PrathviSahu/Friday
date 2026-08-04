@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────
+#  F.R.I.D.A.Y. — Docker Compose (frontend + backend)
+#
+#  Quick start:
+#    1. cp .env.example .env        (then fill in your API keys)
+#    2. docker compose up -d --build
+#    3. open http://localhost:8080
+#
+#  Windows/macOS/Linux all run the same Linux containers, so a
+#  friend or relative can run Friday with zero Python setup.
+#  macOS-only system automation (open/close apps, volume, lock)
+#  is auto-disabled inside containers — the AI brain, voice,
+#  Spotify web-player controls, todos, trading & career all work.
+# ─────────────────────────────────────────────────────────────
+name: friday
+
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        # 1 → install Playwright Chromium for career job scraping (bigger image)
+        INSTALL_BROWSERS: ${INSTALL_BROWSERS:-0}
+    env_file:
+      - .env
+    environment:
+      # Fail fast with a clear message if the token is missing
+      FRIDAY_API_TOKEN: ${FRIDAY_API_TOKEN:?Set FRIDAY_API_TOKEN in .env — see .env.example}
+    volumes:
+      # Persistent data: DB, memories, todos, cache (back these up!)
+      - ./backend/data:/app/data
+      # Generated TTS audio
+      - ./backend/temp_audio:/app/temp_audio
+    ports:
+      - "8000:8000"   # direct API access (token-gated), also handy for debugging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/system/stats', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./friday-ui
+      args:
+        # Baked into the JS bundle so every API call carries X-FRIDAY-Token.
+        # (Rebuild with --build after changing it.)
+        VITE_FRIDAY_TOKEN: ${FRIDAY_API_TOKEN:-}
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
