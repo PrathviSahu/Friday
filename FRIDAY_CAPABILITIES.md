@@ -32,6 +32,7 @@ remembers you over time.
 | Capability | Detail |
 |---|---|
 | Wake word | "Hey Friday", "OK Friday", "Friday…" (stripped before processing) |
+| Barge-in | Start talking while F.R.I.D.A.Y. is speaking → she stops instantly and listens. Browser engine: transcript-based (her echo is blocked, your command wins). Whisper engine: TTS volume ducks + fresh voice-onset detection |
 | Push-to-talk | Optional hold-**Space** mode — mic opens only while held (barge-in stops speech instantly); toggle in the bottom bar, remembered across reloads |
 | Speech-to-text | Browser Web Speech API (instant path); auto-fallback to **Groq Whisper `whisper-large-v3-turbo`** (free tier) → Gemini `gemini-2.5-flash` audio when the browser engine is unsupported or flaky. Whisper is Hinglish-aware, so Hindi commands transcribe correctly |
 | Text-to-speech | Microsoft Edge-TTS — `en-IN-NeerjaNeural` (English), `hi-IN-SwaraNeural` (Hindi); auto-detects Devanagari |

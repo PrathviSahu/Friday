@@ -2,6 +2,19 @@ import { API_ENDPOINTS, resolveApiUrl } from '../api/config.js';
 
 let currentAudio = null;
 let currentResolve = null; // Holds the pending speak() promise resolver for instant abort
+let duckTts = false;       // when true, TTS volume is lowered so the mic can hear the user
+
+/**
+ * Lower/restore FRIDAY's own TTS volume. Whisper-mode VAD uses this so her
+ * own voice doesn't trigger barge-in — the user's voice is louder by
+ * comparison, so a voice onset while ducked is reliably the user.
+ */
+export function setTtsDucking(on) {
+  duckTts = !!on;
+  if (currentAudio) {
+    try { currentAudio.volume = duckTts ? 0.35 : 1; } catch (_) {}
+  }
+}
 
 /**
  * Instantly stop any currently playing audio and resolve the pending speak() promise,
@@ -73,6 +86,7 @@ export async function speak(text) {
           // production VITE_API_URL alike.
           const audio = new Audio(resolveApiUrl(data.audio_url));
           currentAudio = audio;
+          audio.volume = duckTts ? 0.35 : 1;
 
           audio.onended = () => {
             currentAudio = null;
@@ -133,6 +147,7 @@ function fallbackWebSpeech(text, onEnd) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.pitch = 1.0;
   utterance.rate = 1.0;
+  utterance.volume = duckTts ? 0.35 : 1;
 
   const voices = window.speechSynthesis.getVoices();
   // Target Indian English voices first (en-IN, Neerja, Rishi, Veena, Swara)

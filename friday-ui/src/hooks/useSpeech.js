@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { matchVoiceCommand } from './voiceCommands';
 import { fetchChatText } from '../api/chatText';
 import { transcribeAudioBlob } from '../api/speech';
-import { speak, stopSpeaking } from '../services/ttsService';
+import { speak, stopSpeaking, setTtsDucking } from '../services/ttsService';
 
 const withTimeout = (promise, ms) =>
   Promise.race([
@@ -11,6 +11,11 @@ const withTimeout = (promise, ms) =>
       setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
     ),
   ]);
+
+// Patterns that look like an intentional user command — used to decide
+// barge-in while FRIDAY is speaking. Her own echo rarely contains these,
+// so random noise / partial echoes never interrupt her.
+const COMMAND_LIKE = /\b(?:hey|ok|okay|suno|aye)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday)\b|\b(?:open|close|play|pause|next|previous|volume|mute|time|date|today|what|who|when|where|why|how|set|search|lock|unlock|trading|dashboard|career|weather|todo|song|music|gaana|chalu|band|kya|kaun|konsa|stop|quiet|hush|wait)\b/i;
 
 export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, mode = 'always', onCommand, onConversation }) {
   // Support both prop name variants: locked (LockScreen) and isLocked (legacy)
@@ -25,6 +30,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   const onConvRef         = useRef(onConversation);
   const lastTranscriptRef = useRef(null); // { text, ts } — dedup guard for double-fired transcripts
   const lastSpokenTtsRef  = useRef({ text: '', ts: 0 }); // stores FRIDAY's own spoken text to prevent self-echo loops
+  const speechGenRef      = useRef(0); // increments per TTS reply — stale replies can't clear the current speaking state
 
   // Listening mode: 'always' (mic always listening) or 'ptt' (hold Space to talk).
   // PTT keeps the microphone fully closed between holds — privacy-friendly.
@@ -43,7 +49,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   const analyserRef      = useRef(null);
   const recorderRef      = useRef(null);
   const chunksRef        = useRef([]);
-  const vadRef           = useRef({ state: 'idle', speechStart: 0, lastVoice: 0 });
+  const vadRef           = useRef({ state: 'idle', speechStart: 0, lastVoice: 0, quietFrames: 0 });
   const vadFrameRef      = useRef(null);
 
   // Keep refs in sync with props every render — no re-mount needed
@@ -148,17 +154,39 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         /\b(?:brightness|set to|percent|standing by|prem|at your service|opening|closing|system is locked|enabled|disabled|locking display)\b/.test(normRaw)
       );
 
-      if (speakingRef.current || containsTtsSnippet) {
-        // Check for explicit user barge-in stop command
-        const isExplicitStop = /\b(?:stop|shut up|quiet|pause|hush|wait)\b/.test(normRaw);
+      // 🛡️ SELF-ECHO REJECTION + TRUE BARGE-IN:
+      // Audio matching FRIDAY's own recent TTS output is always her echo — block it.
+      if (containsTtsSnippet) {
+        console.log('[Voice Self-Echo Blocked] Suppressing speaker audio capture:', rawTranscript);
+        return;
+      }
+
+      if (speakingRef.current) {
+        // Explicit user stop command ("stop", "shut up"…) — always honored.
+        const isExplicitStop = /\b(?:stop|shut up|quiet|pause|hush|wait|baat band)\b/.test(normRaw);
         if (isExplicitStop) {
           console.log('[Voice Interrupt] 🛑 User explicit stop command — aborting TTS.');
           stopSpeaking();
           speakingRef.current = false;
-        } else {
+          lastSpokenTtsRef.current = { text: '', ts: 0 };
+          setTtsDucking(false);
+          return;
+        }
+
+        // TRUE BARGE-IN: FRIDAY is speaking but this is the USER's voice
+        // (doesn't match her speech and looks like a command) → stop her
+        // instantly and listen. Wake word / commands only — never noise.
+        if (!COMMAND_LIKE.test(normRaw)) {
           console.log('[Voice Self-Echo Blocked] Suppressing speaker audio capture:', rawTranscript);
           return;
         }
+
+        console.log('[Voice Barge-In] 🎙 User speech during TTS — stopping FRIDAY and listening:', rawTranscript);
+        stopSpeaking();
+        speakingRef.current = false;
+        lastSpokenTtsRef.current = { text: '', ts: 0 };
+        setTtsDucking(false);
+        // fall through → the user's command is processed below
       }
 
       // ── Wake-word stripping ─────────────────────────────────────────────
@@ -205,8 +233,34 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           }
         }
 
+        // Stop listening while the command is handled (mic comes back in
+        // handleCmd's finally — during TTS — so the user can barge in).
+        teardownBrowserRec();
+
         await handleCmd(query);
       }
+    };
+
+    // ── Speak a reply WITHOUT blocking the mic ───────────────────────────
+    // Fire-and-forget: arms the self-echo guard, ducks TTS volume in Whisper
+    // mode (so her own voice can't trigger barge-in), and lets the recognizer
+    // keep listening — the user can interrupt her mid-sentence.
+    const speakWithGuard = (text, timeoutMs) => {
+      if (!text) return;
+      lastSpokenTtsRef.current = { text: text.toLowerCase().trim(), ts: Date.now() };
+      const gen = ++speechGenRef.current;
+      speakingRef.current = true;
+      setTtsDucking(modeRef.current === 'whisper');
+      withTimeout(speak(text), timeoutMs)
+        .catch(() => {})
+        .finally(() => {
+          // Only the latest reply may clear the speaking state (a stale
+          // interrupted reply must not wipe a newer one's guard).
+          if (gen === speechGenRef.current) {
+            speakingRef.current = false;
+            setTtsDucking(false);
+          }
+        });
     };
 
     // ── Command handler ───────────────────────────────────────────────────
@@ -235,11 +289,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             const lockedReply = 'System is locked, Boss. Please unlock first.';
             onConvRef.current?.({ transcript: cmd, reply: lockedReply, action: 'none' });
             
-            // Register TTS self-echo guard
-            lastSpokenTtsRef.current = { text: lockedReply.toLowerCase().trim(), ts: Date.now() };
-            speakingRef.current = true;
-            try { await withTimeout(speak(lockedReply), 8000); } catch (_) {}
-            speakingRef.current = false;
+            // Register TTS self-echo guard (non-blocking → barge-in possible)
+            speakWithGuard(lockedReply, 8000);
             return;
           }
 
@@ -253,10 +304,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             : 'Executing command, Prem.';
           onConvRef.current?.({ transcript: cmd, reply, action: localCommand });
 
-          lastSpokenTtsRef.current = { text: reply.toLowerCase().trim(), ts: Date.now() };
-          speakingRef.current = true;
-          try { await withTimeout(speak(reply), 10000); } catch (_) {}
-          speakingRef.current = false;
+          speakWithGuard(reply, 10000);
           return;
         }
 
@@ -267,16 +315,10 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         if (action && action !== 'none') onCommandRef.current?.(action);
         onConvRef.current?.({ transcript: cmd, reply, action });
 
-        // ── Speak response ─────────────────────────────────────────────────
-        if (!data.silence_tts) {
-          lastSpokenTtsRef.current = { text: reply.toLowerCase().trim(), ts: Date.now() };
-          speakingRef.current = true;
-          try { await withTimeout(speak(reply), 15000); } catch (_) {}
-          speakingRef.current = false;
-        }
+        // ── Speak response (non-blocking → mic restarts while she talks,
+        //    so the user can barge in) ─────────────────────────────────────
+        if (!data.silence_tts) speakWithGuard(reply, 15000);
         noSpeechStreak = 0;
-
-        await new Promise(r => setTimeout(r, 400));
 
       } catch (err) {
         console.warn('[Voice] Command error:', err);
@@ -393,9 +435,9 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           return;
         }
 
-        // Stop recognizer while processing
-        teardownBrowserRec();
-
+        // NOTE: recognizer is intentionally NOT torn down here — it stays
+        // live so the user can barge in while FRIDAY is speaking. It's torn
+        // down in processTranscript only when a command is actually handled.
         noSpeechStreak = 0;
         processTranscript(finalText);
       };
@@ -477,6 +519,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       // Barge-in: holding the key while FRIDAY is speaking stops her instantly.
       stopSpeaking();
       speakingRef.current = false;
+      lastSpokenTtsRef.current = { text: '', ts: 0 }; // her words must not block the held utterance
+      setTtsDucking(false);
 
       pttSessionRef.current.active = true;
       notifyPtt(true);
@@ -543,6 +587,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     };
 
     const VAD_RMS_THRESHOLD = 0.025;  // voice activity threshold (RMS)
+    const VAD_RMS_BARGE_IN  = 0.05;   // louder threshold while FRIDAY is talking (barge-in)
     const VAD_SILENCE_MS    = 900;    // silence that ends a clip
     const VAD_MIN_SPEECH_MS = 300;    // ignore sub-300ms blips
     const VAD_MAX_CLIP_MS   = 15000;  // safety cap per clip
@@ -624,9 +669,15 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       const rms = Math.sqrt(sum / buf.length);
       const now = Date.now();
       const vad = vadRef.current;
+      const isSpeaking = speakingRef.current;
 
-      // Don't start clips while FRIDAY is speaking or a command is processing
-      const blocked = speakingRef.current || processingRef.current;
+      // Track recent quiet frames so barge-in only fires on a FRESH voice
+      // onset (FRIDAY's own ducked TTS won't trip it mid-sentence).
+      if (rms < VAD_RMS_THRESHOLD) vad.quietFrames = Math.min(vad.quietFrames + 1, 8);
+      else vad.quietFrames = 0;
+
+      // Don't start clips while a command is being processed
+      const blocked = processingRef.current;
 
       // ── PTT mode: record ONLY while Space is held (no VAD triggering) ───
       if (listeningModeRef.current === 'ptt') {
@@ -642,7 +693,19 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         return;
       }
 
-      if (!blocked && rms > VAD_RMS_THRESHOLD) {
+      // ── TRUE BARGE-IN: fresh, loud voice onset while FRIDAY is talking
+      //    → stop her instantly and record the user's words ──────────────
+      if (!blocked && isSpeaking && rms > VAD_RMS_BARGE_IN && vad.quietFrames >= 3) {
+        console.log('[Voice Barge-In] 🎙 Voice onset during TTS — interrupting FRIDAY.');
+        stopSpeaking();
+        speakingRef.current = false;
+        lastSpokenTtsRef.current = { text: '', ts: 0 };
+        setTtsDucking(false);
+        vad.state = 'speech';
+        vad.speechStart = now;
+        vad.lastVoice = now;
+        startRecorder();
+      } else if (!blocked && !isSpeaking && rms > VAD_RMS_THRESHOLD) {
         if (vad.state === 'idle') {
           vad.state = 'speech';
           vad.speechStart = now;
