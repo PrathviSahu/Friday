@@ -274,3 +274,68 @@ Per your "yes — keep going" (Learning Coach, Life Memory, Developer Mode):
 5. **Function tools**: +4 (`remember_idea`, `search_notes`, `log_milestone`, `update_goal`) → 24 total.
 6. Fixed a HUD overlap: PermissionCenter moved off SpotifyCard's corner.
 7. Tests: 67 passing. API surface 92 → 104 paths. Docs updated (README §15–18, architecture §9).
+
+---
+
+## 🔍 Round 2 — Full re-review (post-v3.3)
+
+Re-reviewed the entire codebase (all 221 files, 69 tests, live app). Summary:
+**7 bugs found & fixed, 3 improvements shipped, ~10 recommendations remaining.**
+
+### 🐞 Bugs found & fixed (commits `edce341`, `f1d37ee`)
+
+1. **`project_memory` schema bug (data-loss + crash)** — table declared
+   `project TEXT PRIMARY KEY`, so a project could hold only ONE section; the
+   second `PUT /api/knowledge/projects/{p}/{section}` raised
+   `IntegrityError: UNIQUE constraint failed`. Fixed with composite
+   `PRIMARY KEY (project, section)` + a `PRAGMA table_info`-based migration
+   (robust to SQL formatting; verified data survives re-inits).
+2. **`tts.py` NameError (silent failure)** — `cleanup_temp_audio()` used
+   `time.time()` but `time` was never imported, so the lifespan cleanup task
+   threw every 2 minutes (swallowed by `except`) and temp MP3s accumulated
+   forever. Added `import time`; also made `AUDIO_DIR` absolute in `app.py`
+   and `routes/utilities.py` (was CWD-relative).
+3. **Voice "lock the screen" did nothing** — backend returns action
+   `lock_screen`, frontend only checked `lock`. Now handled in both
+   `handleConversation` and `handleLocalCommand`.
+4. **`engineering` / `vscode` / `browser` / `unlocked` voice commands were
+   silent no-ops** — `voiceCommands.js` returned them but no handler consumed
+   them. Now: engineering/vscode → opens VS Code, browser → opens Brave,
+   unlocked → exits to dashboard.
+5. **Version drift** — app.py said `3.0.0`, devtools `3.2.0`, docs `3.3.0`.
+   Unified at `3.3.0`.
+6. **Tests polluted the real DB** — API tests wrote notifications, learning
+   logs, timeline events, notes, goals into the user's `data/friday_brain.db`
+   (real rows existed from earlier runs). Fixed with a session-scoped autouse
+   fixture that redirects every service's DB path to a throwaway SQLite dir
+   and re-runs `init_*_db()` there. Verified real DB row counts unchanged
+   across a full test run.
+7. **DB fragmentation** — `platform_session.py` + `job_scraper.py` used a
+   separate `data/career.db` while the rest of Career OS used
+   `friday_brain.db`. Unified onto `friday_brain.db` with a one-time row
+   migration; `platform_session` gained a thread-safe `_connect()` helper.
+
+### ✅ Improvements shipped
+- **Test isolation** (above) — the suite is now safe to run anytime.
+- **Regression tests** — +2 (multi-section projects, tts `time` import) → 69.
+- **Version + doc consistency** — `FRIDAY_CAPABILITIES.md` refreshed.
+
+### 💡 Remaining recommendations (not yet done)
+| # | Item | Effort |
+|---|---|---|
+| 1 | **Frontend tests**: `voiceCommands.test.js` exists but no test runner — wire up `vitest` + a `npm test` script | S |
+| 2 | **24 lint warnings**: several real `react-hooks/exhaustive-deps` (ResumeManager/Opportunities `useEffect(load, [])` closing over `selected`; Particles; useOrbState; saveChartToDb) — stale-closure risk; add deps or use refs | M |
+| 3 | **`pytz` → `zoneinfo`** (stdlib, Python 3.9+) in `market_data.py` / `indian_market_data.py`; pytz is deprecated | S |
+| 4 | Starlette test-client deprecation warning ("install httpx2") — pin starlette or ignore | XS |
+| 5 | Frontend main bundle 622 kB — lazy-load the Trading Workstation like CareerOS | S |
+| 6 | Legacy `data/career.db` still on disk post-migration — safe to delete | XS |
+| 7 | Dev-DB still holds pre-isolation test junk (harmless, gitignored) — optionally clean | XS |
+| 8 | `devtools` ring-buffer handler can duplicate under a reloader — guard by handler id | XS |
+| 9 | Commit-message backticks got shell-mangled (cosmetic; content intact) | XS |
+
+### ✅ Verified healthy
+- 69/69 tests pass; frontend builds clean; 0 lint errors (24 benign warnings).
+- No syntax errors, no dead modules (the "unused" import-scan list is all
+  legit: tests, package `__init__`s, standalone `spotify_auth_setup.py`).
+- Owner auth, proxy-header hardening, permission enforcement, encryption,
+  rate limiting all intact; live stack healthy on :8000/:5173.
