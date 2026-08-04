@@ -21,10 +21,16 @@ import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
 import { useOrbState } from './hooks/useOrbState';
 
 function FridayCore() {
-    const { workspace } = useOrbState();
+    const { workspace, locked } = useOrbState();
     const isCareerWorkspace = workspace === 'career';
     const [proactiveToast, setProactiveToast] = useState(null);
     const pendingActionRef = useRef(null); // holds confirmPendingAction fn when action is pending
+
+    // Lock screen is clean by default: only the Spotify capsule stays visible.
+    // All other capsules (coach, weather, permissions, inbox, todos, …) are
+    // hidden behind the "ALL WIDGETS" button while locked.
+    const [lockExtrasVisible, setLockExtrasVisible] = useState(false);
+    const showExtraCapsules = !isCareerWorkspace && (!locked || lockExtrasVisible);
 
     const { confirmPendingAction } = useProactiveSuggestions({
         enabled: true,
@@ -67,17 +73,34 @@ function FridayCore() {
             <FridaySync />
             <LockScreen />
             <Workspace />
-            {/* On Job Portal / Career OS, keep ONLY Spotify Card active and hide all other floating capsules */}
+            {/* On Job Portal / Career OS, keep ONLY Spotify Card active and hide all other floating capsules.
+                On the LOCKED screen the extra capsules are hidden behind the "ALL WIDGETS" button —
+                Spotify stays visible as-is. */}
             <SpotifyCard />
-            {!isCareerWorkspace && <TodoCard />}
-            {!isCareerWorkspace && <SystemMonitorCard />}
-            {!isCareerWorkspace && <WeatherCard />}
-            {!isCareerWorkspace && <WebSearchCard />}
-            {!isCareerWorkspace && <PermissionCenterCard />}
-            {!isCareerWorkspace && <NotificationCenterCard />}
-            {!isCareerWorkspace && <LearningCoachCard />}
-            {!isCareerWorkspace && <DevToolsCard />}
-            {!isCareerWorkspace && <KnowledgeCard />}
+            {showExtraCapsules && <TodoCard />}
+            {showExtraCapsules && <SystemMonitorCard />}
+            {showExtraCapsules && <WeatherCard />}
+            {showExtraCapsules && <WebSearchCard />}
+            {showExtraCapsules && <PermissionCenterCard />}
+            {showExtraCapsules && <NotificationCenterCard />}
+            {showExtraCapsules && <LearningCoachCard />}
+            {showExtraCapsules && <DevToolsCard />}
+            {showExtraCapsules && <KnowledgeCard />}
+
+            {/* Lock screen: button to reveal/hide the extra capsules (all except Spotify) */}
+            {locked && !isCareerWorkspace && (
+                <motion.button
+                    onClick={() => setLockExtrasVisible((v) => !v)}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7, duration: 0.6 }}
+                    className="fixed bottom-8 left-10 z-[60] flex cursor-pointer items-center gap-2.5 rounded-full border border-[#00B7FF]/40 bg-[#001018]/85 px-5 py-2.5 font-orbitron text-[9px] uppercase tracking-[0.35em] text-[#00D9FF] shadow-[0_0_24px_rgba(0,183,255,0.15)] backdrop-blur-md transition-all hover:border-[#00B7FF]/70 hover:bg-[#001018] hover:shadow-[0_0_32px_rgba(0,183,255,0.3)]"
+                    style={{ pointerEvents: 'auto' }}
+                >
+                    <span className={`inline-block h-2 w-2 rounded-full ${lockExtrasVisible ? 'bg-[#22ff99] shadow-[0_0_8px_#22ff99]' : 'bg-[#00B7FF] shadow-[0_0_8px_#00B7FF]'}`} />
+                    {lockExtrasVisible ? 'HIDE WIDGETS' : 'ALL WIDGETS'}
+                </motion.button>
+            )}
             <DebugKeys />
 
             {/* ── Proactive Suggestion Toast ── */}
