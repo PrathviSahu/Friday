@@ -73,14 +73,26 @@ def init_knowledge_db():
             source_url TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""")
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS project_memory (
-            project  TEXT PRIMARY KEY,
-            section  TEXT NOT NULL,
-            content  TEXT NOT NULL,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(project, section)
-        )""")
+        # project_memory: composite key (project, section) so a project can
+        # hold MULTIPLE sections. The first version of this table wrongly used
+        # `project TEXT PRIMARY KEY`, which capped each project at one section
+        # and raised IntegrityError on the second write. Recreate if needed —
+        # detected via PRAGMA table_info (robust to SQL formatting/quoting).
+        cols = conn.execute(
+            "PRAGMA table_info(project_memory)").fetchall()
+        pk_cols = [r["name"] for r in cols if r["pk"] > 0]
+        if cols and pk_cols != ["project", "section"]:
+            conn.execute("DROP TABLE project_memory")
+            cols = []
+        if not cols:
+            conn.execute("""
+            CREATE TABLE project_memory (
+                project  TEXT NOT NULL,
+                section  TEXT NOT NULL,
+                content  TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (project, section)
+            )""")
         conn.commit()
 
 

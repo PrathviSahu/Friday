@@ -208,7 +208,7 @@ export function OrbProvider({ children }) {
                     resolve(false);
                 });
             });
-        } catch (e) {
+        } catch (_e) {
             return false;
         }
     }, []);

@@ -11,7 +11,7 @@ from services.devtools import get_log_tail, get_uptime_seconds
 
 router = APIRouter(prefix="/api", tags=["devtools"])
 
-VERSION = "3.2.0"
+VERSION = "3.3.0"
 
 
 class ApiTestRequest(BaseModel):

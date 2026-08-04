@@ -14,7 +14,7 @@ from services.gdrive_sync import perform_gdrive_sync, get_gdrive_sync_status
 
 router = APIRouter(prefix="/api", tags=["utilities"])
 
-AUDIO_DIR = Path("temp_audio")
+AUDIO_DIR = Path(__file__).resolve().parent.parent / "temp_audio"
 
 
 class TTSRequest(BaseModel):

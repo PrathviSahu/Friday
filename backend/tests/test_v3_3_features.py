@@ -162,3 +162,26 @@ def test_recommendations_have_reasons():
     for r in recs:
         assert "reasons" in r and isinstance(r["reasons"], list)
         assert r["reasons"]
+
+
+# ═══ Regression tests (post-review fixes) ═════════════════════════════════════
+
+def test_project_memory_supports_multiple_sections(client):
+    """A project must hold multiple sections (composite PK fix)."""
+    from services.knowledge import set_project_section, get_project_memory, _connect
+    for section, content in [("architecture", "a"), ("tasks", "b"), ("bugs", "c")]:
+        assert set_project_section("MultiSecProj", section, content) is True
+    stored = get_project_memory("MultiSecProj")
+    assert set(stored.keys()) == {"architecture", "tasks", "bugs"}
+    with _connect() as c:
+        c.execute("DELETE FROM project_memory WHERE project='MultiSecProj'")
+        c.commit()
+
+
+def test_tts_cleanup_has_time_import():
+    """cleanup_temp_audio must not NameError on time.time()."""
+    import inspect
+    import services.tts as tts
+    src = inspect.getsource(tts)
+    assert "import time" in src
+    assert "time.time()" in src

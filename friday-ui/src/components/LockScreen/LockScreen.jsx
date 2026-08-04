@@ -29,7 +29,7 @@ export default function LockScreen() {
             if (action === 'trading')   setWorkspace?.('trading');
             else if (action === 'dashboard') setWorkspace?.('dashboard');
             else if (action === 'career')    setWorkspace?.('career');
-            else if (action === 'lock') lockNow?.();
+            else if (action === 'lock' || action === 'lock_screen') lockNow?.();
         }
     }, [setResponseMessage, setWorkspace, locked, lockNow]);
 
@@ -130,10 +130,34 @@ export default function LockScreen() {
             return;
         }
 
-        // Workspace commands
+        // Workspace / app commands
         if (cmd === 'trading') setWorkspace?.('trading');
-        else if (cmd === 'dashboard') setWorkspace?.('dashboard');
-        else if (cmd === 'lock') lockNow?.();
+        else if (cmd === 'dashboard' || cmd === 'unlocked') setWorkspace?.('unlocked');
+        else if (cmd === 'engineering' || cmd === 'vscode') {
+            // "engineering console" / "open vscode" → launch VS Code
+            fetch(API_ENDPOINTS.openApp, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app: 'Visual Studio Code' }),
+            }).catch(() => {});
+            const msg = 'Opening Visual Studio Code, Boss.';
+            setResponseMessage?.(msg);
+            try { await speak(msg); } catch (_) {}
+            setTimeout(() => setResponseMessage?.(''), 3000);
+        }
+        else if (cmd === 'browser') {
+            // "open browser" → launch Brave (falls back to default browser)
+            fetch(API_ENDPOINTS.openApp, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app: 'Brave Browser' }),
+            }).catch(() => {});
+            const msg = 'Opening the browser, Boss.';
+            setResponseMessage?.(msg);
+            try { await speak(msg); } catch (_) {}
+            setTimeout(() => setResponseMessage?.(''), 3000);
+        }
+        else if (cmd === 'lock' || cmd === 'lock_screen') lockNow?.();
     }, [setResponseMessage, setWorkspace, lockNow]);
 
     // Handle fingerprint unlock

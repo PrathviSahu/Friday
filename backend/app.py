@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI):
     start_automation_runner()
 
     # Temp audio cleanup: delete stale generated MP3s every 2 minutes
-    audio_dir = Path("temp_audio")
+    audio_dir = Path(__file__).parent / "temp_audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
     cleanup_task = asyncio.create_task(cleanup_temp_audio(audio_dir))
 
@@ -130,7 +130,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="FRIDAY AI Core", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title="FRIDAY AI Core", version="3.3.0", lifespan=lifespan)
 
 # Enable CORS — frontend origins only (no self-referential backend origin)
 app.add_middleware(
@@ -147,8 +147,8 @@ app.add_middleware(
 )
 
 # Generated TTS audio (ensure the dir exists before mounting)
-Path("temp_audio").mkdir(parents=True, exist_ok=True)
-app.mount('/temp_audio', StaticFiles(directory='temp_audio'), name='temp_audio')
+Path(__file__).parent.joinpath("temp_audio").mkdir(parents=True, exist_ok=True)
+app.mount('/temp_audio', StaticFiles(directory=Path(__file__).parent / "temp_audio"), name='temp_audio')
 
 # Route modules (v3 modular split)
 app.include_router(chat_router)
@@ -171,7 +171,7 @@ app.include_router(career_router)
 def read_root():
     return {
         "status": "online",
-        "system": "F.R.I.D.A.Y. AI Core v3.0.0",
+        "system": "F.R.I.D.A.Y. AI Core v3.3.0",
         "guest_permitted": is_guest_permitted(),
     }
 
