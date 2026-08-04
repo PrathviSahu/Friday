@@ -1,7 +1,7 @@
 # ⚡ F.R.I.D.A.Y. — Complete Capability Reference
 
 **Version:** v3.3.0 · **API surface:** 128 endpoints · **Function tools:** 24 · **HUD panels:** 13
-**Stack:** React 19 + Vite frontend · FastAPI backend · SQLite (WAL) · Groq/Gemini LLM · Edge-TTS
+**Stack:** React 19 + Vite frontend · FastAPI backend · SQLite (WAL) · Groq/Gemini LLM · Edge-TTS · Vitest (frontend tests)
 
 > This document is the definitive, machine-accurate list of everything F.R.I.D.A.Y.
 > can do. Every capability below is implemented and tested — none are placeholders.
@@ -43,7 +43,12 @@ remembers you over time.
 | You say | F.R.I.D.A.Y. does |
 |---|---|
 | "open trading" / "trading workstation" | Opens Quantum Trading Workstation |
+| "exit trading mode" / "go back" | Exits to the dashboard |
+| "open dashboard" / "home" | Returns to the dashboard (never hijacked by Career) |
 | "open career" / "job portal" | Opens Career OS |
+| "open engineering console" / "open vscode" | Opens VS Code |
+| "open browser" / "open chrome" | Opens the browser |
+| "close <app>" / "quit <app>" | Closes the app (canonical names, incl. vs code/chrome) |
 | "lock yourself" / "lock" | Locks the display |
 | "what time is it" / "what's the date" | Answers time / date |
 | "what's playing" / "kaun sa gaana" | Reports current Spotify track |

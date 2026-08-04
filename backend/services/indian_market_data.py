@@ -199,10 +199,10 @@ def get_indian_market_prices() -> dict:
 def is_market_open() -> bool:
     """Check if NSE is currently open (Mon–Fri, 9:15 AM – 3:30 PM IST)."""
     import datetime
-    import pytz
+    from zoneinfo import ZoneInfo
 
     try:
-        ist = pytz.timezone("Asia/Kolkata")
+        ist = ZoneInfo("Asia/Kolkata")
         now_ist = datetime.datetime.now(ist)
         weekday = now_ist.weekday()  # 0=Mon, 6=Sun
         if weekday >= 5:  # Weekend

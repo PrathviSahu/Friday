@@ -8,7 +8,6 @@ groq
 google-genai
 psutil
 python-dotenv
-pytz
 numpy
 python-telegram-bot
 playwright

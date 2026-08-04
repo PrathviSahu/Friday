@@ -101,6 +101,11 @@ const Particles = ({
 }) => {
   const containerRef = useRef(null);
   const mouseRef = useRef({ x: 0, y: 0 });
+  // Keep latest particleColors in a ref — the parent passes an inline array
+  // literal, so depending on it directly would rebuild the WebGL scene on
+  // every render.
+  const particleColorsRef = useRef(particleColors);
+  particleColorsRef.current = particleColors;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -143,7 +148,7 @@ const Particles = ({
     const positions = new Float32Array(count * 3);
     const randoms = new Float32Array(count * 4);
     const colors = new Float32Array(count * 3);
-    const palette = particleColors && particleColors.length > 0 ? particleColors : defaultColors;
+    const palette = particleColorsRef.current && particleColorsRef.current.length > 0 ? particleColorsRef.current : defaultColors;
 
     for (let i = 0; i < count; i++) {
       let x, y, z, len;

@@ -137,10 +137,10 @@ def _fetch_global_prices() -> bool:
 
 def _apply_micro_ticks():
     import datetime
-    import pytz
+    from zoneinfo import ZoneInfo
 
     try:
-        ist = pytz.timezone("Asia/Kolkata")
+        ist = ZoneInfo("Asia/Kolkata")
         now_ist = datetime.datetime.now(ist)
         is_weekend = now_ist.weekday() >= 5
     except Exception:

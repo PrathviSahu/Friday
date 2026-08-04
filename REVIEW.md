@@ -339,3 +339,48 @@ Re-reviewed the entire codebase (all 221 files, 69 tests, live app). Summary:
   legit: tests, package `__init__`s, standalone `spotify_auth_setup.py`).
 - Owner auth, proxy-header hardening, permission enforcement, encryption,
   rate limiting all intact; live stack healthy on :8000/:5173.
+
+
+---
+
+## 🔍 Round 3 — recommendations executed
+
+Shipped the remaining high-value recommendations from Round 2:
+
+1. **Frontend test runner (vitest)** — added `vitest` (dev dep), `npm test` /
+   `npm run test:watch` scripts, and rewrote `voiceCommands.test.js` (16 tests)
+   to match actual behavior. Writing the tests exposed 4 more real voice-command
+   bugs, all fixed:
+   - "open dashboard" / "go back to dashboard" was routed to **Career OS** —
+     `dashboard` was inside the career regex. Now routes to `dashboard`.
+   - "exit trading mode" **opened trading** — trading regex matched before the
+     exit check. Exit/unlock now checked first.
+   - "open vs code" → `engineering` — the bare `code` keyword in the
+     engineering regex hijacked it. Removed bare `code`/`tech` (now
+     engineering|coding|code editor|dev mode|tech mode).
+   - "close vs code" / "quit chrome" **opened** the app instead of closing —
+     close_app was checked after workspace shortcuts and didn't canonicalize
+     names. Close now runs first (with the canonical app map) and `exit` was
+     removed from close keywords so "exit trading mode" still exits.
+   - Also: normalizeTranscript now strips a *chain* of polite fillers
+     ("please can you open X").
+2. **Stale-closure useEffect fixes** (24 → 2 lint warnings):
+   - ResumeManager / Opportunities: `setSelected(prev => ...)` functional
+     updates — no more stale `selected` closures in the mount effect.
+   - useOrbState: moved the `AUTH_STEPS` constant to module scope, added the
+     provably-stable helper deps (startIdleRotation, playTone, unlockAudio,
+     clearCommandTimers, scheduleTimer, wakeCount), removed the unnecessary
+     `audioEnabled` dep, renamed 10 unused `catch (e)` → `catch (_e)`.
+   - Particles: `particleColors` now via a ref so the WebGL scene isn't rebuilt
+     every render.
+   - QuantumTradingWorkstation: `saveChartToDb` wrapped in `useCallback` so the
+     5 s autosave interval is stable.
+   - useAudioQueue / StickerDrag: correct deps / ref-in-cleanup pattern.
+3. **pytz → zoneinfo** (stdlib) in market_data + indian_market_data; removed
+   pytz from requirements.
+4. **Lazy-loaded Trading Workstation** — separate 63 kB chunk loaded on demand.
+5. **Deleted legacy `data/career.db`** post-migration.
+
+Verified: 69 backend tests, 16 frontend tests, build clean, 2 benign
+fast-refresh warnings remaining (FridayContext, useOrbState — standard
+provider+hook pattern).

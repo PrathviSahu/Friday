@@ -525,7 +525,8 @@ export default function StickerDrag({
         };
 
         img.src = imageSrc;
-        return () => { stateRef.current.texReady = false; };
+        const state = stateRef.current;
+        return () => { state.texReady = false; };
     }, [image, handleResize, updateShadowCSS]);
 
     useEffect(() => {

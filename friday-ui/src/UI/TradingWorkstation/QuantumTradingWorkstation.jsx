@@ -54,8 +54,9 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
         loadChartFromDb();
     }, [selectedSymbol]);
 
-    // Save chart drawings & layout to SQLite database
-    const saveChartToDb = async () => {
+    // Save chart drawings & layout to SQLite database (memoized on the active
+    // symbol so the 5s autosave interval doesn't reset on every render)
+    const saveChartToDb = React.useCallback(async () => {
         setSaveStatus('saving');
         try {
             const drawingsObj = {};
@@ -81,13 +82,13 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
             console.warn('[Chart DB] Auto-save error:', err);
             setSaveStatus('error');
         }
-    };
+    }, [selectedSymbol]);
 
     // Auto-Save drawings & chart layout to SQLite DB silently every 5 seconds
     React.useEffect(() => {
         const iv = setInterval(saveChartToDb, 5000);
         return () => clearInterval(iv);
-    }, [selectedSymbol]);
+    }, [saveChartToDb]);
 
     const toggleMicSilence = () => {
         if (micEnabled) {

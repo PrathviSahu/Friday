@@ -29,8 +29,9 @@ export default function ResumeManager() {
       if (selectId) {
         const found = r.find(item => item.id === selectId);
         if (found) setSelected(found);
-      } else if (!selected && r.length) {
-        setSelected(r[0]);
+      } else {
+        // functional update — never closes over stale 'selected'
+        setSelected(prev => (prev && r.some(x => x.id === prev.id)) ? prev : (r[0] || null));
       }
     }).finally(() => setLoading(false));
   };
