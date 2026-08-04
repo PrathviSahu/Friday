@@ -12,7 +12,7 @@ const withTimeout = (promise, ms) =>
     ),
   ]);
 
-export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, onCommand, onConversation }) {
+export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, mode = 'always', onCommand, onConversation }) {
   // Support both prop name variants: locked (LockScreen) and isLocked (legacy)
   const _locked = locked ?? isLocked ?? false;
   const activeRef         = useRef(false);  // true while a mic/recognizer is live
@@ -25,6 +25,11 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   const onConvRef         = useRef(onConversation);
   const lastTranscriptRef = useRef(null); // { text, ts } — dedup guard for double-fired transcripts
   const lastSpokenTtsRef  = useRef({ text: '', ts: 0 }); // stores FRIDAY's own spoken text to prevent self-echo loops
+
+  // Listening mode: 'always' (mic always listening) or 'ptt' (hold Space to talk).
+  // PTT keeps the microphone fully closed between holds — privacy-friendly.
+  const listeningModeRef = useRef(mode);
+  const pttSessionRef    = useRef({ active: false }); // true while Space is held
 
   // STT engine mode: 'browser' (Web Speech API) or 'whisper' (backend
   // Groq Whisper free tier via recorded clips). We auto-switch to 'whisper'
@@ -46,6 +51,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
   useEffect(() => { onConvRef.current = onConversation; }, [onConversation]);
+  useEffect(() => { listeningModeRef.current = mode; }, [mode]);
 
   // When enabled flips OFF → abort recognizer + whisper resources immediately.
   useEffect(() => {
@@ -116,6 +122,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
     const scheduleRestart = (ms) => {
       if (cancelled || restartTimer || !enabledRef.current) return;
+      if (listeningModeRef.current === 'ptt') return; // PTT never auto-restarts
       restartTimer = setTimeout(() => {
         restartTimer = null;
         if (!cancelled && enabledRef.current) startAfterIdle();
@@ -288,6 +295,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     // ── Restart whatever engine is currently active ───────────────────────
     const startAfterIdle = () => {
       if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+      if (listeningModeRef.current === 'ptt') return; // PTT: mic opens only while held
       if (modeRef.current === 'whisper') startWhisper();
       else start();
     };
@@ -400,6 +408,130 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       }
     };
 
+    // ══════════════════ PUSH-TO-TALK (HOLD SPACE) ═════════════════════════
+    const notifyPtt = (held) => {
+      try { window.dispatchEvent(new CustomEvent('friday-ptt', { detail: { held } })); } catch (_) {}
+    };
+
+    // PTT session — browser engine: single-utterance recognizer, finalized on release.
+    const startPttBrowser = () => {
+      if (cancelled || !enabledRef.current) return;
+      if (!SpeechRec) {
+        // Browser engine unavailable — record the clip with the Whisper engine instead.
+        modeRef.current = 'whisper';
+        startWhisper();
+        return;
+      }
+
+      teardownBrowserRec();
+
+      let finals = '';
+      let interim = '';
+      const sessionRec = new SpeechRec();
+      sessionRec.continuous     = false; // one utterance per hold
+      sessionRec.interimResults = true;
+      sessionRec.lang           = 'en-US';
+
+      sessionRec.onstart = () => { activeRef.current = true; };
+
+      sessionRec.onerror = (e) => {
+        activeRef.current = false;
+        if (cancelled) return;
+        console.warn('[Voice][PTT] Recognition error:', e.error);
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+          micBlockedRef.current = true;
+        }
+        // 'no-speech' / 'network' — the PTT session just ends without a transcript.
+      };
+
+      sessionRec.onresult = (e) => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const res = e.results[i];
+          const t = res[0]?.transcript ?? '';
+          if (res.isFinal) finals += ' ' + t;
+          else if (t) interim = t;
+        }
+      };
+
+      sessionRec.onend = () => {
+        activeRef.current = false;
+        if (cancelled) return;
+        const text = (finals.trim() || interim.trim());
+        if (text) processTranscript(text);
+        // No auto-restart — PTT is strictly hold-to-talk.
+      };
+
+      rec = sessionRec;
+      try {
+        sessionRec.start();
+      } catch (err) {
+        console.warn('[Voice][PTT] start() threw:', err?.message || err);
+        rec = null;
+      }
+    };
+
+    const pttStart = () => {
+      if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+      if (pttSessionRef.current.active) return;
+
+      // Barge-in: holding the key while FRIDAY is speaking stops her instantly.
+      stopSpeaking();
+      speakingRef.current = false;
+
+      pttSessionRef.current.active = true;
+      notifyPtt(true);
+      console.log('[Voice][PTT] 🎙 Held — listening...');
+
+      if (modeRef.current === 'whisper') {
+        startWhisper();
+      } else {
+        startPttBrowser();
+      }
+    };
+
+    const pttEnd = () => {
+      if (!pttSessionRef.current.active) return;
+      pttSessionRef.current.active = false;
+      notifyPtt(false);
+      console.log('[Voice][PTT] Released — finalizing...');
+
+      if (modeRef.current === 'whisper') {
+        if (recorderRef.current) {
+          stopRecorder();
+        } else {
+          // Mic was still starting up — close it right away.
+          teardownWhisper();
+        }
+      } else if (rec) {
+        try { rec.stop(); } catch (_) {} // finalize the utterance
+      }
+    };
+
+    // ── Global hold-to-talk key handling ──────────────────────────────────
+    const isInteractiveTarget = () => {
+      const el = document.activeElement;
+      if (!el || el === document.body) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        || tag === 'BUTTON' || tag === 'A' || el.isContentEditable;
+    };
+
+    const onKeyDown = (e) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      if (listeningModeRef.current !== 'ptt' || !enabledRef.current) return;
+      if (isInteractiveTarget()) return; // don't hijack Space in inputs/buttons
+      e.preventDefault(); // stop page scroll while holding
+      pttStart();
+    };
+
+    const onKeyUp = (e) => {
+      if (e.code !== 'Space') return;
+      pttEnd();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+
     // ══════════════════ ENGINE 2: WHISPER BACKEND (GROQ FREE TIER) ══════════════════
     const switchToWhisper = (reason) => {
       if (cancelled || !enabledRef.current || micBlockedRef.current) return;
@@ -441,6 +573,11 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
         if (cancelled || !enabledRef.current) { stream.getTracks().forEach(t => t.stop()); return; }
+        // PTT: user released the key while the mic was still starting — close it.
+        if (listeningModeRef.current === 'ptt' && !pttSessionRef.current.active) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
         streamRef.current = stream;
 
         const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -490,6 +627,20 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
       // Don't start clips while FRIDAY is speaking or a command is processing
       const blocked = speakingRef.current || processingRef.current;
+
+      // ── PTT mode: record ONLY while Space is held (no VAD triggering) ───
+      if (listeningModeRef.current === 'ptt') {
+        if (pttSessionRef.current.active && !blocked) {
+          if (vad.state !== 'speech') {
+            vad.state = 'speech';
+            vad.speechStart = now;
+            vad.lastVoice = now;
+            startRecorder();
+          }
+        }
+        vadFrameRef.current = requestAnimationFrame(vadLoop);
+        return;
+      }
 
       if (!blocked && rms > VAD_RMS_THRESHOLD) {
         if (vad.state === 'idle') {
@@ -550,6 +701,12 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             if (/429|Too many|rate.?limit/i.test(err?.message || '')) {
               await new Promise(r => setTimeout(r, 3000));
             }
+          } finally {
+            // PTT: close the mic after each clip — it only lives while held.
+            // (Unless a new hold already started; then keep the stream.)
+            if (listeningModeRef.current === 'ptt' && !pttSessionRef.current.active) {
+              teardownWhisper();
+            }
           }
         };
 
@@ -566,9 +723,10 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       try { rec.stop(); } catch (_) { recorderRef.current = null; }
     };
 
-    // ── Watchdog: revive if mic silently died ─────────────────────────────
+    // ── Watchdog: revive if mic silently died (never in PTT mode) ─────────
     keepAlive = setInterval(() => {
       if (!enabledRef.current || micBlockedRef.current) return;
+      if (listeningModeRef.current === 'ptt') return;
       if (activeRef.current || processingRef.current || speakingRef.current) return;
       if (modeRef.current === 'whisper') {
         console.log('[Voice Watchdog] Whisper mic inactive, reviving...');
@@ -579,13 +737,19 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       }
     }, 5000);
 
-    const bootTimer = setTimeout(() => { if (enabledRef.current) startAfterIdle(); }, 0);
+    const bootTimer = setTimeout(() => {
+      // PTT mode never auto-opens the mic — it waits for the Space hold.
+      if (enabledRef.current && listeningModeRef.current !== 'ptt') startAfterIdle();
+    }, 0);
 
     return () => {
       cancelled = true;
       activeRef.current    = false;
       speakingRef.current  = false;
+      pttSessionRef.current.active = false;
       stopRecognizerRef.current = null;
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
       if (keepAlive)    clearInterval(keepAlive);
       if (restartTimer) clearTimeout(restartTimer);
       if (bootTimer)    clearTimeout(bootTimer);

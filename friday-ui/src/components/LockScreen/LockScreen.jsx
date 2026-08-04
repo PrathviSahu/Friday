@@ -17,8 +17,16 @@ import { API_ENDPOINTS } from '../../api/config.js';
 export default function LockScreen() {
     const orb = useOrbState();
     const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
-    const { micEnabled } = useFriday();
+    const { micEnabled, pttMode } = useFriday();
     const scale = useFitScale();
+
+    // Push-to-talk HUD: shows a live "speaking" state while Space is held.
+    const [pttHeld, setPttHeld] = React.useState(false);
+    React.useEffect(() => {
+        const onPtt = (e) => setPttHeld(Boolean(e.detail?.held));
+        window.addEventListener('friday-ptt', onPtt);
+        return () => window.removeEventListener('friday-ptt', onPtt);
+    }, []);
 
     // FRIDAY's conversation loop: show text on screen when speech is returned.
     const handleConversation = React.useCallback(({ reply, action }) => {
@@ -185,6 +193,7 @@ export default function LockScreen() {
         locked,
         workspace,
         enabled: micEnabled,
+        mode: pttMode ? 'ptt' : 'always',
         onCommand: handleLocalCommand,
         onConversation: handleConversation,
     });
@@ -286,21 +295,33 @@ export default function LockScreen() {
                             </div>
                         ) : null}
 
-                        <div className="mt-3 flex items-center justify-center gap-3">
-                            {!audioEnabled ? (
-                                <button
-                                    onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
-                                    className="px-4 py-2 rounded bg-[#00B7FF] text-[#001018] text-[11px] uppercase font-bold"
-                                    style={{ pointerEvents: 'auto' }}
-                                >
-                                    Enable Voice
-                                </button>
+                        {pttMode ? (
+                            pttHeld ? (
+                                <div className="mt-3 text-[11px] font-orbitron text-[#22ff99] tracking-[0.4em] uppercase drop-shadow-[0_0_10px_rgba(34,255,153,0.6)]">
+                                    🎙 SPEAKING — RELEASE TO SEND
+                                </div>
                             ) : (
-                                <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
-                                    Voice enabled
-                                </span>
-                            )}
-                        </div>
+                                <div className="mt-3 text-[10px] font-orbitron text-[#00B7FF]/70 tracking-[0.35em] uppercase animate-pulse">
+                                    HOLD SPACE TO TALK
+                                </div>
+                            )
+                        ) : (
+                            <div className="mt-3 flex items-center justify-center gap-3">
+                                {!audioEnabled ? (
+                                    <button
+                                        onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
+                                        className="px-4 py-2 rounded bg-[#00B7FF] text-[#001018] text-[11px] uppercase font-bold"
+                                        style={{ pointerEvents: 'auto' }}
+                                    >
+                                        Enable Voice
+                                    </button>
+                                ) : (
+                                    <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
+                                        Voice enabled
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
