@@ -3,6 +3,7 @@ FRIDAY Todo Service
 Persists tasks to backend/data/todos.json
 """
 import json
+import os
 import threading
 import uuid
 from pathlib import Path
@@ -14,25 +15,30 @@ DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 # Guard every read-modify-write cycle. FastAPI runs sync handlers in a
 # threadpool, so concurrent requests (voice + UI) used to corrupt/lose
 # todo items — a single module lock makes each cycle atomic.
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 
 def _load() -> list:
-    if not DATA_FILE.exists():
-        return []
-    try:
-        return json.loads(DATA_FILE.read_text())
-    except Exception:
-        return []
+    with _lock:
+        if not DATA_FILE.exists():
+            return []
+        try:
+            return json.loads(DATA_FILE.read_text())
+        except Exception:
+            return []
 
 
 def _save(todos: list):
-    DATA_FILE.write_text(json.dumps(todos, indent=2))
+    with _lock:
+        temp_file = DATA_FILE.with_suffix(".tmp")
+        temp_file.write_text(json.dumps(todos, indent=2))
+        os.replace(temp_file, DATA_FILE)
 
 
 def get_todos() -> list:
     """Return all todos sorted by created_at descending."""
-    return sorted(_load(), key=lambda t: t.get("created_at", ""), reverse=True)
+    with _lock:
+        return sorted(_load(), key=lambda t: t.get("created_at", ""), reverse=True)
 
 
 def add_todo(text: str, priority: str = "normal") -> dict:

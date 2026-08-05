@@ -20,7 +20,7 @@ import PendingApprovalCard from '../Common/PendingApprovalCard';
 
 export default function LockScreen() {
     const orb = useOrbState();
-    const { authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
+    const { appState, stateLabel, authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled, pttMode } = useFriday();
     const scale = useFitScale();
 
@@ -47,7 +47,16 @@ export default function LockScreen() {
     }, []);
 
     // FRIDAY's conversation loop: show text on screen when speech is returned.
-    const handleConversation = React.useCallback(({ reply, action, email_draft_id, email_preview }) => {
+    const handleConversation = React.useCallback(({
+        reply,
+        action,
+        email_draft_id,
+        email_preview,
+        calendar_draft_id,
+        calendar_preview,
+        whatsapp_draft_id,
+        whatsapp_preview
+    }) => {
         if (reply) {
             setResponseMessage?.(reply);
         }
@@ -373,7 +382,34 @@ export default function LockScreen() {
 
                     <div className="mt-7 text-center">
                         <AnimatePresence mode="wait">
-                            {authStep ? (
+                            {appState === 'BOOTING' ? (
+                                <motion.div
+                                    key="booting"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="flex flex-col items-center gap-3"
+                                >
+                                    <div className="relative w-8 h-8">
+                                        <motion.div
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-0 rounded-full border-2 border-t-[#00D9FF] border-r-transparent border-b-[#00B7FF]/20 border-l-transparent shadow-[0_0_12px_rgba(0,183,255,0.4)]"
+                                        />
+                                        <motion.div
+                                            animate={{ rotate: -360 }}
+                                            transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-1 rounded-full border border-t-[#22ff99]/20 border-r-transparent border-b-[#22ff99] border-l-transparent"
+                                        />
+                                    </div>
+                                    <h2 className="font-orbitron text-[1rem] tracking-[0.4em] text-[#00D9FF] uppercase drop-shadow-[0_0_8px_rgba(0,183,255,0.6)]">
+                                        {stateLabel}
+                                    </h2>
+                                    <p className="font-grotesk text-[8px] text-[#DFFAFF]/30 tracking-[0.3em] uppercase animate-pulse">
+                                        POWERING COGNITIVE CORES
+                                    </p>
+                                </motion.div>
+                            ) : authStep ? (
                                 <motion.div
                                     key={authStep.id}
                                     initial={{ opacity: 0, y: 8 }}
@@ -474,6 +510,7 @@ export default function LockScreen() {
                                 onFingerprint={handleFingerprintClick}
                                 fingerprintState={fingerprintState}
                                 fingerprintError={fingerprintError}
+                                onPasswordUnlock={authenticateWithPassword}
                             />
                         </motion.div>
 

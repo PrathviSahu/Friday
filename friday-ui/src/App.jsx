@@ -98,7 +98,6 @@ function FridayCore() {
             {showExtraCapsules && <WhatsAppCard />}
             {showExtraCapsules && <DocumentsCard />}
             {showExtraCapsules && <CodingCard />}
-            {showExtraCapsules && <CodingCard />}
 
             {/* Lock screen: button to reveal/hide the extra capsules (all except Spotify) */}
             {locked && !isCareerWorkspace && (

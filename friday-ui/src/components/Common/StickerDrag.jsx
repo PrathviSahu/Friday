@@ -315,6 +315,46 @@ export default function StickerDrag({
         const step = ANIM_SPEED * dt;
         let changed = false;
 
+        // HIGH PERFORMANCE DRAGGING:
+        // Coordinate shifts, velocity tilt, and 3D rotations are calculated and
+        // committed directly inside the requestAnimationFrame thread to keep input events cheap.
+        if (state.held && state.mouseClientX !== undefined) {
+            const sticker = stickerRef.current;
+            const inner = innerRef.current;
+            if (sticker && inner) {
+                state.x = state.dragOrigX + (state.mouseClientX - state.dragStartX);
+                state.y = state.dragOrigY + (state.mouseClientY - state.dragStartY);
+                sticker.style.left = `${state.x}px`;
+                sticker.style.top = `${state.y}px`;
+
+                const now = performance.now();
+                const diff_t = Math.max(1, now - state.lastMoveT);
+                const velX = ((state.mouseClientX - state.lastMoveX) / diff_t) * 16;
+                const velY = ((state.mouseClientY - state.lastMoveY) / diff_t) * 16;
+                state.lastMoveX = state.mouseClientX;
+                state.lastMoveY = state.mouseClientY;
+                state.lastMoveT = now;
+
+                const targetTiltY = Math.max(-maxTilt, Math.min(maxTilt, velX * tiltSensitivity));
+                const targetTiltX = Math.max(-maxTilt, Math.min(maxTilt, -velY * tiltSensitivity));
+
+                state.dragTiltX += (targetTiltX - state.dragTiltX) * tiltSmoothing;
+                state.dragTiltY += (targetTiltY - state.dragTiltY) * tiltSmoothing;
+
+                state.currentTiltX = state.dragTiltX;
+                state.currentTiltY = state.dragTiltY;
+
+                if (sheenMode === "holo") {
+                    const tiltDelta = Math.abs(state.dragTiltX - state.prevTiltX) + Math.abs(state.dragTiltY - state.prevTiltY);
+                    state.holoMotion = Math.min(1, state.holoMotion + tiltDelta * HOLO_MOTION_BUMP);
+                    state.prevTiltX = state.dragTiltX;
+                    state.prevTiltY = state.dragTiltY;
+                }
+
+                inner.style.transform = `rotateX(${state.dragTiltX}deg) rotateY(${state.dragTiltY}deg)`;
+            }
+        }
+
         if (state.peeling) {
             if (state.peel < 1 || state.lift < 1) {
                 state.peel = Math.min(1, state.peel + step);
@@ -349,7 +389,7 @@ export default function StickerDrag({
             animationRef.current = null;
             lastTickTRef.current = null;
         }
-    }, [draw, updateShadowCSS, sheenMode]);
+    }, [draw, updateShadowCSS, sheenMode, maxTilt, tiltSensitivity, tiltSmoothing]);
 
     const ensureTickRunning = useCallback(() => {
         if (animationRef.current !== null) return;
@@ -563,6 +603,9 @@ export default function StickerDrag({
         state.dragOrigX = state.x;
         state.dragOrigY = state.y;
 
+        state.mouseClientX = e.clientX;
+        state.mouseClientY = e.clientY;
+
         state.peel = 0;
         state.lift = 0;
         state.held = true;
@@ -581,40 +624,8 @@ export default function StickerDrag({
         const handleMouseMove = (e) => {
             const state = stateRef.current;
             if (!state.held) return;
-            const sticker = stickerRef.current;
-            const inner = innerRef.current;
-            if (!sticker || !inner) return;
-
-            state.x = state.dragOrigX + (e.clientX - state.dragStartX);
-            state.y = state.dragOrigY + (e.clientY - state.dragStartY);
-            sticker.style.left = `${state.x}px`;
-            sticker.style.top = `${state.y}px`;
-
-            const now = performance.now();
-            const dt = Math.max(1, now - state.lastMoveT);
-            const velX = ((e.clientX - state.lastMoveX) / dt) * 16;
-            const velY = ((e.clientY - state.lastMoveY) / dt) * 16;
-            state.lastMoveX = e.clientX;
-            state.lastMoveY = e.clientY;
-            state.lastMoveT = now;
-
-            const targetTiltY = Math.max(-maxTilt, Math.min(maxTilt, velX * tiltSensitivity));
-            const targetTiltX = Math.max(-maxTilt, Math.min(maxTilt, -velY * tiltSensitivity));
-
-            state.dragTiltX += (targetTiltX - state.dragTiltX) * tiltSmoothing;
-            state.dragTiltY += (targetTiltY - state.dragTiltY) * tiltSmoothing;
-
-            state.currentTiltX = state.dragTiltX;
-            state.currentTiltY = state.dragTiltY;
-
-            if (sheenMode === "holo") {
-                const tiltDelta = Math.abs(state.dragTiltX - state.prevTiltX) + Math.abs(state.dragTiltY - state.prevTiltY);
-                state.holoMotion = Math.min(1, state.holoMotion + tiltDelta * HOLO_MOTION_BUMP);
-                state.prevTiltX = state.dragTiltX;
-                state.prevTiltY = state.dragTiltY;
-            }
-
-            inner.style.transform = `rotateX(${state.dragTiltX}deg) rotateY(${state.dragTiltY}deg)`;
+            state.mouseClientX = e.clientX;
+            state.mouseClientY = e.clientY;
         };
 
         const handleMouseUp = () => {

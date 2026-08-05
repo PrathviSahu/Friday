@@ -6,7 +6,7 @@ export default function Waveform({ bars = 24 }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
   const { appState, audioLevelRef } = useOrbState();
-  const state = ({ BOOTING: 'alert', IDLE: 'idle', LISTENING: 'listening', THINKING: 'thinking', VERIFYING: 'thinking', UNLOCKED: 'verified' }[appState]) || 'idle';
+  const state = ({ BOOTING: 'alert', IDLE: 'idle', LISTENING: 'listening', THINKING: 'thinking', VERIFYING: 'thinking', UNLOCKED: 'verified', SPEAKING: 'speaking' }[appState]) || 'idle';
 
   useEffect(() => {
     const canvas = canvasRef.current;

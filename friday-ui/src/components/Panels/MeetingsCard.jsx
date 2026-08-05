@@ -48,7 +48,6 @@ export default function MeetingsCard() {
   const [pasteText, setPasteText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [lastMeeting, setLastMeeting] = useState(null);
-  const [file, setFile] = useState(null);
   const [pushingTodos, setPushingTodos] = useState(null);
 
   const loadAll = useCallback(async () => {

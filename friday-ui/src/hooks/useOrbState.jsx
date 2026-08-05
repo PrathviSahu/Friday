@@ -741,8 +741,30 @@ export function OrbProvider({ children }) {
 
     // ── Boot sequence ────────────────────────────────────────────────────────
     useEffect(() => {
-        const t = setTimeout(() => transitionTo('IDLE'), 2200);
-        return () => clearTimeout(t);
+        const sequence = [
+            { text: "INITIALIZING VOICE...", delay: 0 },
+            { text: "LOADING MEMORY...", delay: 600 },
+            { text: "CONNECTING BRAIN...", delay: 1200 },
+            { text: "LOADING CAREER OS...", delay: 1800 },
+            { text: "PREPARING WORKSPACE...", delay: 2400 },
+            { text: "READY BOSS.", delay: 3000 }
+        ];
+
+        const timers = [];
+
+        sequence.forEach((step) => {
+            const t = setTimeout(() => {
+                setLabel(step.text);
+                if (step.text === "READY BOSS.") {
+                    setTimeout(() => {
+                        transitionTo('IDLE');
+                    }, 800);
+                }
+            }, step.delay);
+            timers.push(t);
+        });
+
+        return () => timers.forEach(clearTimeout);
     }, [transitionTo]);
 
     // Expose a small debug helper to trigger auth sequences from the console

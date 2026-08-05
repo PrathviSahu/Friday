@@ -814,12 +814,17 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       if (enabledRef.current && listeningModeRef.current !== 'ptt') startAfterIdle();
     }, 0);
 
+    const active_ptr = activeRef;
+    const speaking_ptr = speakingRef;
+    const pttSession_ptr = pttSessionRef;
+    const stopRecognizer_ptr = stopRecognizerRef;
+
     return () => {
       cancelled = true;
-      activeRef.current    = false;
-      speakingRef.current  = false;
-      pttSessionRef.current.active = false;
-      stopRecognizerRef.current = null;
+      active_ptr.current    = false;
+      speaking_ptr.current  = false;
+      pttSession_ptr.current.active = false;
+      stopRecognizer_ptr.current = null;
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       if (keepAlive)    clearInterval(keepAlive);

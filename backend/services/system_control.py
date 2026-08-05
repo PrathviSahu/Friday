@@ -237,7 +237,7 @@ def _paste_text_via_clipboard(text: str) -> str:
 
 # ── Spotify Local Cache ────────────────────────────────────────────────────────
 SPOTIFY_CACHE_FILE = Path(__file__).parent.parent / "data" / "spotify_cache.json"
-_spotify_cache_lock = threading.Lock()
+_spotify_cache_lock = threading.RLock()
 SPOTIFY_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -254,18 +254,25 @@ def _load_spotify_cache() -> dict:
 def _save_spotify_cache(cache: dict):
     with _spotify_cache_lock:
         try:
-            SPOTIFY_CACHE_FILE.write_text(json.dumps(cache, indent=2))
+            temp_file = SPOTIFY_CACHE_FILE.with_suffix(".tmp")
+            temp_file.write_text(json.dumps(cache, indent=2))
+            os.replace(temp_file, SPOTIFY_CACHE_FILE)
         except Exception as err:
             print(f"[Spotify Cache] Failed to save cache: {err}")
 
 
 def wait_until_spotify_running(timeout: float = 10.0) -> bool:
     """Dynamically wait until Spotify process is running in background (-g flag)."""
+    if not IS_MAC:
+        return True
     start = time.time()
     while time.time() - start < timeout:
         if is_spotify_running():
             return True
-        subprocess.Popen(["open", "-g", "-a", "Spotify"])
+        try:
+            subprocess.Popen(["open", "-g", "-a", "Spotify"])
+        except Exception:
+            pass
         time.sleep(0.5)
     return is_spotify_running()
 
@@ -552,8 +559,10 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
                        least the PLAYING track title contains query keywords.
     """
     if not IS_MAC or not is_spotify_running():
-        print("[Spotify Verification] ❌ Spotify is not running.")
-        return False
+        token = _get_spotify_access_token()
+        if not token:
+            print("[Spotify Verification] ❌ Spotify is not running and Web API token is not configured.")
+            return False
 
     for attempt in range(1, 5):  # 4 attempts, 1.5s apart = up to 6s total
         info = get_spotify_current_track()
@@ -581,7 +590,10 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
             return True
 
         print(f"[Spotify Verification] ⚠️ Attempt {attempt}: Not playing yet — sending play command...")
-        _execute_applescript_silent('tell application "Spotify" to play')
+        if IS_MAC and is_spotify_running():
+            _execute_applescript_silent('tell application "Spotify" to play')
+        else:
+            _control_spotify_web("play")
         time.sleep(1.5)
 
     final_info = get_spotify_current_track()
@@ -594,18 +606,167 @@ def verify_spotify_playback(expected_title: str = "", expected_artist: str = "",
 
 
 
+def _get_spotify_current_track_web() -> dict:
+    """Fetch details of currently active Spotify track via Spotify Web API."""
+    token = _get_spotify_access_token()
+    if not token:
+        return {}
+    try:
+        url = "https://api.spotify.com/v1/me/player"
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {token}"
+        })
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 204:  # No active playback or active device
+                return {}
+            content = resp.read()
+            if not content:
+                return {}
+            data = json.loads(content.decode())
+            if not data or "item" not in data or not data["item"]:
+                return {}
+            
+            item = data["item"]
+            title = item.get("name", "")
+            artists = ", ".join([a.get("name", "") for a in item.get("artists", [])])
+            album = item.get("album", {}).get("name", "")
+            is_playing = data.get("is_playing", False)
+            
+            artwork_url = ""
+            images = item.get("album", {}).get("images", [])
+            if images:
+                artwork_url = images[0].get("url", "")
+                
+            position = data.get("progress_ms", 0) / 1000.0
+            duration = item.get("duration_ms", 180000) / 1000.0
+            volume = data.get("device", {}).get("volume_percent", 70)
+            
+            is_ad = item.get("type", "") == "ad" or "ad-free" in title.lower() or "advertisement" in title.lower()
+            
+            return {
+                "playing": is_playing,
+                "is_ad": is_ad,
+                "title": title,
+                "artist": artists,
+                "album": album,
+                "state": "playing" if is_playing else "paused",
+                "artwork_url": artwork_url,
+                "position": round(position),
+                "duration": round(duration),
+                "volume": volume,
+            }
+    except Exception as err:
+        print(f"[Spotify Web API] Error fetching current track: {err}")
+    return {}
+
+
+def _control_spotify_web(command: str, query: str = "", volume_percent: int = -1) -> bool:
+    """Control Spotify playback via Spotify Web API."""
+    token = _get_spotify_access_token()
+    if not token:
+        return False
+    cmd = command.lower().strip()
+    
+    url = "https://api.spotify.com/v1/me/player"
+    method = "PUT"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    data = None
+    
+    try:
+        if cmd == "set_volume":
+            if volume_percent >= 0:
+                vol_clamped = max(0, min(100, volume_percent))
+                url = f"https://api.spotify.com/v1/me/player/volume?volume_percent={vol_clamped}"
+                method = "PUT"
+            else:
+                return False
+        elif cmd in ("play", "resume"):
+            url = "https://api.spotify.com/v1/me/player/play"
+            method = "PUT"
+        elif cmd in ("pause", "stop"):
+            url = "https://api.spotify.com/v1/me/player/pause"
+            method = "PUT"
+        elif cmd == "next":
+            url = "https://api.spotify.com/v1/me/player/next"
+            method = "POST"
+        elif cmd == "previous":
+            url = "https://api.spotify.com/v1/me/player/previous"
+            method = "POST"
+        elif cmd == "shuffle":
+            url = f"https://api.spotify.com/v1/me/player/shuffle?state=true"
+            method = "PUT"
+        elif cmd == "repeat":
+            url = f"https://api.spotify.com/v1/me/player/repeat?state=track"
+            method = "PUT"
+        elif cmd in ("play_hindi_playlist", "play_english_playlist", "play_krishna_playlist", "play_specific"):
+            url = "https://api.spotify.com/v1/me/player/play"
+            method = "PUT"
+            
+            # Determine URI
+            uri = ""
+            if cmd == "play_hindi_playlist":
+                uri = PLAYLIST_HINDI
+            elif cmd == "play_english_playlist":
+                uri = PLAYLIST_ENGLISH
+            elif cmd == "play_krishna_playlist":
+                uri = PLAYLIST_KRISHNA
+            elif query:
+                best_match = _search_best_track_uri(token, query)
+                uri = best_match.get("uri", "")
+                
+            if not uri:
+                return False
+                
+            if "playlist" in uri:
+                data = json.dumps({"context_uri": uri}).encode()
+            else:
+                data = json.dumps({"uris": [uri]}).encode()
+        else:
+            return False
+            
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status in (200, 204)
+    except Exception as err:
+        print(f"[Spotify Web API Control] Error executing {cmd}: {err}")
+        return False
+
+
 def play_spotify_uri(uri: str) -> bool:
     """Loads and plays a Spotify URI directly via AppleScript or Web API without UI keystrokes."""
     if not uri:
         return False
     try:
-        if IS_MAC:
+        if IS_MAC and is_spotify_running():
             _execute_applescript_silent(f'tell application "Spotify" to play track "{uri}"')
             print(f"[Spotify Direct Play] ✅ Direct URI playback triggered: {uri}")
             return True
-        else:
+
+        # Fallback to Spotify Web API Player
+        token = _get_spotify_access_token()
+        if token:
+            url = "https://api.spotify.com/v1/me/player/play"
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            if "playlist" in uri:
+                data = json.dumps({"context_uri": uri}).encode()
+            else:
+                data = json.dumps({"uris": [uri]}).encode()
+            req = urllib.request.Request(url, data=data, headers=headers, method="PUT")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status in (200, 204):
+                    print(f"[Spotify Direct Play Web] ✅ Web URI playback triggered: {uri}")
+                    return True
+
+        if IS_MAC:
             subprocess.run(["osascript", "-e", f'tell application "Spotify" to play track "{uri}"'], timeout=5, capture_output=True)
             return True
+        return False
     except Exception as err:
         print(f"[Spotify Direct Play] URI play error: {err}")
         return False
@@ -731,106 +892,135 @@ PLAYLIST_KRISHNA = os.getenv("SPOTIFY_PLAYLIST_KRISHNA", "spotify:playlist:3Fd9z
 
 
 def get_spotify_current_track() -> dict:
-    """Fetch details of currently active Spotify track via AppleScript including live volume level.
+    """Fetch details of currently active Spotify track via AppleScript or Web API."""
+    if IS_MAC and is_spotify_running():
+        try:
+            SEP = "|||SEP|||"
+            script = f'''
+            tell application "Spotify"
+                try
+                    set trackName  to name of current track
+                    set artistName to artist of current track
+                    set albumName  to album of current track
+                    set trackState to (player state as string)
+                    set artworkURL to artwork url of current track
+                    set trackPos   to player position
+                    set trackDur   to (duration of current track) / 1000
+                    set trackVol   to sound volume
+                    return trackName & "{SEP}" & artistName & "{SEP}" & albumName & "{SEP}" & trackState & "{SEP}" & artworkURL & "{SEP}" & trackPos & "{SEP}" & trackDur & "{SEP}" & trackVol
+                on error
+                    return "STOPPED"
+                end try
+            end tell
+            '''
+            res = subprocess.check_output(["osascript", "-e", script], timeout=3).decode("utf-8").strip()
+            if res and res != "STOPPED" and SEP in res:
+                parts = res.split(SEP)
+                title       = parts[0].strip()
+                artist      = parts[1].strip() if len(parts) > 1 else ""
+                album       = parts[2].strip() if len(parts) > 2 else ""
+                state       = parts[3].strip().lower() if len(parts) > 3 else "stopped"
+                artwork_url = parts[4].strip() if len(parts) > 4 else ""
+                position    = float(parts[5].strip()) if len(parts) > 5 and parts[5].strip() else 0.0
+                duration    = float(parts[6].strip()) if len(parts) > 6 and parts[6].strip() else 180.0
+                volume      = int(float(parts[7].strip())) if len(parts) > 7 and parts[7].strip() else 70
 
-    Uses a unique multi-char separator (|||SEP|||) to avoid conflicts with song/artist names.
-    """
-    if not IS_MAC or not is_spotify_running():
-        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
-                "artwork_url": "", "position": 0, "duration": 180, "volume": 70}
-    try:
-        SEP = "|||SEP|||"
-        script = f'''
-        tell application "Spotify"
-            try
-                set trackName  to name of current track
-                set artistName to artist of current track
-                set albumName  to album of current track
-                set trackState to (player state as string)
-                set artworkURL to artwork url of current track
-                set trackPos   to player position
-                set trackDur   to (duration of current track) / 1000
-                set trackVol   to sound volume
-                return trackName & "{SEP}" & artistName & "{SEP}" & albumName & "{SEP}" & trackState & "{SEP}" & artworkURL & "{SEP}" & trackPos & "{SEP}" & trackDur & "{SEP}" & trackVol
-            on error
-                return "STOPPED"
-            end try
-        end tell
-        '''
-        res = subprocess.check_output(["osascript", "-e", script], timeout=3).decode("utf-8").strip()
-        if not res or res == "STOPPED" or SEP not in res:
-            return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
-                    "artwork_url": "", "position": 0, "duration": 180, "volume": 70}
+                is_ad = "ad-free" in title.lower() or "advertisement" in title.lower() or ("spotify" in title.lower() and not artist)
 
-        parts = res.split(SEP)
-        title       = parts[0].strip()
-        artist      = parts[1].strip() if len(parts) > 1 else ""
-        album       = parts[2].strip() if len(parts) > 2 else ""
-        state       = parts[3].strip().lower() if len(parts) > 3 else "stopped"
-        artwork_url = parts[4].strip() if len(parts) > 4 else ""
-        position    = float(parts[5].strip()) if len(parts) > 5 and parts[5].strip() else 0.0
-        duration    = float(parts[6].strip()) if len(parts) > 6 and parts[6].strip() else 180.0
-        volume      = int(float(parts[7].strip())) if len(parts) > 7 and parts[7].strip() else 70
+                return {
+                    "playing":     state == "playing",
+                    "is_ad":       is_ad,
+                    "title":       title,
+                    "artist":      artist,
+                    "album":       album,
+                    "state":       state,
+                    "artwork_url": artwork_url,
+                    "position":    round(position),
+                    "duration":    round(duration),
+                    "volume":      volume,
+                }
+        except Exception as err:
+            print(f"[Automation] Error fetching current track via AppleScript: {err}")
 
-        is_ad = "ad-free" in title.lower() or "advertisement" in title.lower() or ("spotify" in title.lower() and not artist)
+    # Fallback to Spotify Web Player API
+    web_track = _get_spotify_current_track_web()
+    if web_track:
+        return web_track
 
-        return {
-            "playing":     state == "playing",
-            "is_ad":       is_ad,
-            "title":       title,
-            "artist":      artist,
-            "album":       album,
-            "state":       state,
-            "artwork_url": artwork_url,
-            "position":    round(position),
-            "duration":    round(duration),
-            "volume":      volume,
-        }
-    except Exception as err:
-        print(f"[Automation] Error fetching current track: {err}")
-        return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
-                "artwork_url": "", "position": 0, "duration": 180, "volume": 70}
+    return {"playing": False, "title": "", "artist": "", "album": "", "state": "stopped",
+            "artwork_url": "", "position": 0, "duration": 180, "volume": 70}
 
 
 def set_spotify_position(seconds: float) -> bool:
-    """Set Spotify player playback position in seconds via AppleScript."""
-    if not IS_MAC or not is_spotify_running():
-        return False
-    try:
-        script = f'tell application "Spotify" to set player position to {seconds}'
-        subprocess.Popen(["osascript", "-e", script])
-        return True
-    except Exception as err:
-        print(f"[Automation] Error setting player position: {err}")
-        return False
+    """Set Spotify player playback position in seconds via AppleScript or Web API."""
+    if IS_MAC and is_spotify_running():
+        try:
+            script = f'tell application "Spotify" to set player position to {seconds}'
+            subprocess.Popen(["osascript", "-e", script])
+            return True
+        except Exception as err:
+            print(f"[Automation] Error setting player position via AppleScript: {err}")
+
+    # Fallback to Spotify Web API Player seek
+    token = _get_spotify_access_token()
+    if token:
+        try:
+            ms = int(seconds * 1000)
+            url = f"https://api.spotify.com/v1/me/player/seek?position_ms={ms}"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"}, method="PUT")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return resp.status in (200, 204)
+        except Exception as err:
+            print(f"[Spotify Web API] Error seeking: {err}")
+    return False
 
 
 def add_current_track_to_playlist(target_playlist: str = "hindi") -> bool:
-    """Save currently playing track — uses Spotify Web API like-song endpoint (Cmd+S shortcut)."""
-    if not IS_MAC or not is_spotify_running():
-        return False
-    try:
-        # Cmd+S in Spotify desktop saves current track to liked songs / library
-        script = '''
-        tell application "Spotify" to activate
-        delay 0.3
-        tell application "System Events"
-            tell process "Spotify"
-                try
-                    keystroke "s" using {command down}
-                on error errMsg
-                    log "Save track error: " & errMsg
-                end try
+    """Save currently playing track — uses Spotify Web API like-song endpoint."""
+    # First try Spotify Web API like-song endpoint (universal cross-platform)
+    token = _get_spotify_access_token()
+    if token:
+        try:
+            url = "https://api.spotify.com/v1/me/player/currently-playing"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode())
+                    track_id = data.get("item", {}).get("id", "")
+                    if track_id:
+                        like_url = f"https://api.spotify.com/v1/me/tracks?ids={track_id}"
+                        like_req = urllib.request.Request(like_url, headers={"Authorization": f"Bearer {token}"}, method="PUT")
+                        with urllib.request.urlopen(like_req, timeout=5) as like_resp:
+                            if like_resp.status in (200, 201):
+                                print(f"[Spotify Web API] Saved track {track_id} to Liked Songs")
+                                return True
+        except Exception as err:
+            print(f"[Spotify Web API] Error saving current track to Liked Songs: {err}")
+
+    # Fallback to local AppleScript on Mac
+    if IS_MAC and is_spotify_running():
+        try:
+            # Cmd+S in Spotify desktop saves current track to liked songs / library
+            script = '''
+            tell application "Spotify" to activate
+            delay 0.3
+            tell application "System Events"
+                tell process "Spotify"
+                    try
+                        keystroke "s" using {command down}
+                    on error errMsg
+                        log "Save track error: " & errMsg
+                    end try
+                end tell
             end tell
-        end tell
-        '''
-        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5)
-        if result.returncode != 0:
-            print(f"[Automation] Save track AppleScript error: {result.stderr.strip()}")
-        return True
-    except Exception as err:
-        print(f"[Automation] Error adding track to playlist: {err}")
-        return False
+            '''
+            result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                print(f"[Automation] Save track AppleScript error: {result.stderr.strip()}")
+            return True
+        except Exception as err:
+            print(f"[Automation] Error adding track via AppleScript: {err}")
+    return False
 
 
 def take_screenshot() -> str:
@@ -893,9 +1083,9 @@ def _get_spotify_volume() -> int:
 
 
 def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> bool:
-    """Control Spotify playback, volume %, playlists, and repeat mode via macOS AppleScript."""
-    if not IS_MAC:
-        return False
+    """Control Spotify playback, volume %, playlists, and repeat mode via macOS AppleScript or Web API."""
+    if not IS_MAC or not is_spotify_running():
+        return _control_spotify_web(command, query, volume_percent)
     cmd = command.lower().strip()
     try:
         if cmd == "set_volume":

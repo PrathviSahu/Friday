@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy } from 'react';
+import { useState, Suspense, lazy, memo } from 'react';
 import {
   Briefcase, FileText, ListChecks,
   Building2, Users, CalendarCheck, BarChart3,
@@ -48,7 +48,7 @@ const MODULE_MAP = {
   accounts:     AccountManager,
 };
 
-export default function CareerOS({ onClose }) {
+const CareerOS = memo(function CareerOS({ onClose }) {
   const [active, setActive]       = useState('opportunities');
   const [collapsed, setCollapsed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -200,7 +200,9 @@ export default function CareerOS({ onClose }) {
       </div>
     </div>
   );
-}
+});
+
+export default CareerOS;
 
 const iconBtn = {
   display: 'flex', alignItems: 'center', justifyContent: 'center',

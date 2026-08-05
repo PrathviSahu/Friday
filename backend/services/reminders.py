@@ -3,6 +3,7 @@ FRIDAY Reminders Service
 Manages one-time timers and scheduled reminders with persistent storage.
 """
 import json
+import os
 import threading
 import uuid
 import time
@@ -14,28 +15,33 @@ DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # FastAPI runs sync handlers in a threadpool — lock every read-modify-write
 # so concurrent requests can't lose reminders (see todos.py for the same fix).
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 
 def _load() -> list:
-    if not DATA_FILE.exists():
-        return []
-    try:
-        return json.loads(DATA_FILE.read_text())
-    except Exception:
-        return []
+    with _lock:
+        if not DATA_FILE.exists():
+            return []
+        try:
+            return json.loads(DATA_FILE.read_text())
+        except Exception:
+            return []
 
 
 def _save(items: list):
-    DATA_FILE.write_text(json.dumps(items, indent=2))
+    with _lock:
+        temp_file = DATA_FILE.with_suffix(".tmp")
+        temp_file.write_text(json.dumps(items, indent=2))
+        os.replace(temp_file, DATA_FILE)
 
 
 def get_active_reminders() -> list:
     """Return all non-triggered reminders."""
-    now = time.time()
-    items = _load()
-    active = [i for i in items if not i.get("triggered") and i.get("trigger_at", 0) > now]
-    return sorted(active, key=lambda x: x.get("trigger_at", 0))
+    with _lock:
+        now = time.time()
+        items = _load()
+        active = [i for i in items if not i.get("triggered") and i.get("trigger_at", 0) > now]
+        return sorted(active, key=lambda x: x.get("trigger_at", 0))
 
 
 def add_reminder(message: str, delay_seconds: int) -> dict:
