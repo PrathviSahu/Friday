@@ -14,11 +14,11 @@ const CARD_STYLE = {
   maxHeight: '72vh',
   display: 'flex',
   flexDirection: 'column',
-  background: 'rgba(2, 6, 20, 0.92)',
-  border: '1px solid rgba(167, 139, 250, 0.25)',
+  background: 'rgba(15, 23, 42, 0.92)',
+  border: '1px solid rgba(100, 116, 139, 0.2)',
   borderRadius: 16,
   backdropFilter: 'blur(18px)',
-  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(167,139,250,0.08)',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
   overflow: 'hidden',
   fontFamily: 'Inter, system-ui, sans-serif',
 };
@@ -133,7 +133,7 @@ export default function DocumentsCard() {
           position: 'fixed', top: 200, left: 220, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 999,
-          background: 'rgba(2, 6, 20, 0.9)', border: '1px solid rgba(167,139,250,0.3)',
+          background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(100, 116, 139, 0.25)',
           color: ACCENT, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
         }}
@@ -141,7 +141,7 @@ export default function DocumentsCard() {
         <FileText size={13} />
         Documents
         {docs.length > 0 && (
-          <span style={{ background: 'rgba(167,139,250,0.25)', color: '#ddd6fe', borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
+          <span style={{ background: 'rgba(100,116,139,0.25)', color: '#ddd6fe', borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
             {docs.length}
           </span>
         )}
@@ -151,14 +151,14 @@ export default function DocumentsCard() {
 
   const inputStyle = {
     width: '100%', padding: '8px 10px', marginBottom: 8,
-    background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)',
+    background: 'rgba(100,116,139,0.06)', border: '1px solid rgba(100,116,139,0.2)',
     borderRadius: 8, color: TEXT, fontSize: 12, outline: 'none',
     boxSizing: 'border-box', fontFamily: 'inherit',
   };
 
   return (
     <div style={CARD_STYLE}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(167,139,250,0.15)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(100,116,139,0.15)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: ACCENT }}>
           <FileText size={14} />
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>DOCUMENTS</span>
@@ -178,7 +178,7 @@ export default function DocumentsCard() {
         )}
 
         {/* Upload */}
-        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 10px', marginBottom: 10, border: '1px dashed rgba(167,139,250,0.35)', borderRadius: 10, cursor: 'pointer', color: ACCENT, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 10px', marginBottom: 10, border: '1px dashed rgba(100,116,139,0.35)', borderRadius: 10, cursor: 'pointer', color: ACCENT, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {uploading ? <Loader size={13} /> : <Upload size={13} />}
           {uploading ? 'Uploading & extracting…' : 'Upload PDF / DOCX / PPTX / XLSX / TXT'}
           <input type="file" accept=".pdf,.docx,.pptx,.xlsx,.txt,.md" onChange={onUpload} style={{ display: 'none' }} />
@@ -196,7 +196,7 @@ export default function DocumentsCard() {
               style={{ ...inputStyle, paddingLeft: 26 }}
             />
           </div>
-          <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+          <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
             Go
           </button>
         </div>
@@ -210,7 +210,7 @@ export default function DocumentsCard() {
         )}
 
         {docs.map((d) => (
-          <div key={d.id} style={{ padding: '10px', marginBottom: 6, background: 'rgba(167,139,250,0.03)', border: '1px solid rgba(167,139,250,0.14)', borderRadius: 10 }}>
+          <div key={d.id} style={{ padding: '10px', marginBottom: 6, background: 'rgba(100,116,139,0.03)', border: '1px solid rgba(100,116,139,0.14)', borderRadius: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {d.title}<span style={{ color: MUTED, fontWeight: 400 }}> {d.ext}</span>
@@ -224,10 +224,10 @@ export default function DocumentsCard() {
               {d.snippet || '—'}
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              <button onClick={() => { setAskDocId(d.id); setAnswer(''); }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 0', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+              <button onClick={() => { setAskDocId(d.id); setAnswer(''); }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 0', background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                 <Sparkles size={10} /> Ask
               </button>
-              <button onClick={() => doSummarize(d.id)} disabled={summaryFor === d.id} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 0', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+              <button onClick={() => doSummarize(d.id)} disabled={summaryFor === d.id} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 0', background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                 {summaryFor === d.id ? <Loader size={10} /> : <FileText size={10} />}
                 {summaryFor === d.id ? '…' : 'Summarize'}
               </button>
@@ -236,7 +236,7 @@ export default function DocumentsCard() {
         ))}
 
         {/* Ask panel */}
-        <div style={{ marginTop: 8, borderTop: '1px solid rgba(167,139,250,0.15)', paddingTop: 10 }}>
+        <div style={{ marginTop: 8, borderTop: '1px solid rgba(100,116,139,0.15)', paddingTop: 10 }}>
           <div style={{ fontSize: 10, color: MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
             Ask a question
           </div>
@@ -251,12 +251,12 @@ export default function DocumentsCard() {
             placeholder="e.g. What are the key skills mentioned?"
             style={inputStyle}
           />
-          <button onClick={doAsk} disabled={!askDocId || !question.trim() || working} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', background: askDocId && question.trim() && !working ? ACCENT : 'rgba(167,139,250,0.15)', border: 'none', borderRadius: 8, color: '#1e1b4b', fontWeight: 700, fontSize: 11, cursor: askDocId && question.trim() && !working ? 'pointer' : 'not-allowed', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <button onClick={doAsk} disabled={!askDocId || !question.trim() || working} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', background: askDocId && question.trim() && !working ? ACCENT : 'rgba(100,116,139,0.15)', border: 'none', borderRadius: 8, color: '#334155', fontWeight: 700, fontSize: 11, cursor: askDocId && question.trim() && !working ? 'pointer' : 'not-allowed', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             {working ? <Loader size={12} /> : <Sparkles size={12} />}
             {working ? 'Thinking…' : 'Ask'}
           </button>
           {answer && (
-            <div style={{ marginTop: 10, background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 10, padding: 12, fontSize: 12, color: TEXT, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+            <div style={{ marginTop: 10, background: 'rgba(100,116,139,0.06)', border: '1px solid rgba(100,116,139,0.25)', borderRadius: 10, padding: 12, fontSize: 12, color: TEXT, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
               {answer}
             </div>
           )}

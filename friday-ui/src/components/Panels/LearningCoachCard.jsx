@@ -88,9 +88,9 @@ export default function LearningCoachCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #7c2d12',
+                    background: '#0f172a', border: '1px solid #7c2d12',
                     color: '#fdba74', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                 }}
             >
                 <Flame size={13} style={{ color: '#fb923c' }} />
@@ -120,8 +120,8 @@ export default function LearningCoachCard() {
                     width: 320, maxHeight: 520,
                     borderRadius: 16, overflow: 'hidden',
                     pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #7c2d12',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.75)',
+                    background: '#0f172a', border: '1px solid #7c2d12',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     rotateX, rotateY, transformOrigin, transformStyle: 'preserve-3d',
                     perspective: 1000, willChange: 'transform', backfaceVisibility: 'hidden',
@@ -158,7 +158,7 @@ export default function LearningCoachCard() {
                                 { label: 'Solved', value: dashboard.today_solved },
                                 { label: 'Week', value: `${dashboard.week_minutes}m` },
                             ].map((s) => (
-                                <div key={s.label} style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 10, padding: '8px', textAlign: 'center' }}>
+                                <div key={s.label} style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 10, padding: '8px', textAlign: 'center' }}>
                                     <div style={{ fontSize: 15, fontWeight: 800, color: '#fdba74' }}>{s.value}</div>
                                     <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
                                 </div>
@@ -187,17 +187,17 @@ export default function LearningCoachCard() {
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="e.g. Two Sum, Spring Boot CRUD…"
-                            style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }}
+                            style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }}
                         />
                         <div style={{ display: 'flex', gap: 6 }}>
                             <select value={category} onChange={(e) => setCategory(e.target.value)}
-                                style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, flex: 1 }}>
+                                style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, flex: 1 }}>
                                 {CATEGORIES.map((c) => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
                             </select>
                             <input type="number" min={1} value={minutes} onChange={(e) => setMinutes(e.target.value)}
-                                title="Minutes" style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, width: 56 }} />
+                                title="Minutes" style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, width: 56 }} />
                             <input type="number" min={0} value={solved} onChange={(e) => setSolved(e.target.value)}
-                                title="Problems solved" style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, width: 56 }} />
+                                title="Problems solved" style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, width: 56 }} />
                         </div>
                         <button type="submit" disabled={!title.trim()}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: 'none', background: '#9a3412', color: '#fed7aa', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: title.trim() ? 1 : 0.4 }}>

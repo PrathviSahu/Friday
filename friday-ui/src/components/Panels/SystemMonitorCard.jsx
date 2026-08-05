@@ -23,7 +23,7 @@ function MetricBar({ icon: Icon, label, value, color, unit = '%' }) {
                     {value}{unit}
                 </span>
             </div>
-            <div style={{ height: 5, width: '100%', background: '#1e1b4b', borderRadius: 99, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ height: 5, width: '100%', background: '#334155', borderRadius: 99, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(100, Math.max(0, value))}%` }}
@@ -176,9 +176,9 @@ export default function SystemMonitorCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #1e1b4b',
+                    background: '#0f172a', border: '1px solid #334155',
                     color: '#67e8f9', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                 }}
             >
                 <Activity size={13} style={{ animation: 'pulse 2s infinite' }} />
@@ -210,8 +210,8 @@ export default function SystemMonitorCard() {
                     pointerEvents: 'auto',
                     userSelect: 'none',
                     overflow: 'hidden',
-                    background: '#0f0f1a',
-                    border: '1px solid #1e1b4b',
+                    background: '#0f172a',
+                    border: '1px solid #334155',
                     boxShadow: isDragging
                         ? '0 45px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.15)'
                         : '0 32px 80px rgba(0,0,0,0.75)',
@@ -240,7 +240,7 @@ export default function SystemMonitorCard() {
                     style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 16px 10px',
-                        borderBottom: '1px solid #1e1b4b',
+                        borderBottom: '1px solid #334155',
                         cursor: 'grab',
                         position: 'relative', zIndex: 40
                     }}
@@ -286,7 +286,7 @@ export default function SystemMonitorCard() {
                     />
 
                     {/* Divider */}
-                    <div style={{ height: 1, background: '#1e1b4b', margin: '2px 0' }} />
+                    <div style={{ height: 1, background: '#334155', margin: '2px 0' }} />
 
                     {/* Hardware & Display Quick Controls */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -348,8 +348,8 @@ export default function SystemMonitorCard() {
                                     flex: 1,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                     padding: '6px 10px', borderRadius: 8,
-                                    background: displayInfo.dark_mode ? 'rgba(34,211,238,0.12)' : 'rgba(255,255,255,0.06)',
-                                    border: displayInfo.dark_mode ? '1px solid rgba(34,211,238,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                                    background: displayInfo.dark_mode ? 'rgba(100,116,139,0.12)' : 'rgba(255,255,255,0.06)',
+                                    border: displayInfo.dark_mode ? '1px solid rgba(100,116,139,0.3)' : '1px solid rgba(255,255,255,0.1)',
                                     color: displayInfo.dark_mode ? '#38bdf8' : '#94a3b8',
                                     fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
                                 }}

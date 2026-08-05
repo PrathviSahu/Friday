@@ -195,12 +195,12 @@ export default function KnowledgeCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #312e81',
-                    color: '#a5b4fc', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
+                    background: '#0f172a', border: '1px solid #475569',
+                    color: '#cbd5e1', fontSize: 11, fontFamily: 'monospace',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                 }}
             >
-                <BookOpen size={13} style={{ color: '#818cf8' }} />
+                <BookOpen size={13} style={{ color: '#94a3b8' }} />
                 <span>Knowledge</span>
             </motion.div>
         );
@@ -227,8 +227,8 @@ export default function KnowledgeCard() {
                     width: 400, maxHeight: 540,
                     borderRadius: 16, overflow: 'hidden',
                     pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #312e81',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.75)',
+                    background: '#0f172a', border: '1px solid #475569',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     rotateX, rotateY, transformOrigin, transformStyle: 'preserve-3d',
                     perspective: 1000, willChange: 'transform', backfaceVisibility: 'hidden',
@@ -239,29 +239,29 @@ export default function KnowledgeCard() {
 
                 <div onPointerDown={handlePointerDownHeader} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '12px 16px 10px', borderBottom: '1px solid #312e81',
+                    padding: '12px 16px 10px', borderBottom: '1px solid #475569',
                     cursor: 'grab', position: 'relative', zIndex: 40
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <GripHorizontal size={13} style={{ color: '#312e81' }} />
-                        <BookOpen size={14} style={{ color: '#818cf8' }} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e0e7ff', letterSpacing: '-0.01em' }}>Knowledge OS</span>
+                        <GripHorizontal size={13} style={{ color: '#475569' }} />
+                        <BookOpen size={14} style={{ color: '#94a3b8' }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', letterSpacing: '-0.01em' }}>Knowledge OS</span>
                     </div>
                     <button type="button" onClick={() => setIsVisible(false)} title="Close"
-                        style={{ background: 'none', border: 'none', color: '#312e81', cursor: 'pointer', padding: 4, display: 'flex' }}>
+                        style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 4, display: 'flex' }}>
                         <X size={14} />
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', gap: 4, padding: '8px 12px 0', borderBottom: '1px solid #1e1b4b' }}>
+                <div style={{ display: 'flex', gap: 4, padding: '8px 12px 0', borderBottom: '1px solid #334155' }}>
                     {TABS.map(({ key, label, Icon }) => (
                         <button key={key} type="button" onClick={() => switchTab(key)}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px',
                                 border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer',
-                                background: tab === key ? '#141428' : 'transparent',
-                                color: tab === key ? '#e0e7ff' : '#6366f1', fontSize: 10.5, fontWeight: 600,
+                                background: tab === key ? '#1e293b' : 'transparent',
+                                color: tab === key ? '#e2e8f0' : '#6366f1', fontSize: 10.5, fontWeight: 600,
                             }}>
                             <Icon size={11} /> {label}
                         </button>
@@ -276,44 +276,44 @@ export default function KnowledgeCard() {
                             <form onSubmit={searchNotes} style={{ display: 'flex', gap: 6 }}>
                                 <input type="text" value={noteQuery} onChange={(e) => setNoteQuery(e.target.value)}
                                     placeholder='"where did I save that Kafka idea?"'
-                                    style={{ flex: 1, background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '7px 10px', color: '#e0e7ff', fontSize: 11, outline: 'none' }} />
-                                <button type="submit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 8, border: 'none', background: '#4338ca', color: '#e0e7ff', cursor: 'pointer' }}>
+                                    style={{ flex: 1, background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }} />
+                                <button type="submit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 8, border: 'none', background: '#475569', color: '#e2e8f0', cursor: 'pointer' }}>
                                     <Search size={12} />
                                 </button>
                             </form>
                             {searchAnswer && (
-                                <div style={{ fontSize: 11, color: '#a5b4fc', background: 'rgba(67,56,202,0.12)', border: '1px solid #312e81', borderRadius: 8, padding: '8px 10px' }}>
+                                <div style={{ fontSize: 11, color: '#cbd5e1', background: 'rgba(100,116,139,0.12)', border: '1px solid #475569', borderRadius: 8, padding: '8px 10px' }}>
                                     {searchAnswer}
                                 </div>
                             )}
 
                             {/* Add note */}
-                            <form onSubmit={addNote} style={{ display: 'flex', flexDirection: 'column', gap: 5, borderTop: '1px solid #1e1b4b', paddingTop: 10 }}>
+                            <form onSubmit={addNote} style={{ display: 'flex', flexDirection: 'column', gap: 5, borderTop: '1px solid #334155', paddingTop: 10 }}>
                                 <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Capture / idea</div>
                                 <div style={{ display: 'flex', gap: 6 }}>
                                     <input type="text" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)}
                                         placeholder="Title"
-                                        style={{ flex: 1, background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 10px', color: '#e0e7ff', fontSize: 11, outline: 'none' }} />
+                                        style={{ flex: 1, background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }} />
                                     <select value={noteType} onChange={(e) => setNoteType(e.target.value)}
-                                        style={{ background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 8px', color: '#c7d2fe', fontSize: 10 }}>
+                                        style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10 }}>
                                         <option value="">auto</option>
                                         {noteTypes.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
                                     </select>
                                 </div>
                                 <textarea value={noteContent} onChange={(e) => setNoteContent(e.target.value)} rows={2}
                                     placeholder="Content… (FRIDAY auto-categorizes)"
-                                    style={{ background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 10px', color: '#e0e7ff', fontSize: 11, outline: 'none', resize: 'vertical' }} />
+                                    style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none', resize: 'vertical' }} />
                                 <button type="submit" disabled={!noteTitle.trim()}
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: 'none', background: '#4338ca', color: '#e0e7ff', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: noteTitle.trim() ? 1 : 0.4 }}>
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px', borderRadius: 8, border: 'none', background: '#475569', color: '#e2e8f0', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: noteTitle.trim() ? 1 : 0.4 }}>
                                     <Plus size={12} /> Save note
                                 </button>
                             </form>
 
                             {/* Note list */}
                             {notes.map((n) => (
-                                <div key={n.id} style={{ background: '#10101c', border: '1px solid #1e1b4b', borderRadius: 10, padding: '9px 10px' }}>
+                                <div key={n.id} style={{ background: '#10101c', border: '1px solid #334155', borderRadius: 10, padding: '9px 10px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#e0e7ff' }}>{n.title}</span>
+                                        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#e2e8f0' }}>{n.title}</span>
                                         <button type="button" onClick={() => deleteNote(n.id)} title="Delete"
                                             style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 2 }}>
                                             <Trash2 size={11} />
@@ -321,8 +321,8 @@ export default function KnowledgeCard() {
                                     </div>
                                     {n.content && <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>{n.content.slice(0, 140)}</div>}
                                     <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
-                                        <span style={{ fontSize: 9, color: '#818cf8', background: 'rgba(129,140,248,0.12)', borderRadius: 99, padding: '1px 7px', fontFamily: 'monospace' }}>{n.type}</span>
-                                        {n.project && <span style={{ fontSize: 9, color: '#a5b4fc', background: 'rgba(99,102,241,0.12)', borderRadius: 99, padding: '1px 7px', fontFamily: 'monospace' }}>{n.project}</span>}
+                                        <span style={{ fontSize: 9, color: '#94a3b8', background: 'rgba(129,140,248,0.12)', borderRadius: 99, padding: '1px 7px', fontFamily: 'monospace' }}>{n.type}</span>
+                                        {n.project && <span style={{ fontSize: 9, color: '#cbd5e1', background: 'rgba(99,102,241,0.12)', borderRadius: 99, padding: '1px 7px', fontFamily: 'monospace' }}>{n.project}</span>}
                                         {n.tags?.map((t) => <span key={t} style={{ fontSize: 9, color: '#64748b', fontFamily: 'monospace' }}>#{t}</span>)}
                                     </div>
                                 </div>
@@ -339,26 +339,26 @@ export default function KnowledgeCard() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             <div style={{ display: 'flex', gap: 6 }}>
                                 <button type="button" onClick={() => runTimelineSummary('last month')}
-                                    style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #312e81', background: 'transparent', color: '#a5b4fc', fontSize: 10, cursor: 'pointer' }}>What changed last month?</button>
+                                    style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', fontSize: 10, cursor: 'pointer' }}>What changed last month?</button>
                                 <button type="button" onClick={() => runTimelineSummary('this year')}
-                                    style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #312e81', background: 'transparent', color: '#a5b4fc', fontSize: 10, cursor: 'pointer' }}>Progress this year</button>
+                                    style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', fontSize: 10, cursor: 'pointer' }}>Progress this year</button>
                             </div>
                             {tlSummary && (
-                                <div style={{ fontSize: 11, color: '#a5b4fc', background: 'rgba(67,56,202,0.12)', border: '1px solid #312e81', borderRadius: 8, padding: '8px 10px', lineHeight: 1.5 }}>
+                                <div style={{ fontSize: 11, color: '#cbd5e1', background: 'rgba(100,116,139,0.12)', border: '1px solid #475569', borderRadius: 8, padding: '8px 10px', lineHeight: 1.5 }}>
                                     {tlSummary}
                                 </div>
                             )}
 
-                            <form onSubmit={addTimelineEvent} style={{ display: 'flex', gap: 6, borderTop: '1px solid #1e1b4b', paddingTop: 10 }}>
+                            <form onSubmit={addTimelineEvent} style={{ display: 'flex', gap: 6, borderTop: '1px solid #334155', paddingTop: 10 }}>
                                 <input type="text" value={tlEvent} onChange={(e) => setTlEvent(e.target.value)}
                                     placeholder="e.g. Finished AI Attendance System"
-                                    style={{ flex: 1, background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 10px', color: '#e0e7ff', fontSize: 11, outline: 'none' }} />
+                                    style={{ flex: 1, background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }} />
                                 <select value={tlCategory} onChange={(e) => setTlCategory(e.target.value)}
-                                    style={{ background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 8px', color: '#c7d2fe', fontSize: 10 }}>
+                                    style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10 }}>
                                     {['career', 'learning', 'project', 'skill', 'milestone', 'personal'].map((c) => <option key={c}>{c}</option>)}
                                 </select>
                                 <button type="submit" disabled={!tlEvent.trim()}
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 8, border: 'none', background: '#4338ca', color: '#e0e7ff', cursor: 'pointer', opacity: tlEvent.trim() ? 1 : 0.4 }}>
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 8, border: 'none', background: '#475569', color: '#e2e8f0', cursor: 'pointer', opacity: tlEvent.trim() ? 1 : 0.4 }}>
                                     <Plus size={12} />
                                 </button>
                             </form>
@@ -367,7 +367,7 @@ export default function KnowledgeCard() {
                                 {timeline.slice(0, 15).map((e) => (
                                     <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5 }}>
                                         <span style={{ color: '#6366f1', fontFamily: 'monospace', width: 78, flexShrink: 0 }}>{e.event_date}</span>
-                                        <span style={{ color: '#818cf8', fontSize: 9, fontFamily: 'monospace', width: 70, flexShrink: 0 }}>{e.category}</span>
+                                        <span style={{ color: '#94a3b8', fontSize: 9, fontFamily: 'monospace', width: 70, flexShrink: 0 }}>{e.category}</span>
                                         <span style={{ color: '#cbd5e1' }}>{e.event}</span>
                                     </div>
                                 ))}
@@ -378,28 +378,28 @@ export default function KnowledgeCard() {
 
                     {tab === 'goals' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <form onSubmit={addGoal} style={{ display: 'flex', gap: 6, borderBottom: '1px solid #1e1b4b', paddingBottom: 10 }}>
+                            <form onSubmit={addGoal} style={{ display: 'flex', gap: 6, borderBottom: '1px solid #334155', paddingBottom: 10 }}>
                                 <input type="text" value={goalTitle} onChange={(e) => setGoalTitle(e.target.value)}
                                     placeholder="e.g. Get 8 LPA job"
-                                    style={{ flex: 1, background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 10px', color: '#e0e7ff', fontSize: 11, outline: 'none' }} />
+                                    style={{ flex: 1, background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }} />
                                 <input type="number" min={1} value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)}
                                     title="Target"
-                                    style={{ background: '#141428', border: '1px solid #312e81', borderRadius: 8, padding: '6px 8px', color: '#c7d2fe', fontSize: 11, width: 60 }} />
+                                    style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 11, width: 60 }} />
                                 <button type="submit" disabled={!goalTitle.trim()}
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 8, border: 'none', background: '#4338ca', color: '#e0e7ff', cursor: 'pointer', opacity: goalTitle.trim() ? 1 : 0.4 }}>
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 8, border: 'none', background: '#475569', color: '#e2e8f0', cursor: 'pointer', opacity: goalTitle.trim() ? 1 : 0.4 }}>
                                     <Plus size={12} />
                                 </button>
                             </form>
                             {goals.map((g) => (
-                                <div key={g.id} style={{ background: '#10101c', border: '1px solid #1e1b4b', borderRadius: 10, padding: '10px' }}>
+                                <div key={g.id} style={{ background: '#10101c', border: '1px solid #334155', borderRadius: 10, padding: '10px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                                         <div>
-                                            <span style={{ fontSize: 12, fontWeight: 600, color: '#e0e7ff' }}>{g.title}</span>
+                                            <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{g.title}</span>
                                             {g.deadline && <span style={{ fontSize: 9, color: '#64748b', marginLeft: 6, fontFamily: 'monospace' }}>by {g.deadline}</span>}
                                         </div>
-                                        <span style={{ fontSize: 11, fontWeight: 700, color: g.progress_pct >= 100 ? '#4ade80' : '#818cf8', fontFamily: 'monospace' }}>{g.progress_pct}%</span>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: g.progress_pct >= 100 ? '#4ade80' : '#94a3b8', fontFamily: 'monospace' }}>{g.progress_pct}%</span>
                                     </div>
-                                    <div style={{ height: 5, background: '#1e1b4b', borderRadius: 99, overflow: 'hidden', marginTop: 7 }}>
+                                    <div style={{ height: 5, background: '#334155', borderRadius: 99, overflow: 'hidden', marginTop: 7 }}>
                                         <div style={{ height: '100%', width: `${g.progress_pct}%`, background: g.progress_pct >= 100 ? '#22c55e' : 'linear-gradient(90deg,#6366f1,#a5b4fc)', borderRadius: 99 }} />
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
@@ -409,7 +409,7 @@ export default function KnowledgeCard() {
                                             ))}
                                         </div>
                                         <button type="button" onClick={() => bumpGoal(g.id)} disabled={g.progress_pct >= 100}
-                                            style={{ padding: '3px 10px', borderRadius: 8, border: 'none', background: g.progress_pct >= 100 ? '#14532d' : '#4338ca', color: g.progress_pct >= 100 ? '#4ade80' : '#e0e7ff', fontSize: 10, fontWeight: 600, cursor: g.progress_pct >= 100 ? 'default' : 'pointer' }}>
+                                            style={{ padding: '3px 10px', borderRadius: 8, border: 'none', background: g.progress_pct >= 100 ? '#14532d' : '#475569', color: g.progress_pct >= 100 ? '#4ade80' : '#e2e8f0', fontSize: 10, fontWeight: 600, cursor: g.progress_pct >= 100 ? 'default' : 'pointer' }}>
                                             {g.progress_pct >= 100 ? '✓ Done' : '+1 progress'}
                                         </button>
                                     </div>

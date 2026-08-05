@@ -14,11 +14,11 @@ const CARD_STYLE = {
   maxHeight: '72vh',
   display: 'flex',
   flexDirection: 'column',
-  background: 'rgba(2, 6, 20, 0.92)',
-  border: '1px solid rgba(37, 211, 102, 0.25)',
+  background: 'rgba(15, 23, 42, 0.92)',
+  border: '1px solid rgba(100, 116, 139, 0.2)',
   borderRadius: 16,
   backdropFilter: 'blur(18px)',
-  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(37,211,102,0.08)',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
   overflow: 'hidden',
   fontFamily: 'Inter, system-ui, sans-serif',
 };
@@ -136,7 +136,7 @@ export default function WhatsAppCard() {
           position: 'fixed', top: 200, right: 220, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 999,
-          background: 'rgba(2, 6, 20, 0.9)', border: '1px solid rgba(37,211,102,0.3)',
+          background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(100, 116, 139, 0.25)',
           color: ACCENT, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
         }}
@@ -175,7 +175,7 @@ export default function WhatsAppCard() {
         <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(37,211,102,0.12)', textAlign: 'center' }}>
           {qr ? (
             <>
-              <img src={qr} alt="WhatsApp pairing QR" style={{ width: 170, height: 170, borderRadius: 8, border: '1px solid rgba(37,211,102,0.3)' }} />
+              <img src={qr} alt="WhatsApp pairing QR" style={{ width: 170, height: 170, borderRadius: 8, border: '1px solid rgba(100, 116, 139, 0.25)' }} />
               <div style={{ fontSize: 10, color: MUTED, marginTop: 8, letterSpacing: '0.06em' }}>
                 Scan with WhatsApp → Linked Devices → Link a Device
               </div>
