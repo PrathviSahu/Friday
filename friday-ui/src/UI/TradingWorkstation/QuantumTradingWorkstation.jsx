@@ -19,7 +19,7 @@ const TIMEFRAMES = [
     { label: '1W', value: 'W' },
 ];
 
-export default function QuantumTradingWorkstation({ isMinimized = false, onMinimize, onRestore, onClose }) {
+const QuantumTradingWorkstation = React.memo(function QuantumTradingWorkstation({ isMinimized = false, onMinimize, onRestore, onClose }) {
     const { micEnabled, setMicEnabled } = useFriday();
     const [selectedSymbol, setSelectedSymbol] = useState('FX:EURUSD');
     const [selectedInterval, setSelectedInterval] = useState('5');
@@ -501,4 +501,6 @@ export default function QuantumTradingWorkstation({ isMinimized = false, onMinim
             </div>
         </motion.div>
     );
-}
+});
+
+export default QuantumTradingWorkstation;

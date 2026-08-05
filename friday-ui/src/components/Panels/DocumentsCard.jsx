@@ -46,8 +46,9 @@ export default function DocumentsCard() {
     setLoading(true);
     setError('');
     try {
-      setDocs(await fetchDocuments());
-      if (!askDocId && docs.length === 0) { /* keep */ }
+      const fetched = await fetchDocuments();
+      setDocs(fetched);
+      if (!askDocId && fetched.length === 0) { /* keep */ }
     } catch (err) {
       setError(err.message || 'Could not load documents.');
     } finally {
