@@ -17,22 +17,22 @@ export default function Corners() {
                     style={{
                         ...pos,
                         width: size, height: size,
-                        borderTop:    pos.borderTop    ? '1px solid rgba(0,183,255,0.4)' : 'none',
-                        borderBottom: pos.borderBottom ? '1px solid rgba(0,183,255,0.4)' : 'none',
-                        borderLeft:   pos.borderLeft   ? '1px solid rgba(0,183,255,0.4)' : 'none',
-                        borderRight:  pos.borderRight  ? '1px solid rgba(0,183,255,0.4)' : 'none',
+                        borderTop:    pos.borderTop    ? '1px solid rgba(96,165,250,0.4)' : 'none',
+                        borderBottom: pos.borderBottom ? '1px solid rgba(96,165,250,0.4)' : 'none',
+                        borderLeft:   pos.borderLeft   ? '1px solid rgba(96,165,250,0.4)' : 'none',
+                        borderRight:  pos.borderRight  ? '1px solid rgba(96,165,250,0.4)' : 'none',
                     }}
                 />
             ))}
             {/* Side tick marks */}
             <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-none">
                 {[...Array(5)].map((_, i) => (
-                    <div key={i} className="w-1 h-px bg-[#00B7FF]/25" />
+                    <div key={i} className="w-1 h-px bg-[#60a5fa]/25" />
                 ))}
             </div>
             <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-2 pointer-events-none">
                 {[...Array(5)].map((_, i) => (
-                    <div key={i} className="w-1 h-px bg-[#00B7FF]/25" />
+                    <div key={i} className="w-1 h-px bg-[#60a5fa]/25" />
                 ))}
             </div>
         </>

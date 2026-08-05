@@ -15,13 +15,13 @@ const CARD_STYLE = {
   border: '1px solid rgba(0, 183, 255, 0.25)',
   borderRadius: 16,
   backdropFilter: 'blur(18px)',
-  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(0,183,255,0.08)',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(96,165,250,0.08)',
   overflow: 'hidden',
   fontFamily: 'Inter, system-ui, sans-serif',
 };
 
-const ACCENT = '#00B7FF';
-const TEXT = '#DFFAFF';
+const ACCENT = '#60a5fa';
+const TEXT = '#f1f5f9';
 const MUTED = 'rgba(223,250,255,0.55)';
 
 export default function EmailCard() {
@@ -115,7 +115,7 @@ export default function EmailCard() {
           position: 'fixed', top: 200, right: 40, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 999,
-          background: 'rgba(2, 6, 20, 0.9)', border: `1px solid rgba(0,183,255,0.3)`,
+          background: 'rgba(2, 6, 20, 0.9)', border: `1px solid rgba(96,165,250,0.3)`,
           color: ACCENT, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
         }}
@@ -123,7 +123,7 @@ export default function EmailCard() {
         <Mail size={13} />
         Email
         {summary?.unread_count > 0 && (
-          <span style={{ background: '#0ea5e9', color: '#001018', borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
+          <span style={{ background: '#0ea5e9', color: '#1e293b', borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
             {summary.unread_count}
           </span>
         )}
@@ -133,7 +133,7 @@ export default function EmailCard() {
 
   const inputStyle = {
     width: '100%', padding: '8px 10px', marginBottom: 8,
-    background: 'rgba(0,183,255,0.06)', border: '1px solid rgba(0,183,255,0.2)',
+    background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.2)',
     borderRadius: 8, color: TEXT, fontSize: 12, outline: 'none',
     boxSizing: 'border-box', fontFamily: 'inherit',
   };
@@ -141,7 +141,7 @@ export default function EmailCard() {
   return (
     <div style={CARD_STYLE}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(0,183,255,0.15)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(96,165,250,0.15)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: ACCENT }}>
           <Mail size={14} />
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>EMAIL</span>
@@ -167,8 +167,8 @@ export default function EmailCard() {
             onClick={() => { setTab(id); setError(''); setSent(null); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
-              background: tab === id ? 'rgba(0,183,255,0.12)' : 'transparent',
-              border: `1px solid ${tab === id ? 'rgba(0,183,255,0.4)' : 'rgba(0,183,255,0.15)'}`,
+              background: tab === id ? 'rgba(96,165,250,0.12)' : 'transparent',
+              border: `1px solid ${tab === id ? 'rgba(96,165,250,0.4)' : 'rgba(96,165,250,0.15)'}`,
               borderRadius: 8, color: tab === id ? ACCENT : MUTED, cursor: 'pointer',
               fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
             }}
@@ -208,7 +208,7 @@ export default function EmailCard() {
                   style={{ ...inputStyle, paddingLeft: 26 }}
                 />
               </div>
-              <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(0,183,255,0.12)', border: '1px solid rgba(0,183,255,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+              <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                 {searching ? <Loader size={11} /> : 'Go'}
               </button>
             </div>
@@ -222,7 +222,7 @@ export default function EmailCard() {
             )}
 
             {unread.map((m, i) => (
-              <div key={i} style={{ padding: '9px 10px', marginBottom: 6, background: m.priority ? 'rgba(251,146,60,0.07)' : 'rgba(0,183,255,0.03)', border: `1px solid ${m.priority ? 'rgba(251,146,60,0.25)' : 'rgba(0,183,255,0.12)'}`, borderRadius: 10 }}>
+              <div key={i} style={{ padding: '9px 10px', marginBottom: 6, background: m.priority ? 'rgba(251,146,60,0.07)' : 'rgba(96,165,250,0.03)', border: `1px solid ${m.priority ? 'rgba(251,146,60,0.25)' : 'rgba(96,165,250,0.12)'}`, borderRadius: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: m.priority ? '#fdba74' : TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {m.from_name || m.from}
@@ -245,13 +245,13 @@ export default function EmailCard() {
                 <div style={{ fontSize: 10, color: MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
                   Preview — confirm to send
                 </div>
-                <div style={{ background: 'rgba(0,183,255,0.04)', border: '1px solid rgba(0,183,255,0.2)', borderRadius: 10, padding: 12, fontSize: 12, color: TEXT }}>
+                <div style={{ background: 'rgba(96,165,250,0.04)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: 10, padding: 12, fontSize: 12, color: TEXT }}>
                   <div style={{ marginBottom: 6 }}><b style={{ color: ACCENT }}>To:</b> {draft.preview.to}</div>
                   <div style={{ marginBottom: 6 }}><b style={{ color: ACCENT }}>Subject:</b> {draft.preview.subject || '(none)'}</div>
-                  <div style={{ whiteSpace: 'pre-wrap', borderTop: '1px solid rgba(0,183,255,0.15)', paddingTop: 8, color: MUTED }}>{draft.preview.body}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', borderTop: '1px solid rgba(96,165,250,0.15)', paddingTop: 8, color: MUTED }}>{draft.preview.body}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <button onClick={confirmSend} disabled={sending} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', background: ACCENT, border: 'none', borderRadius: 8, color: '#001018', fontWeight: 700, fontSize: 11, cursor: sending ? 'wait' : 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <button onClick={confirmSend} disabled={sending} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', background: ACCENT, border: 'none', borderRadius: 8, color: '#1e293b', fontWeight: 700, fontSize: 11, cursor: sending ? 'wait' : 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     {sending ? <Loader size={12} /> : <Check size={12} />}
                     {sending ? 'Sending…' : 'Confirm Send'}
                   </button>
@@ -265,7 +265,7 @@ export default function EmailCard() {
                 <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="To (email address)" style={inputStyle} />
                 <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={inputStyle} />
                 <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message…" rows={6} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
-                <button onClick={previewDraft} disabled={!to.trim() || !body.trim()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', background: to.trim() && body.trim() ? ACCENT : 'rgba(0,183,255,0.15)', border: 'none', borderRadius: 8, color: '#001018', fontWeight: 700, fontSize: 11, cursor: to.trim() && body.trim() ? 'pointer' : 'not-allowed', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <button onClick={previewDraft} disabled={!to.trim() || !body.trim()} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', background: to.trim() && body.trim() ? ACCENT : 'rgba(96,165,250,0.15)', border: 'none', borderRadius: 8, color: '#1e293b', fontWeight: 700, fontSize: 11, cursor: to.trim() && body.trim() ? 'pointer' : 'not-allowed', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   <Send size={12} />
                   Preview &amp; Ask to Send
                 </button>

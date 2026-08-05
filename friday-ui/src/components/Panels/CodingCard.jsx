@@ -21,7 +21,7 @@ const CARD_STYLE = {
 };
 
 const ACCENT = '#22D3EE';
-const TEXT = '#DFFAFF';
+const TEXT = '#f1f5f9';
 const MUTED = 'rgba(223,250,255,0.55)';
 
 const ACTIONS = [

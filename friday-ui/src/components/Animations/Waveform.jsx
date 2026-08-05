@@ -29,7 +29,7 @@ export default function Waveform({ bars = 24 }) {
         const barH = Math.max(2, amp * height * 0.9);
         const x = i * barWidth + 1;
         const y = (height - barH) / 2;
-        ctx.fillStyle = 'rgba(0,183,255,0.95)';
+        ctx.fillStyle = 'rgba(96,165,250,0.95)';
         ctx.fillRect(x, y, barWidth - 2, barH);
       }
 

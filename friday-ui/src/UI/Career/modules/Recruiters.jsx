@@ -62,7 +62,7 @@ https://prathvisahu.github.io`;
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
       <div style={{ width: 320, borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '20px 16px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#f1f5f9' }}>Recruiters</h2>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#e2e8f0' }}>Recruiters</h2>
           <button onClick={() => setShowForm(true)} style={btnPrimary}><Plus size={13} /> Add</button>
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: '0 8px 16px' }}>
@@ -87,7 +87,7 @@ https://prathvisahu.github.io`;
           </div>
         ) : (
           <div style={{ maxWidth: 560 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>{selected.name}</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>{selected.name}</h3>
             <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b' }}>{selected.company}</p>
             {[['Email', selected.email], ['LinkedIn', selected.linkedin], ['Phone', selected.phone]].map(([l, v]) => v ? (
               <div key={l} style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
@@ -112,10 +112,10 @@ https://prathvisahu.github.io`;
             {/* ── F.R.I.D.A.Y. AI Outreach Console ── */}
             <div style={consoleCardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid rgba(0, 183, 255, 0.15)', paddingBottom: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'Orbitron, sans-serif', color: '#00D9FF', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif', color: '#60a5fa', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
                   ⚡ F.R.I.D.A.Y. // OUTREACH AGENT
                 </span>
-                <span style={{ fontSize: 9, fontFamily: 'Space Grotesk, sans-serif', color: 'rgba(0, 183, 255, 0.45)', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: 9, fontFamily: 'Inter, system-ui, sans-serif', color: 'rgba(148, 163, 184, 0.5)', letterSpacing: '0.05em' }}>
                   HUMAN-IN-THE-LOOP OUTBOX
                 </span>
               </div>
@@ -136,7 +136,7 @@ https://prathvisahu.github.io`;
               </div>
 
               <div style={{ background: 'rgba(2, 3, 10, 0.65)', border: '1px solid rgba(0, 183, 255, 0.12)', borderRadius: 8, padding: '12px 14px' }}>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12, color: '#DFFAFF', lineHeight: 1.5 }}>
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12, color: '#e2e8f0', lineHeight: 1.5 }}>
                   {outreachTab === 'linkedin' 
                     ? getLinkedInDraft(selected.name, selected.company)
                     : getEmailDraft(selected.name, selected.company)
@@ -164,7 +164,7 @@ https://prathvisahu.github.io`;
                     href={selected.linkedin} 
                     target="_blank" 
                     rel="noreferrer" 
-                    style={{ ...btnConsoleAction, background: 'rgba(0, 183, 255, 0.1)', border: '1px solid rgba(0, 183, 255, 0.35)', color: '#00D9FF', textDecoration: 'none' }}
+                    style={{ ...btnConsoleAction, background: 'rgba(0, 183, 255, 0.1)', border: '1px solid rgba(0, 183, 255, 0.35)', color: '#60a5fa', textDecoration: 'none' }}
                   >
                     <ExternalLink size={12} /> Open Profile
                   </a>
@@ -178,7 +178,7 @@ https://prathvisahu.github.io`;
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#0f1623', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 28, width: 440 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>Add Recruiter</h3>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>Add Recruiter</h3>
               <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
             </div>
             {[['Name *', 'name'], ['Company', 'company'], ['Email', 'email'], ['LinkedIn', 'linkedin'], ['Phone', 'phone']].map(([label, key]) => (
@@ -214,12 +214,12 @@ const consoleCardStyle = {
 const tabActiveStyle = {
   background: 'rgba(0, 183, 255, 0.15)',
   border: '1px solid rgba(0, 183, 255, 0.45)',
-  color: '#00D9FF',
+  color: '#60a5fa',
   padding: '5px 10px',
   borderRadius: 5,
   fontSize: 10,
   fontWeight: 600,
-  fontFamily: 'Orbitron, sans-serif',
+  fontFamily: 'Inter, system-ui, sans-serif',
   cursor: 'pointer',
 };
 
@@ -230,7 +230,7 @@ const tabInactiveStyle = {
   padding: '5px 10px',
   borderRadius: 5,
   fontSize: 10,
-  fontFamily: 'Orbitron, sans-serif',
+  fontFamily: 'Inter, system-ui, sans-serif',
   cursor: 'pointer',
 };
 
@@ -242,9 +242,9 @@ const btnConsoleAction = {
   borderRadius: 6,
   background: 'rgba(0, 217, 255, 0.08)',
   border: '1px solid rgba(0, 217, 255, 0.25)',
-  color: '#00D9FF',
+  color: '#60a5fa',
   fontSize: 10,
-  fontFamily: 'Orbitron, sans-serif',
+  fontFamily: 'Inter, system-ui, sans-serif',
   fontWeight: 600,
   cursor: 'pointer',
   transition: 'all 150ms ease',

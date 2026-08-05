@@ -5,20 +5,14 @@ import AnimatedCard from './AnimatedCard';
 function LockIcon() {
     return (
         <svg width="52" height="60" viewBox="0 0 52 60" fill="none">
-            {/* Dotted orbit circle */}
-            <circle cx="26" cy="22" r="20" stroke="#00B7FF" strokeWidth="0.6" strokeDasharray="2 4" opacity="0.5" />
-            {/* Lock body */}
+            <circle cx="26" cy="22" r="20" stroke="#94a3b8" strokeWidth="0.6" strokeDasharray="2 4" opacity="0.3" />
             <rect x="12" y="26" width="28" height="22" rx="3"
-                fill="none" stroke="#00B7FF" strokeWidth="1.5"
-                style={{ filter: 'drop-shadow(0 0 5px #00B7FF)' }} />
-            {/* Lock shackle */}
+                fill="none" stroke="#94a3b8" strokeWidth="1.5" />
             <path d="M 17,26 L 17,18 A 9,9 0 0 1 35,18 L 35,26"
-                fill="none" stroke="#00B7FF" strokeWidth="1.5"
-                strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 5px #00B7FF)' }} />
-            {/* Keyhole */}
-            <circle cx="26" cy="35" r="3" fill="#00D9FF" opacity="0.8" />
-            <rect x="24.5" y="35" width="3" height="6" rx="1" fill="#00D9FF" opacity="0.8" />
+                fill="none" stroke="#94a3b8" strokeWidth="1.5"
+                strokeLinecap="round" />
+            <circle cx="26" cy="35" r="3" fill="#60a5fa" opacity="0.6" />
+            <rect x="24.5" y="35" width="3" height="6" rx="1" fill="#60a5fa" opacity="0.6" />
         </svg>
     );
 }
@@ -62,10 +56,10 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                 </motion.div>
 
                 <div className="text-center mt-1">
-                    <div className="font-orbitron text-xs tracking-[0.2em] text-[#00B7FF] font-bold">
-                        ACCESS REQUIRED
+                    <div className="font-sans text-xs tracking-[0.15em] text-slate-300 font-medium">
+                        Access Required
                     </div>
-                    <div className="w-12 h-px bg-[#00B7FF]/40 mx-auto mt-2.5" />
+                    <div className="w-12 h-px bg-slate-500/30 mx-auto mt-2.5" />
                 </div>
 
                 <div className="text-center space-y-2 mt-1 w-full">
@@ -76,48 +70,40 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter Passphrase..."
                             disabled={passPending}
-                            className="w-full text-center bg-[#02030A]/65 border border-[#00B7FF]/25 focus:border-[#00B7FF]/65 rounded px-2 py-1 text-[10px] font-grotesk tracking-widest text-[#DFFAFF] outline-none transition-all placeholder:text-[#DFFAFF]/20"
+                            className="w-full text-center bg-slate-800/60 border border-slate-600/25 focus:border-slate-400/50 rounded-lg px-2 py-1.5 text-[11px] font-sans tracking-wide text-slate-200 outline-none transition-all placeholder:text-slate-500/50"
                             style={{ pointerEvents: 'auto' }}
                         />
                         <button
                             type="submit"
                             disabled={passPending || !password.trim()}
-                            className="w-full py-1 rounded bg-[#00B7FF]/10 border border-[#00B7FF]/35 text-[9px] tracking-[0.2em] uppercase font-orbitron text-[#00D9FF] cursor-pointer hover:bg-[#00B7FF]/20 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+                            className="w-full py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/30 text-[10px] tracking-wide uppercase font-sans font-medium text-blue-300 cursor-pointer hover:bg-blue-500/25 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
                             style={{ pointerEvents: 'auto' }}
                         >
                             {passPending ? 'Verifying...' : 'Authorize'}
                         </button>
                     </form>
 
-                    <p className="text-[8px] text-[#00B7FF]/25 tracking-widest uppercase font-orbitron mt-1">— OR —</p>
+                    <p className="text-[8px] text-slate-400/40 tracking-widest uppercase font-sans mt-1">— or —</p>
 
                     <button
                         type="button"
                         onClick={onFingerprint}
                         disabled={scanPending}
-                        className={`w-full py-1 rounded border text-[9px] tracking-[0.2em] uppercase font-orbitron transition ${
+                        className={`w-full py-1.5 rounded-lg border text-[10px] tracking-wide uppercase font-sans font-medium transition ${
                             errored
-                                ? 'border-red-400/40 text-red-300'
-                                : 'border-[#00B7FF]/25 text-[#DFFAFF]/60 hover:border-[#00B7FF] hover:text-[#00D9FF]'
+                                ? 'border-red-400/30 text-red-300'
+                                : 'border-slate-600/25 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                         } ${scanPending ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                         style={{ pointerEvents: 'auto' }}
                     >
                         {scanPending ? 'Scanning…' : 'Fingerprint'}
                     </button>
                     {errored && (
-                        <p className="text-[8.5px] text-red-400/80 tracking-[0.05em] mt-1.5 px-1 font-grotesk uppercase">
+                        <p className="text-[8.5px] text-red-400/70 tracking-[0.03em] mt-1.5 px-1 font-sans">
                             {errText || fingerprintError}
                         </p>
                     )}
                 </div>
-
-                {/* Scan line animation */}
-                <motion.div
-                    className="w-full h-px mt-2.5"
-                    style={{ background: 'linear-gradient(90deg, transparent, #00B7FF, transparent)' }}
-                    animate={{ opacity: [0.2, 0.8, 0.2] }}
-                    transition={{ duration: 1.8, repeat: Infinity }}
-                />
             </div>
         </AnimatedCard>
     );
