@@ -106,10 +106,10 @@ function FridayCore() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7, duration: 0.6 }}
-                    className="fixed bottom-8 left-10 z-[60] flex cursor-pointer items-center gap-2.5 rounded-full border border-[#00B7FF]/40 bg-[#001018]/85 px-5 py-2.5 font-orbitron text-[9px] uppercase tracking-[0.35em] text-[#00D9FF] shadow-[0_0_24px_rgba(0,183,255,0.15)] backdrop-blur-md transition-all hover:border-[#00B7FF]/70 hover:bg-[#001018] hover:shadow-[0_0_32px_rgba(0,183,255,0.3)]"
+                    className="fixed bottom-8 left-10 z-[60] flex cursor-pointer items-center gap-2.5 rounded-full border border-slate-600/30 bg-slate-900/80 px-5 py-2.5 font-sans text-[10px] uppercase tracking-[0.2em] text-slate-300 backdrop-blur-md transition-all hover:border-slate-500/50 hover:bg-slate-800/90"
                     style={{ pointerEvents: 'auto' }}
                 >
-                    <span className={`inline-block h-2 w-2 rounded-full ${lockExtrasVisible ? 'bg-[#22ff99] shadow-[0_0_8px_#22ff99]' : 'bg-[#00B7FF] shadow-[0_0_8px_#00B7FF]'}`} />
+                    <span className={`inline-block h-2 w-2 rounded-full ${lockExtrasVisible ? 'bg-green-500' : 'bg-blue-400'}`} />
                     {lockExtrasVisible ? 'HIDE WIDGETS' : 'ALL WIDGETS'}
                 </motion.button>
             )}
@@ -126,33 +126,32 @@ function FridayCore() {
                         style={{
                             position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
                             zIndex: 9999, maxWidth: 380, width: 'max-content',
-                            background: 'rgba(10, 16, 40, 0.96)',
-                            border: '1px solid rgba(99, 102, 241, 0.4)',
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            border: '1px solid rgba(100, 116, 139, 0.3)',
                             borderRadius: 14, padding: '12px 18px',
-                            boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.1)',
+                            boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
                             backdropFilter: 'blur(20px)',
                             display: 'flex', alignItems: 'center', gap: 10,
                             pointerEvents: 'none',
                             fontFamily: 'Inter, system-ui, sans-serif',
                         }}
                     >
-                        {/* Pulsing orb */}
                         <motion.div
-                            animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+                            animate={{ scale: [1, 1.15, 1], opacity: [0.8, 1, 0.8] }}
                             transition={{ duration: 1.6, repeat: Infinity }}
-                            style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0, boxShadow: '0 0 10px #6366f1' }}
+                            style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }}
                         />
                         <div>
-                            <div style={{ fontSize: 9, fontWeight: 700, color: '#818cf8', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 3 }}>
-                                F.R.I.D.A.Y. · Proactive
+                            <div style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>
+                                F.R.I.D.A.Y. · Suggestion
                             </div>
-                            <div style={{ fontSize: 13, color: '#e0e7ff', lineHeight: 1.4 }}>
+                            <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.4 }}>
                                 {proactiveToast}
                             </div>
                         </div>
                         <button
                             onClick={() => setProactiveToast(null)}
-                            style={{ background: 'none', border: 'none', color: '#4338ca', cursor: 'pointer', padding: 4, flexShrink: 0, pointerEvents: 'auto' }}
+                            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4, flexShrink: 0, pointerEvents: 'auto' }}
                         >
                             ✕
                         </button>

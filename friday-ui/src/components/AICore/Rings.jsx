@@ -11,11 +11,11 @@ export default function Rings({ state = 'idle' }) {
   };
   const m = multiplierMap[state] ?? 1;
   const strokeMap = {
-    idle: '#00B7FF',      // matches [0.0, 0.55, 0.9] (cyan-blue)
+    idle: '#60a5fa',      // matches [0.0, 0.55, 0.9] (cyan-blue)
     listening: '#ff8c00', // matches [1.0, 0.35, 0.0] (orange)
     thinking: '#ffaa00',  // matches [1.0, 0.50, 0.0] (orange-yellow)
-    speaking: '#00D9FF',  // matches [0.0, 0.80, 1.0] (electric cyan)
-    verified: '#00B7FF',  // matches [0.0, 0.55, 0.9] (cyan-blue)
+    speaking: '#3b82f6',  // matches [0.0, 0.80, 1.0] (electric cyan)
+    verified: '#60a5fa',  // matches [0.0, 0.55, 0.9] (cyan-blue)
     alert: '#ff4444',     // matches [1.0, 0.0, 0.0] (red)
   };
 

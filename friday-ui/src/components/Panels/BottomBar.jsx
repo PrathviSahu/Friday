@@ -7,9 +7,6 @@ export default function BottomBar() {
     const { micEnabled, setMicEnabled, pttMode, setPttMode } = useFriday();
     const { stateLabel, appState, responseMessage, conversationMode, runAuthSequence, locked } = useOrbState();
 
-    // Quick-launch commands so panels open even when voice recognition is
-    // unavailable (offline Web Speech, or the Tauri webview). These mirror the
-    // voice commands in voiceCommands.js.
     const QUICK_COMMANDS = [
         { cmd: 'trading', label: 'Trading' },
         { cmd: 'dashboard', label: 'Dashboard' },
@@ -19,38 +16,27 @@ export default function BottomBar() {
         { cmd: 'lock', label: 'Lock' },
     ];
     const prompt = (() => {
-        if (conversationMode === 'awaiting-command') return 'WAKE WORD DETECTED';
-        if (appState === 'IDLE') return 'I AM STANDING BY, PREM.';
-        if (appState === 'LISTENING') return "I'M LISTENING...";
-        if (appState === 'THINKING') return 'ANALYZING REQUEST...';
-        if (appState === 'SPEAKING') return 'RESPONDING...';
-        return stateLabel || 'I AM STANDING BY, PREM.';
+        if (conversationMode === 'awaiting-command') return 'Wake word detected';
+        if (appState === 'IDLE') return 'Standing by, Prem.';
+        if (appState === 'LISTENING') return "Listening...";
+        if (appState === 'THINKING') return 'Thinking...';
+        if (appState === 'SPEAKING') return 'Responding...';
+        return stateLabel || 'Standing by, Prem.';
     })();
-    const micLabel = micEnabled ? 'VOICE LISTENING ON' : 'VOICE LISTENING OFF';
+    const micLabel = micEnabled ? 'Mic On' : 'Mic Off';
 
     return (
         <div className="relative px-14 py-4 min-w-[360px] max-w-[720px] text-center">
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                <rect
-                    x="1" y="1"
-                    width="99%" height="99%"
-                    rx="8"
-                    fill="rgba(1, 8, 23, 0.55)"
-                    stroke="#00B7FF"
-                    strokeWidth="1"
-                    strokeOpacity="0.25"
-                    style={{ filter: 'drop-shadow(0 0 16px rgba(0,183,255,0.18))' }}
-                />
-            </svg>
+            <div className="absolute inset-0 rounded-xl border border-slate-600/20 bg-slate-900/70 backdrop-blur-sm" />
 
             <Waveform />
 
-            <div className="relative font-orbitron text-[10px] tracking-[0.45em] text-[#00B7FF] uppercase mb-3">
+            <div className="relative font-sans text-[10px] tracking-[0.3em] text-slate-300 uppercase mb-3">
                 {prompt}
             </div>
 
             {responseMessage ? (
-                <div className="font-grotesk text-[11px] text-[#DFFAFF] uppercase tracking-[0.2em] mb-3">
+                <div className="font-sans text-[11px] text-slate-200 tracking-[0.04em] mb-3">
                     {responseMessage}
                 </div>
             ) : null}
@@ -59,28 +45,28 @@ export default function BottomBar() {
                 <button
                     type="button"
                     onClick={() => setMicEnabled((current) => !current)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[#00B7FF]/35 bg-[#001018]/95 px-4 py-2 text-[9px] tracking-[0.35em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:text-[#DFFAFF]"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-600/30 bg-slate-800/80 px-4 py-2 text-[10px] tracking-wide text-slate-300 transition hover:border-slate-500 hover:text-slate-100"
                 >
-                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${micEnabled ? 'bg-[#22ff99]' : 'bg-[#ff4d6d]'}`} />
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${micEnabled ? 'bg-green-500' : 'bg-red-400'}`} />
                     {micLabel}
                 </button>
 
                 <button
                     type="button"
                     onClick={() => setPttMode((current) => !current)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[9px] tracking-[0.35em] uppercase transition ${
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] tracking-wide uppercase transition ${
                         pttMode
-                            ? 'border-[#22ff99]/50 bg-[#22ff99]/10 text-[#22ff99] hover:border-[#22ff99]'
-                            : 'border-[#00B7FF]/25 bg-[#001018]/80 text-[#00B7FF]/60 hover:border-[#00B7FF] hover:text-[#00D9FF]'
+                            ? 'border-green-500/40 bg-green-500/10 text-green-400 hover:border-green-500'
+                            : 'border-slate-600/25 bg-slate-800/60 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                     }`}
                 >
-                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${pttMode ? 'bg-[#22ff99] shadow-[0_0_8px_#22ff99]' : 'bg-[#00B7FF]/40'}`} />
-                    {pttMode ? 'PUSH-TO-TALK ON' : 'PUSH-TO-TALK OFF'}
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${pttMode ? 'bg-green-500' : 'bg-slate-500/40'}`} />
+                    {pttMode ? 'Push-to-Talk On' : 'Push-to-Talk Off'}
                 </button>
             </div>
 
             {pttMode && (
-                <div className="mb-2 font-grotesk text-[8px] tracking-[0.3em] text-[#22ff99]/70 uppercase">
+                <div className="mb-2 font-sans text-[8px] tracking-[0.2em] text-slate-400/60 uppercase">
                     Hold Space to talk · release to send
                 </div>
             )}
@@ -92,7 +78,7 @@ export default function BottomBar() {
                         type="button"
                         disabled={locked && cmd !== 'lock'}
                         onClick={() => runAuthSequence(cmd)}
-                        className="rounded border border-[#00B7FF]/30 bg-[#001018]/80 px-3 py-1 text-[9px] tracking-[0.2em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:text-[#DFFAFF] disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="rounded-lg border border-slate-600/25 bg-slate-800/60 px-3 py-1 text-[10px] tracking-wide text-slate-300 transition hover:border-slate-500 hover:text-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
                         style={{ pointerEvents: 'auto' }}
                     >
                         {label}
@@ -101,11 +87,11 @@ export default function BottomBar() {
             </div>
 
             <motion.p
-                className="font-grotesk text-[8px] text-[#00B7FF]/45 uppercase"
-                animate={{ opacity: [0.35, 0.85, 0.35] }}
+                className="font-sans text-[8px] text-slate-400/40 uppercase"
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity }}
             >
-                YOUR COMMAND. MY PRIORITY.
+                Your command, my priority.
             </motion.p>
         </div>
     );

@@ -146,9 +146,9 @@ export default function DevToolsCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #1e293b',
+                    background: '#0f172a', border: '1px solid #1e293b',
                     color: '#94a3b8', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                 }}
             >
                 <Terminal size={13} style={{ color: '#64748b' }} />
@@ -178,8 +178,8 @@ export default function DevToolsCard() {
                     width: 420, maxHeight: 520,
                     borderRadius: 16, overflow: 'hidden',
                     pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #1e293b',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.75)',
+                    background: '#0f172a', border: '1px solid #1e293b',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     rotateX, rotateY, transformOrigin, transformStyle: 'preserve-3d',
                     perspective: 1000, willChange: 'transform', backfaceVisibility: 'hidden',
@@ -211,7 +211,7 @@ export default function DevToolsCard() {
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px',
                                 border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer',
-                                background: tab === key ? '#141428' : 'transparent',
+                                background: tab === key ? '#1e293b' : 'transparent',
                                 color: tab === key ? '#e2e8f0' : '#64748b', fontSize: 10.5, fontWeight: 600,
                             }}>
                             <Icon size={11} /> {label}
@@ -226,7 +226,7 @@ export default function DevToolsCard() {
                             {overview && (
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                                     {Object.entries(overview).map(([k, v]) => (
-                                        <div key={k} style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 10, padding: '8px', textAlign: 'center' }}>
+                                        <div key={k} style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 10, padding: '8px', textAlign: 'center' }}>
                                             <div style={{ fontSize: 15, fontWeight: 800, color: '#94a3b8' }}>{typeof v === 'number' ? v : String(v)}</div>
                                             <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k.replace(/_/g, ' ')}</div>
                                         </div>
@@ -250,7 +250,7 @@ export default function DevToolsCard() {
                             </div>
 
                             {metrics?.last && (
-                                <div style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+                                <div style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 10, padding: 10, marginBottom: 10 }}>
                                     <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Last action</div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                         {metrics.last.agent && <span style={{ fontSize: 11, color: '#e2e8f0' }}>Agent: <b style={{ color: '#38bdf8' }}>{metrics.last.agent}</b></span>}
@@ -267,7 +267,7 @@ export default function DevToolsCard() {
                             )}
 
                             {metrics?.averages && Object.entries(metrics.averages).map(([op, a]) => (
-                                <div key={op} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141428', border: '1px solid #1e293b', borderRadius: 10, padding: '9px 12px', marginBottom: 6 }}>
+                                <div key={op} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', border: '1px solid #1e293b', borderRadius: 10, padding: '9px 12px', marginBottom: 6 }}>
                                     <div>
                                         <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', textTransform: 'capitalize' }}>{op}</div>
                                         <div style={{ fontSize: 10, color: '#64748b' }}>{a.count} call(s)</div>
@@ -356,12 +356,12 @@ export default function DevToolsCard() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             <div style={{ display: 'flex', gap: 6 }}>
                                 <select value={testMethod} onChange={(e) => setTestMethod(e.target.value)}
-                                    style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, fontFamily: 'monospace' }}>
+                                    style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 8px', color: '#cbd5e1', fontSize: 10, fontFamily: 'monospace' }}>
                                     {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => <option key={m}>{m}</option>)}
                                 </select>
                                 <input type="text" value={testPath} onChange={(e) => setTestPath(e.target.value)}
                                     placeholder="/api/system/stats"
-                                    style={{ flex: 1, background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', outline: 'none' }} />
+                                    style={{ flex: 1, background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '6px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', outline: 'none' }} />
                                 <button type="button" onClick={runTest}
                                     style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: 'none', background: '#1d4ed8', color: '#dbeafe', fontSize: 10.5, fontWeight: 600, cursor: 'pointer' }}>
                                     <Play size={11} /> Run
@@ -370,7 +370,7 @@ export default function DevToolsCard() {
                             <textarea value={testBody} onChange={(e) => setTestBody(e.target.value)}
                                 placeholder='Optional JSON body: {"text": "hello"}'
                                 rows={2}
-                                style={{ background: '#141428', border: '1px solid #1e293b', borderRadius: 8, padding: '7px 10px', color: '#e2e8f0', fontSize: 10.5, fontFamily: 'monospace', outline: 'none', resize: 'vertical' }} />
+                                style={{ background: '#1e293b', border: '1px solid #1e293b', borderRadius: 8, padding: '7px 10px', color: '#e2e8f0', fontSize: 10.5, fontFamily: 'monospace', outline: 'none', resize: 'vertical' }} />
                             <pre style={{ margin: 0, background: '#0a0a12', border: '1px solid #1e293b', borderRadius: 10, padding: 10, fontSize: 10, fontFamily: 'monospace', color: '#86efac', lineHeight: 1.5, maxHeight: 220, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                                 {testResult || 'Run a request to see the response.'}
                             </pre>

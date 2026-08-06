@@ -1176,6 +1176,78 @@ def control_spotify(command: str, query: str = "", volume_percent: int = -1) -> 
         return False
 
 
+def send_whatsapp_desktop(phone: str, message: str) -> dict:
+    """Send a message via the WhatsApp Desktop app on macOS using the whatsapp:// URL scheme.
+
+    Flow:
+      1. Opens whatsapp://send?phone=...&text=... which launches WhatsApp Desktop
+         and pre-fills the message in the chat input.
+      2. After a short delay, uses AppleScript to press Enter to send.
+
+    Returns a dict with status info.
+    """
+    import re as _re
+    import urllib.parse
+
+    digits = _re.sub(r'\D', '', phone or '')
+    if not digits or len(digits) < 10 or len(digits) > 15:
+        return {"ok": False, "error": "Invalid phone number — use country code + number, e.g. 919876543210."}
+
+    text = (message or '').strip()
+    if not text:
+        return {"ok": False, "error": "Message cannot be empty."}
+
+    if not IS_MAC:
+        return {"ok": False, "error": "WhatsApp Desktop automation is only available on macOS."}
+
+    try:
+        # Build the whatsapp:// URL
+        encoded_text = urllib.parse.quote(text, safe='')
+        url = f"whatsapp://send?phone={digits}&text={encoded_text}"
+
+        # Step 1: Open the URL — this launches WhatsApp Desktop and opens the chat
+        subprocess.Popen(["open", url])
+        print(f"[WhatsApp Desktop] Opening chat for +{digits}")
+
+        # Step 2: Wait for WhatsApp to load, then press Enter to send
+        def _press_send():
+            time.sleep(3)  # Wait for WhatsApp Desktop to load the chat
+            try:
+                script = '''
+                tell application "System Events"
+                    keystroke return
+                end tell
+                '''
+                subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+                print(f"[WhatsApp Desktop] Message sent to +{digits}")
+            except Exception as e:
+                print(f"[WhatsApp Desktop] Could not press Enter: {e}")
+
+        t = threading.Thread(target=_press_send, daemon=True)
+        t.start()
+
+        return {"ok": True, "phone": digits, "message": text[:200]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def open_whatsapp_desktop(phone: str = "") -> bool:
+    """Open the WhatsApp Desktop app on macOS. Optionally open a specific chat."""
+    if not IS_MAC:
+        return False
+    try:
+        if phone:
+            digits = re.sub(r'\D', '', phone)
+            if digits:
+                subprocess.Popen(["open", f"whatsapp://send?phone={digits}"])
+                return True
+        subprocess.Popen(["open", "-a", "WhatsApp"])
+        return True
+    except Exception as err:
+        print(f"[WhatsApp Desktop] Failed to open: {err}")
+        return False
+
+
 def open_url_in_brave(url: str) -> bool:
     """Open a URL in Brave browser (or default browser)."""
     target_url = url if url.startswith("http") else f"https://{url}"

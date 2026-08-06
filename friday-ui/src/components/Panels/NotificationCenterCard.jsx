@@ -98,9 +98,9 @@ export default function NotificationCenterCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #1e3a8a',
+                    background: '#0f172a', border: '1px solid #1e3a8a',
                     color: '#93c5fd', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                 }}
             >
                 <Bell size={13} style={{ color: '#60a5fa' }} />
@@ -130,8 +130,8 @@ export default function NotificationCenterCard() {
                     width: 360, maxHeight: 500,
                     borderRadius: 16, overflow: 'hidden',
                     pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f0f1a', border: '1px solid #1e3a8a',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.75)',
+                    background: '#0f172a', border: '1px solid #1e3a8a',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     rotateX, rotateY, transformOrigin, transformStyle: 'preserve-3d',
                     perspective: 1000, willChange: 'transform', backfaceVisibility: 'hidden',
@@ -186,7 +186,7 @@ export default function NotificationCenterCard() {
                         <div key={n.id} style={{
                             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8,
                             padding: '9px 10px', borderRadius: 10,
-                            background: n.is_read ? '#10101c' : '#141428',
+                            background: n.is_read ? '#10101c' : '#1e293b',
                             border: `1px solid ${n.is_read ? '#1e293b' : 'rgba(96,165,250,0.35)'}`
                         }}>
                             <div style={{ minWidth: 0 }}>

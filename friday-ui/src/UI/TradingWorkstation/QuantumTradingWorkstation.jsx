@@ -131,7 +131,7 @@ const QuantumTradingWorkstation = React.memo(function QuantumTradingWorkstation(
             >
                 {/* Active Ticker Badge */}
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#131722] border border-[#2a2e39]">
-                    <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#00B7FF]" />
+                    <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#60a5fa]" />
                     <span className="font-mono text-xs font-bold text-white tracking-wide">
                         {selectedSymbol.replace(/^.*:/, '')}
                     </span>

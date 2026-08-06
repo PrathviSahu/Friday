@@ -17,10 +17,10 @@ const FLOATING_ITEMS = [
     { id: 'brush', name: 'Brush', icon: Brush },
 ];
 
-const COLORS = ['#00B7FF', '#10b981', '#ef4444', '#eab308', '#a855f7', '#ffffff'];
+const COLORS = ['#60a5fa', '#10b981', '#ef4444', '#eab308', '#a855f7', '#ffffff'];
 
 export default function FloatingToolbar({ activeTool, setActiveTool, onClear }) {
-    const [color, setColor] = useState('#00B7FF');
+    const [color, setColor] = useState('#60a5fa');
     const [pinned, setPinned] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
@@ -34,7 +34,7 @@ export default function FloatingToolbar({ activeTool, setActiveTool, onClear }) 
                 initial={{ opacity: 0, y: -20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#090e1a]/95 border border-cyan-500/40 shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(0,183,255,0.25)] backdrop-blur-2xl cursor-grab active:cursor-grabbing select-none"
+                className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#090e1a]/95 border border-cyan-500/40 shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(96,165,250,0.25)] backdrop-blur-2xl cursor-grab active:cursor-grabbing select-none"
             >
                 <div className="text-[10px] font-mono text-cyan-400 font-bold uppercase border-r border-cyan-500/20 pr-2">
                     {activeTool}

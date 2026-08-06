@@ -74,7 +74,7 @@ export default function LeftSidebar({ activeTool, setActiveTool, onClear }) {
                             title={`${t.name}`}
                             className={`relative p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center ${
                                 isActive
-                                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_12px_rgba(0,217,255,0.3)]'
+                                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
                                     : isDelete
                                     ? 'text-red-400/60 hover:text-red-400 hover:bg-red-500/10'
                                     : 'text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'

@@ -1,19 +1,15 @@
 /* ─── F.R.I.D.A.Y. Design Tokens ─── */
 @import "tailwindcss";
-@import "@fontsource/orbitron/400.css";
-@import "@fontsource/orbitron/700.css";
-@import "@fontsource/space-grotesk/300.css";
-@import "@fontsource/space-grotesk/400.css";
-@import "@fontsource/space-grotesk/500.css";
 
 :root {
-  --bg:         #02030A;
-  --blue:       #00B7FF;
-  --glow:       #00D9FF;
-  --white:      #DFFAFF;
-  --dim:        #0a1628;
-  --border:     rgba(0, 183, 255, 0.25);
-  --border-dim: rgba(0, 183, 255, 0.1);
+  --bg:         #0f172a;
+  --surface:    #1e293b;
+  --blue:       #3b82f6;
+  --glow:       #60a5fa;
+  --white:      #f1f5f9;
+  --dim:        #1e293b;
+  --border:     rgba(148, 163, 184, 0.2);
+  --border-dim: rgba(148, 163, 184, 0.08);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,12 +19,7 @@ html, body, #root {
   background: var(--bg);
   overflow: hidden;
   color: var(--white);
-  font-family: 'Space Grotesk', sans-serif;
-}
-
-@keyframes scanlineMove {
-  0%   { transform: translateY(-4px); }
-  100% { transform: translateY(100vh); }
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 @keyframes blink {
@@ -36,26 +27,4 @@ html, body, #root {
   50%       { opacity: 0; }
 }
 
-@keyframes dash {
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes cornerPulse {
-  0%, 100% { opacity: 0.6; }
-  50%       { opacity: 1; }
-}
-
-.font-orbitron  { font-family: 'Orbitron', monospace; }
-.font-grotesk   { font-family: 'Space Grotesk', sans-serif; }
-
-/* Scanline sweep */
-.hud-scanline {
-  position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent 50%,
-    rgba(0, 183, 255, 0.03) 50%
-  );
-  background-size: 100% 4px;
-  z-index: 999;
-}
+.font-sans { font-family: 'Inter', system-ui, -apple-system, sans-serif; }

@@ -17,6 +17,8 @@ from services.system_control import (
     control_spotify,
     get_spotify_current_track,
     take_screenshot,
+    send_whatsapp_desktop,
+    open_whatsapp_desktop,
 )
 from services.todos import get_todos, add_todo
 from services.reminders import add_reminder
@@ -538,6 +540,49 @@ def _h_send_whatsapp(args) -> str:
             "I won't send it until you confirm.")
 
 
+# ── WhatsApp Desktop (native macOS app) handlers ───────────────────────
+
+_pending_whatsapp_desktop_draft = None
+
+def get_pending_whatsapp_desktop_draft() -> dict | None:
+    """Return and clear the most recently created WhatsApp Desktop draft."""
+    global _pending_whatsapp_desktop_draft
+    draft = _pending_whatsapp_desktop_draft
+    _pending_whatsapp_desktop_draft = None
+    return draft
+
+def _h_send_whatsapp_desktop(args) -> str:
+    """Draft a WhatsApp message to be sent via the WhatsApp Desktop app on macOS."""
+    phone = (args.get("phone") or "").strip()
+    message = (args.get("message") or "").strip()
+    if not phone:
+        return "I need a phone number with country code to send a WhatsApp message."
+    if not message:
+        return "What would you like the message to say?"
+
+    # Store as a pending draft — the frontend will show an approval card.
+    # Only after the user confirms do we actually open WhatsApp Desktop and send.
+    import re as _re
+    digits = _re.sub(r'\D', '', phone)
+    if len(digits) < 10 or len(digits) > 15:
+        return "That phone number doesn't look right — use country code + number, e.g. 919876543210."
+
+    global _pending_whatsapp_desktop_draft
+    _pending_whatsapp_desktop_draft = {"phone": digits, "message": message[:1000]}
+    return (f"Message ready for +{digits}: \"{message[:80]}\". "
+            "I'll send it through WhatsApp Desktop on your Mac once you confirm.")
+
+def _h_open_whatsapp_desktop(args) -> str:
+    """Open the WhatsApp Desktop app on macOS, optionally with a specific chat."""
+    phone = (args.get("phone") or "").strip()
+    ok = open_whatsapp_desktop(phone)
+    if ok:
+        if phone:
+            return f"Opening WhatsApp chat with +{phone}."
+        return "Opening WhatsApp Desktop."
+    return "I couldn't open WhatsApp Desktop — is it installed?"
+
+
 # ── Document AI handlers ─────────────────────────────────────────────────
 
 def _h_search_documents(args) -> str:
@@ -1013,6 +1058,36 @@ register_function(
         "required": ["phone", "message"],
     },
     handler=_h_send_whatsapp,
+)
+
+register_function(
+    name="send_whatsapp_desktop",
+    description=(
+        "Draft a WhatsApp message to send via the WhatsApp Desktop app installed on the Mac. "
+        "Uses the native WhatsApp app (not WhatsApp Web). NEVER sends anything directly: "
+        "it only creates a preview and the user must confirm before sending."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "phone": {"type": "string", "description": "Phone with country code, digits only, e.g. 919876543210"},
+            "message": {"type": "string", "description": "Message text to send"},
+        },
+        "required": ["phone", "message"],
+    },
+    handler=_h_send_whatsapp_desktop,
+)
+
+register_function(
+    name="open_whatsapp_desktop",
+    description="Open the WhatsApp Desktop app on macOS. Can optionally open a specific chat by phone number.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "phone": {"type": "string", "description": "Optional phone number to open a specific chat"},
+        },
+    },
+    handler=_h_open_whatsapp_desktop,
 )
 
 register_function(

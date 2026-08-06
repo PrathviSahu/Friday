@@ -254,6 +254,14 @@ def respond_v2(text: str, is_boss: bool = True, silence_tts: bool = False,
                     "phone": pending["phone"],
                     "message": pending["message"],
                 }
+        if "send_whatsapp_desktop" in executed:
+            pending = function_engine.get_pending_whatsapp_desktop_draft()
+            if pending:
+                result["action"] = "whatsapp_desktop_confirm"
+                result["whatsapp_desktop_preview"] = {
+                    "phone": pending["phone"],
+                    "message": pending["message"],
+                }
         return result
     except Exception as e:
         logging.warning(f"[Brain v2] Groq tool path failed ({e}); trying Gemini...")

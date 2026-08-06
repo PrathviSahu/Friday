@@ -98,7 +98,7 @@ export default function Background() {
         220
       );
 
-      glow.addColorStop(0, "rgba(0,220,255,0.10)");
+      glow.addColorStop(0, "rgba(59,130,246,0.10)");
       glow.addColorStop(1, "transparent");
 
       ctx.fillStyle = glow;

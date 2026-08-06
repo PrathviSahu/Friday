@@ -71,3 +71,25 @@ export async function cancelWhatsAppDraft(draftId) {
     body: JSON.stringify({ draft_id: draftId }),
   }).catch(() => {});
 }
+
+/**
+ * Send a message via WhatsApp Desktop (native macOS app).
+ * Approval-first: grant permission, then call the desktop-send endpoint.
+ */
+export async function approveAndSendWhatsAppDesktop({ phone, message }) {
+  const approveRes = await fetch(`${API_BASE_URL}/api/permissions/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ capability: 'whatsapp.send', seconds: 180 }),
+  });
+  if (!approveRes.ok) {
+    const body = await approveRes.json().catch(() => ({}));
+    throw new Error(body.detail || 'Permission approval failed');
+  }
+  const res = await fetch(`${BASE}/desktop-send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, message }),
+  });
+  return jsonOrThrow(res);
+}
