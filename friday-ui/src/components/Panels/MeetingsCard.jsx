@@ -14,17 +14,17 @@ const CARD_STYLE = {
   maxHeight: '72vh',
   display: 'flex',
   flexDirection: 'column',
-  background: 'rgba(15, 23, 42, 0.92)',
-  border: '1px solid rgba(100, 116, 139, 0.2)',
+  background: 'rgba(2, 6, 20, 0.92)',
+  border: '1px solid rgba(0, 183, 255, 0.25)',
   borderRadius: 16,
   backdropFilter: 'blur(18px)',
-  boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(0,183,255,0.08)',
   overflow: 'hidden',
   fontFamily: 'Inter, system-ui, sans-serif',
 };
 
-const ACCENT = '#60a5fa';
-const TEXT = '#f1f5f9';
+const ACCENT = '#00B7FF';
+const TEXT = '#DFFAFF';
 const MUTED = 'rgba(223,250,255,0.55)';
 
 const fmtDate = (iso) => {
@@ -135,7 +135,7 @@ export default function MeetingsCard() {
           position: 'fixed', top: 80, right: 220, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 999,
-          background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(100, 116, 139, 0.25)',
+          background: 'rgba(2, 6, 20, 0.9)', border: '1px solid rgba(0,183,255,0.3)',
           color: ACCENT, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
         }}
@@ -143,7 +143,7 @@ export default function MeetingsCard() {
         <Mic size={13} />
         Meetings
         {actionItems.length > 0 && (
-          <span style={{ background: '#0ea5e9', color: '#1e293b', borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
+          <span style={{ background: '#0ea5e9', color: '#001018', borderRadius: 99, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
             {actionItems.length}
           </span>
         )}
@@ -153,14 +153,14 @@ export default function MeetingsCard() {
 
   const inputStyle = {
     width: '100%', padding: '8px 10px', marginBottom: 8,
-    background: 'rgba(100, 116, 139, 0.06)', border: '1px solid rgba(100, 116, 139, 0.15)',
+    background: 'rgba(0,183,255,0.06)', border: '1px solid rgba(0,183,255,0.2)',
     borderRadius: 8, color: TEXT, fontSize: 12, outline: 'none',
     boxSizing: 'border-box', fontFamily: 'inherit',
   };
 
   return (
     <div style={CARD_STYLE}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(100, 116, 139,0.15)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(0,183,255,0.15)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: ACCENT }}>
           <Mic size={14} />
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>MEETINGS</span>
@@ -186,8 +186,8 @@ export default function MeetingsCard() {
             onClick={() => { setTab(id); setError(''); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-              background: tab === id ? 'rgba(100,116,139,0.12)' : 'transparent',
-              border: `1px solid ${tab === id ? 'rgba(100,116,139,0.4)' : 'rgba(100,116,139,0.15)'}`,
+              background: tab === id ? 'rgba(0,183,255,0.12)' : 'transparent',
+              border: `1px solid ${tab === id ? 'rgba(0,183,255,0.4)' : 'rgba(0,183,255,0.15)'}`,
               borderRadius: 8, color: tab === id ? ACCENT : MUTED, cursor: 'pointer',
               fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
             }}
@@ -213,7 +213,7 @@ export default function MeetingsCard() {
             </div>
             <div style={{ fontSize: 11, color: MUTED }}>{lastMeeting.summary}</div>
             {lastMeeting.action_items?.length > 0 && (
-              <button onClick={() => pushTodos(lastMeeting.id)} disabled={pushingTodos === lastMeeting.id} style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: 'rgba(100, 116, 139, 0.1)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+              <button onClick={() => pushTodos(lastMeeting.id)} disabled={pushingTodos === lastMeeting.id} style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: 'rgba(0,183,255,0.12)', border: '1px solid rgba(0,183,255,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                 {pushingTodos === lastMeeting.id ? <Loader size={11} /> : <Check size={11} />}
                 {pushingTodos === lastMeeting.id ? 'Adding…' : `Add ${lastMeeting.action_items.length} to Todos`}
               </button>
@@ -234,7 +234,7 @@ export default function MeetingsCard() {
                   style={{ ...inputStyle, paddingLeft: 26 }}
                 />
               </div>
-              <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(100, 116, 139, 0.1)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+              <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(0,183,255,0.12)', border: '1px solid rgba(0,183,255,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                 Go
               </button>
             </div>
@@ -248,7 +248,7 @@ export default function MeetingsCard() {
             )}
 
             {meetings.map((m) => (
-              <div key={m.id} style={{ padding: '10px', marginBottom: 6, background: 'rgba(100, 116, 139, 0.04)', border: '1px solid rgba(100, 116, 139, 0.1)', borderRadius: 10 }}>
+              <div key={m.id} style={{ padding: '10px', marginBottom: 6, background: 'rgba(0,183,255,0.03)', border: '1px solid rgba(0,183,255,0.12)', borderRadius: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</span>
                   <span style={{ fontSize: 9, color: MUTED }}>{fmtDate(m.date)}</span>
@@ -257,7 +257,7 @@ export default function MeetingsCard() {
                   {m.summary || '—'}
                 </div>
                 {m.action_items?.length > 0 && (
-                  <button onClick={() => pushTodos(m.id)} disabled={pushingTodos === m.id} style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: 'rgba(100, 116, 139, 0.1)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+                  <button onClick={() => pushTodos(m.id)} disabled={pushingTodos === m.id} style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: 'rgba(0,183,255,0.12)', border: '1px solid rgba(0,183,255,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                     {pushingTodos === m.id ? <Loader size={11} /> : <Check size={11} />}
                     {pushingTodos === m.id ? 'Adding…' : `Todos (${m.action_items.length})`}
                   </button>
@@ -290,7 +290,7 @@ export default function MeetingsCard() {
 
         {tab === 'new' && (
           <>
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px 10px', marginBottom: 10, border: '1px dashed rgba(100,116,139,0.35)', borderRadius: 10, cursor: 'pointer', color: ACCENT, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px 10px', marginBottom: 10, border: '1px dashed rgba(0,183,255,0.35)', borderRadius: 10, cursor: 'pointer', color: ACCENT, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               <Upload size={13} />
               Upload recording (mp3/wav/ogg/webm)
               <input type="file" accept="audio/*" onChange={onFile} style={{ display: 'none' }} />
@@ -310,8 +310,8 @@ export default function MeetingsCard() {
               disabled={!pasteText.trim() || processing}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '10px 0', background: pasteText.trim() && !processing ? ACCENT : 'rgba(100,116,139,0.15)',
-                border: 'none', borderRadius: 8, color: '#1e293b', fontWeight: 700, fontSize: 11,
+                padding: '10px 0', background: pasteText.trim() && !processing ? ACCENT : 'rgba(0,183,255,0.15)',
+                border: 'none', borderRadius: 8, color: '#001018', fontWeight: 700, fontSize: 11,
                 cursor: pasteText.trim() && !processing ? 'pointer' : 'not-allowed',
                 textTransform: 'uppercase', letterSpacing: '0.1em',
               }}

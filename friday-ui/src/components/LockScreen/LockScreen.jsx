@@ -15,12 +15,12 @@ import { speak, stopSpeaking } from '../../services/ttsService';
 import { API_ENDPOINTS } from '../../api/config.js';
 import { approveAndSendEmail, cancelEmailDraft } from '../../api/email';
 import { approveAndCreateEvent, cancelEventDraft } from '../../api/calendar';
-import { approveAndSendWhatsApp, cancelWhatsAppDraft, approveAndSendWhatsAppDesktop } from '../../api/whatsapp';
+import { approveAndSendWhatsApp, cancelWhatsAppDraft } from '../../api/whatsapp';
 import PendingApprovalCard from '../Common/PendingApprovalCard';
 
 export default function LockScreen() {
     const orb = useOrbState();
-    const { appState, stateLabel, authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
+    const { appState, stateLabel, authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, authenticateWithPassword, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled, pttMode } = useFriday();
     const scale = useFitScale();
 
@@ -37,10 +37,6 @@ export default function LockScreen() {
     const [pendingWhatsApp, setPendingWhatsApp] = React.useState(null);
     const pendingWhatsAppRef = React.useRef(null);
     React.useEffect(() => { pendingWhatsAppRef.current = pendingWhatsApp; }, [pendingWhatsApp]);
-
-    const [pendingWhatsAppDesktop, setPendingWhatsAppDesktop] = React.useState(null);
-    const pendingWhatsAppDesktopRef = React.useRef(null);
-    React.useEffect(() => { pendingWhatsAppDesktopRef.current = pendingWhatsAppDesktop; }, [pendingWhatsAppDesktop]);
 
     // Push-to-talk HUD: shows a live "speaking" state while Space is held.
     const [pttHeld, setPttHeld] = React.useState(false);
@@ -59,13 +55,13 @@ export default function LockScreen() {
         calendar_draft_id,
         calendar_preview,
         whatsapp_draft_id,
-        whatsapp_preview,
-        whatsapp_desktop_preview,
+        whatsapp_preview
     }) => {
         if (reply) {
             setResponseMessage?.(reply);
         }
         if (action === 'email_confirm' && email_draft_id) {
+            // Approval-first email flow: show the preview, wait for explicit confirm.
             setPendingEmail({ draftId: email_draft_id, preview: email_preview || {} });
             return;
         }
@@ -75,10 +71,6 @@ export default function LockScreen() {
         }
         if (action === 'whatsapp_confirm' && whatsapp_draft_id) {
             setPendingWhatsApp({ draftId: whatsapp_draft_id, preview: whatsapp_preview || {} });
-            return;
-        }
-        if (action === 'whatsapp_desktop_confirm' && whatsapp_desktop_preview) {
-            setPendingWhatsAppDesktop({ preview: whatsapp_desktop_preview });
             return;
         }
         if (action && action !== 'none' && !locked) {
@@ -315,31 +307,8 @@ export default function LockScreen() {
         return true;
     }, [setResponseMessage]);
 
-    // ── WhatsApp Desktop approval helpers ──────────────────────────────
-    const sendPendingWhatsAppDesktop = React.useCallback(async () => {
-        const pending = pendingWhatsAppDesktopRef.current;
-        if (!pending) return false;
-        try {
-            await approveAndSendWhatsAppDesktop(pending.preview);
-            setResponseMessage?.('Opening WhatsApp Desktop to send your message...');
-        } catch (err) {
-            setResponseMessage?.(`WhatsApp Desktop failed: ${err.message || 'unknown error'}`);
-        } finally {
-            pendingWhatsAppDesktopRef.current = null;
-            setPendingWhatsAppDesktop(null);
-        }
-        return true;
-    }, [setResponseMessage]);
-
-    const cancelPendingWhatsAppDesktop = React.useCallback(async () => {
-        pendingWhatsAppDesktopRef.current = null;
-        setPendingWhatsAppDesktop(null);
-        setResponseMessage?.('Message cancelled.');
-        return true;
-    }, [setResponseMessage]);
-
     // Voice confirmation for any pending approval (email → calendar →
-    // WhatsApp → WhatsApp Desktop): "yes / send it / create it" → confirm; "no / cancel" → discard.
+    // WhatsApp): "yes / send it / create it" → confirm; "no / cancel" → discard.
     React.useEffect(() => {
         window.fridayCheckPendingApproval = async (transcript) => {
             const t = (transcript || '').trim().toLowerCase();
@@ -361,16 +330,11 @@ export default function LockScreen() {
                 if (NO.test(t)) { await cancelPendingWhatsApp(); return true; }
                 return false;
             }
-            if (pendingWhatsAppDesktopRef.current) {
-                if (YES.test(t)) { await sendPendingWhatsAppDesktop(); return true; }
-                if (NO.test(t)) { await cancelPendingWhatsAppDesktop(); return true; }
-                return false;
-            }
             return false;
         };
         return () => { delete window.fridayCheckPendingApproval; };
     }, [sendPendingEmail, cancelPendingEmail, createPendingCalendar, cancelPendingCalendar,
-        sendPendingWhatsApp, cancelPendingWhatsApp, sendPendingWhatsAppDesktop, cancelPendingWhatsAppDesktop]);
+        sendPendingWhatsApp, cancelPendingWhatsApp]);
 
     useSpeech({
         locked,
@@ -382,7 +346,7 @@ export default function LockScreen() {
     });
 
     return (
-        <div className="w-screen h-screen relative overflow-hidden select-none bg-[#0f172a]">
+        <div className="w-screen h-screen relative overflow-hidden select-none bg-[#02030A]">
             <Background />
 
             <div
@@ -390,9 +354,9 @@ export default function LockScreen() {
                 style={{ zIndex: 20, pointerEvents: 'none', transform: `scale(${scale})`, transformOrigin: 'center center' }}
             >
                 <div className="flex items-center justify-between">
-                    <div className="font-sans text-[8px] tracking-[0.45em] text-slate-400/60 uppercase flex items-center gap-3">
-                        <span className="inline-block w-6 h-px bg-slate-400/30" />
-                        F.R.I.D.A.Y. v4
+                    <div className="font-orbitron text-[8px] tracking-[0.45em] text-[#00B7FF]/45 uppercase flex items-center gap-3">
+                        <span className="inline-block w-6 h-px bg-[#00B7FF]/40" />
+                        STARK INDUSTRIES
                     </div>
 
                     <div className="text-right">
@@ -407,13 +371,13 @@ export default function LockScreen() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 1, ease: 'easeOut' }}
                     >
-                        <h1 className="font-sans text-[3.4rem] tracking-[0.6em] text-slate-100 font-light">
+                        <h1 className="font-orbitron text-[3.4rem] tracking-[0.8em] text-[#DFFAFF] font-light" style={{ textShadow: '0 0 26px rgba(0,183,255,0.24)' }}>
                             F.R.I.D.A.Y.
                         </h1>
-                        <p className="font-sans text-[10px] tracking-[0.35em] text-slate-400/70 mt-2 uppercase">
-                            Personal AI Assistant
+                        <p className="font-grotesk text-[10px] tracking-[0.35em] text-[#00B7FF]/45 mt-2 uppercase">
+                            PERSONAL AI ASSISTANT
                         </p>
-                        <div className="mx-auto mt-4 h-px w-28 bg-gradient-to-r from-transparent via-slate-500/40 to-transparent" />
+                        <div className="mx-auto mt-4 h-px w-28 bg-gradient-to-r from-transparent via-[#00B7FF]/80 to-transparent" />
                     </motion.div>
 
                     <div className="mt-7 text-center">
@@ -430,7 +394,7 @@ export default function LockScreen() {
                                         <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                                            className="absolute inset-0 rounded-full border-2 border-t-[#3b82f6] border-r-transparent border-b-[#60a5fa]/20 border-l-transparent "
+                                            className="absolute inset-0 rounded-full border-2 border-t-[#00D9FF] border-r-transparent border-b-[#00B7FF]/20 border-l-transparent shadow-[0_0_12px_rgba(0,183,255,0.4)]"
                                         />
                                         <motion.div
                                             animate={{ rotate: -360 }}
@@ -438,11 +402,11 @@ export default function LockScreen() {
                                             className="absolute inset-1 rounded-full border border-t-[#22ff99]/20 border-r-transparent border-b-[#22ff99] border-l-transparent"
                                         />
                                     </div>
-                                    <h2 className="font-sans text-[1rem] tracking-[0.3em] text-blue-400 uppercase">
+                                    <h2 className="font-orbitron text-[1rem] tracking-[0.4em] text-[#00D9FF] uppercase drop-shadow-[0_0_8px_rgba(0,183,255,0.6)]">
                                         {stateLabel}
                                     </h2>
-                                    <p className="font-sans text-[8px] text-slate-400/40 tracking-[0.3em] uppercase animate-pulse">
-                                        Loading...
+                                    <p className="font-grotesk text-[8px] text-[#DFFAFF]/30 tracking-[0.3em] uppercase animate-pulse">
+                                        POWERING COGNITIVE CORES
                                     </p>
                                 </motion.div>
                             ) : authStep ? (
@@ -453,10 +417,10 @@ export default function LockScreen() {
                                     exit={{ opacity: 0, y: -8 }}
                                     className="flex flex-col items-center gap-2"
                                 >
-                                    <span className="font-sans text-[10px] tracking-[0.4em] text-blue-400 uppercase">
+                                    <span className="font-orbitron text-[10px] tracking-[0.4em] text-[#00D9FF] uppercase drop-shadow-[0_0_8px_#00D9FF]">
                                         {authStep.label}
                                     </span>
-                                    <div className="h-px w-24 bg-slate-500/20" />
+                                    <div className="h-px w-24 bg-[#00B7FF]/30" />
                                 </motion.div>
                             ) : locked ? (
                                 <motion.div
@@ -465,11 +429,11 @@ export default function LockScreen() {
                                     animate={{ opacity: 1, y: 0 }}
                                     className="flex flex-col items-center gap-2"
                                 >
-                                    <h2 className="font-sans text-[1.2rem] tracking-[0.5em] text-slate-300 font-light">
+                                    <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#00B7FF] font-light" style={{ textShadow: '0 0 16px rgba(0,183,255,0.35)' }}>
                                         LOCKED
                                     </h2>
-                                    <p className="font-sans text-[9px] text-slate-400/50 tracking-[0.35em] uppercase">
-                                        Awaiting Verification
+                                    <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
+                                        AWAITING FINGERPRINT VERIFICATION
                                     </p>
                                 </motion.div>
                             ) : (
@@ -479,40 +443,40 @@ export default function LockScreen() {
                                     animate={{ opacity: 1, y: 0 }}
                                     className="flex flex-col items-center gap-2"
                                 >
-                                    <h2 className="font-sans text-[1.2rem] tracking-[0.4em] text-orange-400 font-light">
-                                        Listening...
+                                    <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#FF8C00] font-light" style={{ textShadow: '0 0 16px rgba(255,140,0,0.45)' }}>
+                                        LISTENING...
                                     </h2>
-                                    <p className="font-sans text-[9px] text-slate-400/50 tracking-[0.35em] uppercase">
-                                        Voice Active
+                                    <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
+                                        VOICE ACTIVE · SPEAK FREELY
                                     </p>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
                         {responseMessage && (
-                            <div className="mt-3 text-[11px] text-slate-200 font-sans tracking-[0.04em]">
+                            <div className="mt-3 text-[11px] text-[#DFFAFF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
                                 {responseMessage}
                             </div>
                         )}
 
                         {ttsLoading ? (
-                            <div className="mt-3 text-[11px] text-slate-300 font-sans tracking-[0.04em]">
+                            <div className="mt-3 text-[11px] text-[#DFFAFF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
                                 Generating voice...
                             </div>
                         ) : isSpeaking ? (
-                            <div className="mt-3 text-[11px] text-blue-400 font-sans tracking-[0.04em]">
+                            <div className="mt-3 text-[11px] text-[#00D9FF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
                                 Speaking...
                             </div>
                         ) : null}
 
                         {pttMode ? (
                             pttHeld ? (
-                                <div className="mt-3 text-[11px] font-sans text-green-400 tracking-[0.3em] uppercase">
-                                    🎙 Speaking — Release to Send
+                                <div className="mt-3 text-[11px] font-orbitron text-[#22ff99] tracking-[0.4em] uppercase drop-shadow-[0_0_10px_rgba(34,255,153,0.6)]">
+                                    🎙 SPEAKING — RELEASE TO SEND
                                 </div>
                             ) : (
-                                <div className="mt-3 text-[10px] font-sans text-slate-400/70 tracking-[0.3em] uppercase animate-pulse">
-                                    Hold Space to Talk
+                                <div className="mt-3 text-[10px] font-orbitron text-[#00B7FF]/70 tracking-[0.35em] uppercase animate-pulse">
+                                    HOLD SPACE TO TALK
                                 </div>
                             )
                         ) : (
@@ -520,13 +484,13 @@ export default function LockScreen() {
                                 {!audioEnabled ? (
                                     <button
                                         onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
-                                        className="px-4 py-2 rounded bg-[#60a5fa] text-[#1e293b] text-[11px] uppercase font-bold"
+                                        className="px-4 py-2 rounded bg-[#00B7FF] text-[#001018] text-[11px] uppercase font-bold"
                                         style={{ pointerEvents: 'auto' }}
                                     >
                                         Enable Voice
                                     </button>
                                 ) : (
-                                    <span className="text-[11px] text-[#f1f5f9]/80 uppercase tracking-[0.2em]">
+                                    <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
                                         Voice enabled
                                     </span>
                                 )}
@@ -582,20 +546,20 @@ export default function LockScreen() {
 
 
             {!audioEnabled ? (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0f172a]/95 px-6 py-10" style={{ pointerEvents: 'auto' }}>
-                    <div className="max-w-2xl w-full rounded-2xl border border-slate-600/30 bg-slate-900/95 p-10 text-center">
-                        <div className="font-sans text-[9px] tracking-[0.45em] text-slate-400/60 uppercase mb-4">
-                            Voice Engine Offline
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#02030A]/95 px-6 py-10" style={{ pointerEvents: 'auto' }}>
+                    <div className="max-w-2xl w-full rounded-[2rem] border border-[#00B7FF]/30 bg-[#001018]/95 p-10 text-center shadow-[0_0_80px_rgba(0,183,255,0.20)]">
+                        <div className="font-orbitron text-[9px] tracking-[0.45em] text-[#00B7FF]/45 uppercase mb-4">
+                            VOICE ENGINE OFFLINE
                         </div>
-                        <h2 className="font-sans text-[2rem] tracking-[0.5em] text-slate-100 uppercase mb-4">
+                        <h2 className="font-orbitron text-[2rem] tracking-[0.5em] text-[#DFFAFF] uppercase mb-4">
                             F.R.I.D.A.Y.
                         </h2>
-                        <p className="font-sans text-sm text-slate-300/80 leading-6 mb-8">
+                        <p className="font-grotesk text-sm text-[#DFFAFF]/80 leading-6 mb-8">
                             Voice output requires permission. Click Enable Voice to initialize the speech engine and bring audio online.
                         </p>
                         <button
                             onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
-                            className="inline-flex items-center justify-center rounded-full bg-blue-500 px-8 py-3 text-[11px] font-bold uppercase tracking-[0.35em] text-white transition hover:bg-blue-400"
+                            className="inline-flex items-center justify-center rounded-full bg-[#00B7FF] px-8 py-3 text-[11px] font-bold uppercase tracking-[0.35em] text-[#001018] transition hover:bg-[#00d1ff]"
                         >
                             Enable Voice
                         </button>
@@ -629,19 +593,6 @@ export default function LockScreen() {
                     confirmLabel="Send"
                     onConfirm={sendPendingWhatsApp}
                     onCancel={cancelPendingWhatsApp}
-                />
-            )}
-            {pendingWhatsAppDesktop && (
-                <PendingApprovalCard
-                    title="💬 WhatsApp Desktop — Send Message"
-                    rows={[
-                        { label: 'To', value: `+${pendingWhatsAppDesktop.preview?.phone || '—'}` },
-                    ]}
-                    body={pendingWhatsAppDesktop.preview?.message || '—'}
-                    hint='Say "yes" to send via WhatsApp Desktop · "no" to cancel'
-                    confirmLabel="Send via WhatsApp"
-                    onConfirm={sendPendingWhatsAppDesktop}
-                    onCancel={cancelPendingWhatsAppDesktop}
                 />
             )}
             {pendingCalendar && (

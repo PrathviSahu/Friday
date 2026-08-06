@@ -104,9 +104,9 @@ export default function PermissionCenterCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f172a', border: '1px solid #14532d',
+                    background: '#0f0f1a', border: '1px solid #14532d',
                     color: '#86efac', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
                 }}
             >
                 <Shield size={13} style={{ color: '#4ade80' }} />
@@ -136,8 +136,8 @@ export default function PermissionCenterCard() {
                     width: 380, maxHeight: 480,
                     borderRadius: 16, overflow: 'hidden',
                     pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f172a', border: '1px solid #14532d',
-                    boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+                    background: '#0f0f1a', border: '1px solid #14532d',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.75)',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     rotateX, rotateY, transformOrigin, transformStyle: 'preserve-3d',
                     perspective: 1000, willChange: 'transform', backfaceVisibility: 'hidden',
@@ -177,7 +177,7 @@ export default function PermissionCenterCard() {
                             <div key={p.capability} style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 gap: 8, padding: '8px 10px', borderRadius: 10,
-                                background: '#1e293b', border: '1px solid #1e293b'
+                                background: '#141428', border: '1px solid #1e293b'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                                     <Icon size={13} style={{ color: meta.color, flexShrink: 0 }} />

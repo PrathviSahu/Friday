@@ -12,7 +12,7 @@
     width: 140px;
     height: 140px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(96,165,250,0.6) 0%, rgba(96,165,250,0.2) 45%, transparent 80%);
+    background: radial-gradient(circle, rgba(0,220,255,.95) 0%, rgba(0,220,255,.35) 45%, transparent 80%);
     filter: blur(30px);
     animation: pulse 4s ease-in-out infinite;
 }
@@ -22,8 +22,8 @@
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #ffffff, #93c5fd 15%, #3b82f6 45%, #1e40af 75%, #0f172a);
-    box-shadow: 0 0 20px rgba(59,130,246,0.4), 0 0 60px rgba(59,130,246,0.2);
+    background: radial-gradient(circle at 30% 30%, #ffffff, #73f8ff 15%, #19d9ff 45%, #0057ff 75%, #00151f);
+    box-shadow: 0 0 20px #42ecff, 0 0 70px #1acfff, 0 0 150px rgba(0,220,255,.5);
     animation: pulse 3s infinite;
 }
 
@@ -45,33 +45,35 @@
 
 .ring {
     fill: none;
-    stroke: #60a5fa;
-    stroke-width: 1;
-    opacity: 0.2;
+    stroke: #4eeeff;
+    stroke-width: 1.5;
+    opacity: 0.45;
+    filter: drop-shadow(0 0 8px cyan);
     transform-origin: center;
 }
 
-.ring1 { stroke-dasharray: 80 20 15 15; animation: spin1 9s linear infinite; opacity: 0.3; }
-.ring2 { stroke-dasharray: 15 12; animation: spin2 16s linear infinite; opacity: 0.2; }
-.ring3 { stroke-dasharray: 130 25; animation: spin3 25s linear infinite; opacity: 0.12; }
-.ring4 { stroke-dasharray: 25 40 80 15; animation: spin4 35s linear infinite; opacity: 0.06; }
-.ring5 { stroke-dasharray: 6 18; animation: spin5 45s linear infinite; opacity: 0.04; }
+.ring1 { stroke-dasharray: 80 20 15 15; animation: spin1 9s linear infinite; opacity: 1; }
+.ring2 { stroke-dasharray: 15 12; animation: spin2 16s linear infinite; opacity: 0.7; }
+.ring3 { stroke-dasharray: 130 25; animation: spin3 25s linear infinite; opacity: 0.4; }
+.ring4 { stroke-dasharray: 25 40 80 15; animation: spin4 35s linear infinite; opacity: 0.2; }
+.ring5 { stroke-dasharray: 6 18; animation: spin5 45s linear infinite; opacity: 0.08; }
 
 .segment {
     fill: none;
-    stroke: #93c5fd;
+    stroke: #9effff;
     stroke-width: 2;
     stroke-linecap: round;
-    opacity: 0.4;
+    filter: drop-shadow(0 0 8px rgba(0,230,255,0.25));
+    opacity: 0.9;
 }
 
 .dot {
     position: absolute;
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #60a5fa;
-    opacity: 0.6;
+    background: #5fffff;
+    box-shadow: 0 0 10px cyan;
 }
 
 .dot1 { left: calc(50% + 140px); top: 50%; transform: translate(-50%, -50%); }
@@ -86,7 +88,7 @@
 @keyframes spin1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes spin2 { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 @keyframes spin3 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes spin4 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes spin4 { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 @keyframes spin5 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 .dot1 { animation: orbit1 8s linear infinite; }

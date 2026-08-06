@@ -109,9 +109,9 @@ export default function WeatherCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f172a', border: '1px solid #334155',
+                    background: '#0f0f1a', border: '1px solid #1e1b4b',
                     color: '#7dd3fc', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
                 }}
             >
                 <Sun size={14} style={{ color: '#fbbf24' }} />
@@ -143,8 +143,8 @@ export default function WeatherCard() {
                     pointerEvents: 'auto',
                     userSelect: 'none',
                     overflow: 'hidden',
-                    background: '#0f172a',
-                    border: '1px solid #334155',
+                    background: '#0f0f1a',
+                    border: '1px solid #1e1b4b',
                     boxShadow: isDragging
                         ? '0 45px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.15)'
                         : '0 32px 80px rgba(0,0,0,0.75)',
@@ -173,7 +173,7 @@ export default function WeatherCard() {
                     style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 16px 10px',
-                        borderBottom: '1px solid #334155',
+                        borderBottom: '1px solid #1e1b4b',
                         cursor: 'grab',
                         position: 'relative', zIndex: 40
                     }}
@@ -225,7 +225,7 @@ export default function WeatherCard() {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                         <span style={{
                             fontSize: 12, fontWeight: 600, color: '#bae6fd',
-                            background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)',
+                            background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)',
                             padding: '3px 12px', borderRadius: 99
                         }}>
                             {weather.condition}
@@ -237,7 +237,7 @@ export default function WeatherCard() {
                 </div>
 
                 {/* Divider */}
-                <div style={{ height: 1, background: '#334155', margin: '0 16px' }} />
+                <div style={{ height: 1, background: '#1e1b4b', margin: '0 16px' }} />
 
                 {/* Stats row */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, padding: '10px 16px 14px' }}>
@@ -249,7 +249,7 @@ export default function WeatherCard() {
                         <div key={label} style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                             gap: 4, padding: '8px 4px',
-                            background: '#1e293b', border: '1px solid #334155', borderRadius: 12
+                            background: '#141428', border: '1px solid #1e1b4b', borderRadius: 12
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#64748b', fontSize: 10, fontWeight: 500 }}>
                                 {icon}

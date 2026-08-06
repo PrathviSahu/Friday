@@ -71,7 +71,7 @@ const CareerOS = memo(function CareerOS({ onClose }) {
       position: 'fixed', inset: 0, zIndex: 100,
       background: '#080B14',
       display: 'flex', flexDirection: 'column',
-      fontFamily: "'Inter', Inter, system-ui, sans-serif",
+      fontFamily: "'Inter', 'Space Grotesk', system-ui, sans-serif",
     }}>
       {/* ── Top Header ─────────────────────────────────────────────────────── */}
       <div style={{

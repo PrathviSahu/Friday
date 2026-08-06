@@ -93,6 +93,15 @@ export function OrbProvider({ children }) {
     // autoplay-blocked — this is what makes backend TTS audio actually sound.
     const audioCtxRef = useRef(null);
 
+    // ── Idle message rotation ────────────────────────────────────────────────
+    const startIdleRotation = useCallback(() => {
+        clearInterval(idleTimer.current);
+        idleTimer.current = setInterval(() => {
+            idleMsgRef.current = (idleMsgRef.current + 1) % IDLE_MESSAGES.length;
+            setLabel(IDLE_MESSAGES[idleMsgRef.current]);
+        }, 4500);
+    }, []);
+
     // ── Transition ────────────────────────────────────────────────────────────
     const transitionTo = useCallback((nextState) => {
         const cfg = STATE_CONFIG[nextState];
@@ -120,15 +129,6 @@ export function OrbProvider({ children }) {
             },
         });
     }, [startIdleRotation]);
-
-    // ── Idle message rotation ────────────────────────────────────────────────
-    const startIdleRotation = useCallback(() => {
-        clearInterval(idleTimer.current);
-        idleTimer.current = setInterval(() => {
-            idleMsgRef.current = (idleMsgRef.current + 1) % IDLE_MESSAGES.length;
-            setLabel(IDLE_MESSAGES[idleMsgRef.current]);
-        }, 4500);
-    }, []);
 
     // ── Authentication sequence ──────────────────────────────────────────────
     useEffect(() => {

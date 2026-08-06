@@ -14,17 +14,17 @@ const CARD_STYLE = {
   maxHeight: '72vh',
   display: 'flex',
   flexDirection: 'column',
-  background: 'rgba(15, 23, 42, 0.92)',
-  border: '1px solid rgba(100, 116, 139, 0.2)',
+  background: 'rgba(2, 6, 20, 0.92)',
+  border: '1px solid rgba(0, 183, 255, 0.25)',
   borderRadius: 16,
   backdropFilter: 'blur(18px)',
-  boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(0,183,255,0.08)',
   overflow: 'hidden',
   fontFamily: 'Inter, system-ui, sans-serif',
 };
 
-const ACCENT = '#60a5fa';
-const TEXT = '#f1f5f9';
+const ACCENT = '#00B7FF';
+const TEXT = '#DFFAFF';
 const MUTED = 'rgba(223,250,255,0.55)';
 
 const fmtTime = (iso) => {
@@ -131,7 +131,7 @@ export default function CalendarCard() {
           position: 'fixed', top: 200, left: 40, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 999,
-          background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(100, 116, 139, 0.25)',
+          background: 'rgba(2, 6, 20, 0.9)', border: '1px solid rgba(0,183,255,0.3)',
           color: ACCENT, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
         }}
@@ -145,14 +145,14 @@ export default function CalendarCard() {
 
   const inputStyle = {
     width: '100%', padding: '8px 10px', marginBottom: 8,
-    background: 'rgba(100, 116, 139, 0.06)', border: '1px solid rgba(100, 116, 139, 0.15)',
+    background: 'rgba(0,183,255,0.06)', border: '1px solid rgba(0,183,255,0.2)',
     borderRadius: 8, color: TEXT, fontSize: 12, outline: 'none',
     boxSizing: 'border-box', fontFamily: 'inherit',
   };
 
   return (
     <div style={CARD_STYLE}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(100, 116, 139,0.15)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid rgba(0,183,255,0.15)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: ACCENT }}>
           <CalendarDays size={14} />
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>CALENDAR</span>
@@ -176,8 +176,8 @@ export default function CalendarCard() {
             onClick={() => { setTab(id); setError(''); setCreated(null); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-              background: tab === id ? 'rgba(100,116,139,0.12)' : 'transparent',
-              border: `1px solid ${tab === id ? 'rgba(100,116,139,0.4)' : 'rgba(100,116,139,0.15)'}`,
+              background: tab === id ? 'rgba(0,183,255,0.12)' : 'transparent',
+              border: `1px solid ${tab === id ? 'rgba(0,183,255,0.4)' : 'rgba(0,183,255,0.15)'}`,
               borderRadius: 8, color: tab === id ? ACCENT : MUTED, cursor: 'pointer',
               fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
             }}
@@ -215,7 +215,7 @@ export default function CalendarCard() {
                   style={{ ...inputStyle, paddingLeft: 26 }}
                 />
               </div>
-              <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(100, 116, 139, 0.1)', border: '1px solid rgba(100, 116, 139, 0.25)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
+              <button onClick={doSearch} style={{ padding: '0 12px', background: 'rgba(0,183,255,0.12)', border: '1px solid rgba(0,183,255,0.3)', borderRadius: 8, color: ACCENT, cursor: 'pointer', fontSize: 10, textTransform: 'uppercase' }}>
                 Go
               </button>
             </div>
@@ -229,7 +229,7 @@ export default function CalendarCard() {
             )}
 
             {events.map((e, i) => (
-              <div key={e.id || i} style={{ padding: '9px 10px', marginBottom: 6, background: 'rgba(100, 116, 139, 0.04)', border: '1px solid rgba(100, 116, 139, 0.1)', borderRadius: 10 }}>
+              <div key={e.id || i} style={{ padding: '9px 10px', marginBottom: 6, background: 'rgba(0,183,255,0.03)', border: '1px solid rgba(0,183,255,0.12)', borderRadius: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.summary}</div>
                 <div style={{ fontSize: 10, color: ACCENT, marginTop: 2 }}>{fmtTime(e.start)}{e.end ? ` → ${fmtTime(e.end)}` : ''}</div>
                 {e.location && (
@@ -249,15 +249,15 @@ export default function CalendarCard() {
                 <div style={{ fontSize: 10, color: MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
                   Preview — confirm to create
                 </div>
-                <div style={{ background: 'rgba(100, 116, 139, 0.04)', border: '1px solid rgba(100, 116, 139, 0.15)', borderRadius: 10, padding: 12, fontSize: 12, color: TEXT }}>
+                <div style={{ background: 'rgba(0,183,255,0.04)', border: '1px solid rgba(0,183,255,0.2)', borderRadius: 10, padding: 12, fontSize: 12, color: TEXT }}>
                   <div style={{ marginBottom: 6 }}><b style={{ color: ACCENT }}>Event:</b> {draft.preview.summary}</div>
                   <div style={{ marginBottom: 6 }}><b style={{ color: ACCENT }}>When:</b> {fmtTime(draft.preview.start)} → {fmtTime(draft.preview.end)}</div>
                   {draft.preview.description && (
-                    <div style={{ borderTop: '1px solid rgba(100, 116, 139,0.15)', paddingTop: 8, color: MUTED, whiteSpace: 'pre-wrap' }}>{draft.preview.description}</div>
+                    <div style={{ borderTop: '1px solid rgba(0,183,255,0.15)', paddingTop: 8, color: MUTED, whiteSpace: 'pre-wrap' }}>{draft.preview.description}</div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <button onClick={confirmCreate} disabled={creating} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', background: ACCENT, border: 'none', borderRadius: 8, color: '#1e293b', fontWeight: 700, fontSize: 11, cursor: creating ? 'wait' : 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <button onClick={confirmCreate} disabled={creating} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', background: ACCENT, border: 'none', borderRadius: 8, color: '#001018', fontWeight: 700, fontSize: 11, cursor: creating ? 'wait' : 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     {creating ? <Loader size={12} /> : <Check size={12} />}
                     {creating ? 'Creating…' : 'Confirm Create'}
                   </button>
@@ -275,7 +275,7 @@ export default function CalendarCard() {
                   <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} />
                 </div>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Details (optional)…" rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
-                <button onClick={previewDraft} disabled={!summary.trim() || !date} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', background: summary.trim() && date ? ACCENT : 'rgba(100,116,139,0.15)', border: 'none', borderRadius: 8, color: '#1e293b', fontWeight: 700, fontSize: 11, cursor: summary.trim() && date ? 'pointer' : 'not-allowed', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <button onClick={previewDraft} disabled={!summary.trim() || !date} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', background: summary.trim() && date ? ACCENT : 'rgba(0,183,255,0.15)', border: 'none', borderRadius: 8, color: '#001018', fontWeight: 700, fontSize: 11, cursor: summary.trim() && date ? 'pointer' : 'not-allowed', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   <Plus size={12} />
                   Preview &amp; Ask to Create
                 </button>

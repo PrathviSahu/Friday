@@ -86,12 +86,12 @@ export default function WebSearchCard() {
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '7px 14px', borderRadius: 99,
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    background: '#0f172a', border: '1px solid #334155',
-                    color: '#cbd5e1', fontSize: 11, fontFamily: 'monospace',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                    background: '#0f0f1a', border: '1px solid #1e1b4b',
+                    color: '#a5b4fc', fontSize: 11, fontFamily: 'monospace',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
                 }}
             >
-                <Search size={13} style={{ color: '#94a3b8' }} />
+                <Search size={13} style={{ color: '#818cf8' }} />
                 <span>AI Search</span>
             </motion.div>
         );
@@ -120,8 +120,8 @@ export default function WebSearchCard() {
                     pointerEvents: 'auto',
                     userSelect: 'none',
                     overflow: 'hidden',
-                    background: '#0f172a',
-                    border: '1px solid #334155',
+                    background: '#0f0f1a',
+                    border: '1px solid #1e1b4b',
                     boxShadow: isDragging
                         ? '0 45px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.15)'
                         : '0 32px 80px rgba(0,0,0,0.75)',
@@ -150,16 +150,16 @@ export default function WebSearchCard() {
                     style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 16px 10px',
-                        borderBottom: '1px solid #334155',
+                        borderBottom: '1px solid #1e1b4b',
                         cursor: 'grab',
                         position: 'relative', zIndex: 40
                     }}
                     className="active:cursor-grabbing"
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <GripHorizontal size={13} style={{ color: '#475569' }} />
-                        <Globe size={14} style={{ color: '#94a3b8' }} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', letterSpacing: '-0.01em' }}>AI Search</span>
+                        <GripHorizontal size={13} style={{ color: '#312e81' }} />
+                        <Globe size={14} style={{ color: '#818cf8' }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e0e7ff', letterSpacing: '-0.01em' }}>AI Search</span>
                     </div>
                     <button
                         type="button"
@@ -172,11 +172,11 @@ export default function WebSearchCard() {
                         }}
                         style={{
                             background: 'none', border: 'none', cursor: 'pointer',
-                            color: '#475569', padding: 4, display: 'flex',
+                            color: '#312e81', padding: 4, display: 'flex',
                             position: 'relative', zIndex: 100
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#94a3b8'}
-                        onMouseLeave={e => e.currentTarget.style.color = '#475569'}
+                        onMouseEnter={e => e.currentTarget.style.color = '#818cf8'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#312e81'}
                         title="Close AI Search"
                     >
                         <X size={14} />
@@ -189,7 +189,7 @@ export default function WebSearchCard() {
                     <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
                             flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-                            background: '#1e293b', border: '1px solid #334155',
+                            background: '#141428', border: '1px solid #1e1b4b',
                             borderRadius: 10, padding: '8px 12px'
                         }}>
                             <Search size={13} style={{ color: '#6366f1', flexShrink: 0 }} />
@@ -202,7 +202,7 @@ export default function WebSearchCard() {
                                 disabled={searching}
                                 style={{
                                     background: 'transparent', border: 'none', outline: 'none',
-                                    color: '#e2e8f0', fontSize: 12, fontFamily: 'Inter, system-ui',
+                                    color: '#e0e7ff', fontSize: 12, fontFamily: 'Inter, system-ui',
                                     width: '100%', cursor: 'text'
                                 }}
                             />
@@ -214,7 +214,7 @@ export default function WebSearchCard() {
                             disabled={!query.trim() || searching}
                             style={{
                                 padding: '8px 10px', borderRadius: 10,
-                                background: '#475569', border: 'none', color: '#fff',
+                                background: '#4338ca', border: 'none', color: '#fff',
                                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 flexShrink: 0, opacity: (!query.trim() || searching) ? 0.3 : 1,
                             }}
@@ -233,7 +233,7 @@ export default function WebSearchCard() {
                             results.map((res, idx) => (
                                 <div key={idx} style={{
                                     padding: '10px 12px', borderRadius: 10,
-                                    background: '#1e293b', border: '1px solid #334155',
+                                    background: '#141428', border: '1px solid #1e1b4b',
                                     display: 'flex', flexDirection: 'column', gap: 4
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -249,11 +249,11 @@ export default function WebSearchCard() {
                                 </div>
                             ))
                         ) : searchedQuery ? (
-                            <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
+                            <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 11, color: '#4338ca' }}>
                                 No results found for "{searchedQuery}".
                             </div>
                         ) : (
-                            <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 11, color: '#475569', fontStyle: 'italic' }}>
+                            <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 11, color: '#312e81', fontStyle: 'italic' }}>
                                 Type any query to search the web.
                             </div>
                         )}

@@ -63,7 +63,7 @@ export default function AIAssistantPanel() {
                             </span>
                             {[
                                 { label: 'Order Block (OB)', val: '2,335.5 Demand', color: '#10b981' },
-                                { label: 'Fair Value Gap (FVG)', val: '2,341.0 Imbalance', color: '#60a5fa' },
+                                { label: 'Fair Value Gap (FVG)', val: '2,341.0 Imbalance', color: '#00B7FF' },
                                 { label: 'Liquidity Sweep', val: 'Equal Lows Swept', color: '#eab308' },
                                 { label: 'Break of Structure (BOS)', val: 'Confirmed Higher High', color: '#a855f7' },
                             ].map((s, idx) => (

@@ -263,7 +263,7 @@ export default function SpotifyCard() {
                     padding: '6px 12px', borderRadius: 20,
                     background: '#121212', border: '1px solid #282828',
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
                 }}
                 className="active:cursor-grabbing"
             >
@@ -585,7 +585,7 @@ export default function SpotifyCard() {
                         style={{
                             width: 40, height: 40, borderRadius: '50%', background: '#ffffff',
                             border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 4px 14px rgba(0,0,0,0.3)', flexShrink: 0
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.5)', flexShrink: 0
                         }}
                     >
                         {spotifyTrack.playing

@@ -11,17 +11,17 @@ const CARD_STYLE = {
   maxHeight: '74vh',
   display: 'flex',
   flexDirection: 'column',
-  background: 'rgba(15, 23, 42, 0.94)',
-  border: '1px solid rgba(100, 116, 139, 0.2)',
+  background: 'rgba(2, 6, 20, 0.94)',
+  border: '1px solid rgba(34, 211, 238, 0.25)',
   borderRadius: 16,
   backdropFilter: 'blur(18px)',
-  boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 0 24px rgba(34,211,238,0.08)',
   overflow: 'hidden',
   fontFamily: 'Inter, system-ui, sans-serif',
 };
 
 const ACCENT = '#22D3EE';
-const TEXT = '#f1f5f9';
+const TEXT = '#DFFAFF';
 const MUTED = 'rgba(223,250,255,0.55)';
 
 const ACTIONS = [
@@ -75,7 +75,7 @@ export default function CodingCard() {
           position: 'fixed', top: 80, left: 220, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 999,
-          background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(100, 116, 139, 0.25)',
+          background: 'rgba(2, 6, 20, 0.9)', border: '1px solid rgba(34,211,238,0.3)',
           color: ACCENT, cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
         }}
