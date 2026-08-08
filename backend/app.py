@@ -40,6 +40,7 @@ from routes.automation import router as automation_router
 from routes.autonomy import router as autonomy_router
 from routes.context import router as context_router
 from routes.macros import router as macros_router
+from routes.presence import router as presence_router
 from routes.agents import router as agents_router
 from routes.learning import router as learning_router
 from routes.life_memory import router as life_memory_router
@@ -179,6 +180,7 @@ app.include_router(automation_router)
 app.include_router(autonomy_router)
 app.include_router(context_router)
 app.include_router(macros_router)
+app.include_router(presence_router)
 app.include_router(agents_router)
 app.include_router(learning_router)
 app.include_router(life_memory_router)

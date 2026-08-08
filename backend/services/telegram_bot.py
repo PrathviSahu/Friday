@@ -20,8 +20,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 logger = logging.getLogger("friday_telegram")
 
 try:
-    from telegram import Update
-    from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
     _PTB_AVAILABLE = True
 except ImportError:
     _PTB_AVAILABLE = False
@@ -60,9 +60,12 @@ async def _require_owner(update: Update) -> bool:
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _require_owner(update):
         return
+    _register_owner_device(update)
     await update.effective_message.reply_text(
         "⚡ Hey Prem! F.R.I.D.A.Y. here.\n"
-        "I'm reachable from anywhere now. Try /help to see what I can do."
+        "I'm reachable from anywhere now. Try /help to see what I can do.\n"
+        "This chat is now a trusted Presence device — approval prompts with\n"
+        "✅/❌ buttons will land here."
     )
 
 
@@ -168,10 +171,80 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Sorry Prem, I hit an error processing that.")
 
 
+# ── Cross-Device Presence (Phase 2.5) ─────────────────────────────────────────
+
+_APP = None   # running Application, captured in post_init
+_LOOP = None  # its asyncio loop (for cross-thread sends from FastAPI handlers)
+
+
+def _register_owner_device(update: Update) -> None:
+    """/start from the owner registers this chat as a trusted presence device."""
+    try:
+        from services import presence
+        chat_id = str(update.effective_chat.id)
+        presence.register_device("telegram", chat_id, "Prem (Telegram)")
+    except Exception as err:
+        logger.warning(f"[Presence] device registration failed: {err}")
+
+
+def _approval_keyboard(approval_token: str) -> "InlineKeyboardMarkup":
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Approve", callback_data=f"pr:{approval_token}:approve"),
+        InlineKeyboardButton("❌ Deny",    callback_data=f"pr:{approval_token}:deny"),
+    ]])
+
+
+async def _send_approval_async(chat_id: str, record: dict) -> None:
+    text = (f"🛡️ *FRIDAY needs approval*\n\n{record['description']}\n\n"
+            f"Capability: `{record['capability']}` — expires in 5 minutes.")
+    await _APP.bot.send_message(
+        chat_id=chat_id, text=text, parse_mode="Markdown",
+        reply_markup=_approval_keyboard(record["approval_token"]))
+
+
+def _telegram_sender(chat_id: str, record: dict) -> None:
+    """SYNC hook handed to services.presence.TELEGRAM_SENDER — schedules the
+    async send onto the bot's own loop (presence is called from FastAPI threads)."""
+    if _APP is None or _LOOP is None:
+        raise RuntimeError("telegram bot loop not ready")
+    asyncio.run_coroutine_threadsafe(_send_approval_async(chat_id, record), _LOOP)
+
+
+def parse_presence_callback(data: str) -> tuple[str, str] | None:
+    """'pr:<token>:approve|deny' → (token, decision); anything else → None."""
+    parts = (data or "").split(":")
+    if len(parts) == 3 and parts[0] == "pr" and parts[1] and parts[2] in {"approve", "deny"}:
+        return parts[1], parts[2]
+    return None
+
+
+async def on_presence_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Resolve an inline ✅/❌ tap — same Permission Center one-time approval."""
+    query = update.callback_query
+    if not query or not query.from_user or query.from_user.id != _owner_id():
+        return
+    parsed = parse_presence_callback(query.data)
+    if not parsed:
+        return
+    token, decision = parsed
+    from services import presence
+    result = await asyncio.to_thread(presence.resolve_decision, token, decision)
+    if result.get("status") != "ok":
+        await query.answer(result.get("message", "Expired."), show_alert=True)
+        return
+    icon = "✅" if decision == "approve" else "❌"
+    await query.answer(f"{icon} {result.get('message', decision)}")
+    try:
+        await query.edit_message_text(f"{icon} {result.get('message', '')}")
+    except Exception:
+        pass  # stale message — answer already acknowledged
+
+
 # ── Builder ────────────────────────────────────────────────────────────────────
 
 def build_application() -> "Application":
     """Construct the bot Application (raises if python-telegram-bot missing)."""
+    global _APP
     if not _PTB_AVAILABLE:
         raise RuntimeError("python-telegram-bot is not installed (pip install -r requirements.txt)")
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
@@ -180,7 +253,19 @@ def build_application() -> "Application":
     if not _owner_id():
         logger.warning("TELEGRAM_OWNER_ID not set — the bot will deny everyone.")
 
-    app = Application.builder().token(token).build()
+    async def _capture(application: "Application") -> None:
+        global _LOOP
+        _LOOP = asyncio.get_running_loop()
+        from services import presence
+        presence.TELEGRAM_SENDER = _telegram_sender
+
+    builder = Application.builder().token(token)
+    try:
+        builder = builder.post_init(_capture)   # PTB ≥ 20
+    except AttributeError:
+        logger.warning("[Presence] telegram lib lacks post_init — push approvals disabled")
+    app = builder.build()
+    _APP = app
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("time", cmd_time))
@@ -189,6 +274,7 @@ def build_application() -> "Application":
     app.add_handler(CommandHandler("market", cmd_market))
     app.add_handler(CommandHandler("spotify", cmd_spotify))
     app.add_handler(CommandHandler("analyze", cmd_analyze))
+    app.add_handler(CallbackQueryHandler(on_presence_button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     return app
 
