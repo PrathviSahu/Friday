@@ -9,7 +9,7 @@ import pytest
 def test_function_engine_registers_tools():
     from services import function_engine
     tools = function_engine.get_tools_schema()
-    assert len(tools) == 43  # 41 v3/v4 core + company_intel + review_code
+    assert len(tools) == 45  # 41 v3/v4 core + company_intel + review_code + Phase 2.3 context tools
     names = {t["function"]["name"] for t in tools}
     assert {"get_time", "get_weather", "play_spotify", "control_spotify",
             "add_todo", "get_todos", "set_reminder", "open_app",

@@ -1150,3 +1150,38 @@ register_function(
     },
     handler=lambda args: _h_coding_review(args),
 )
+
+
+# ── Phase 2.3: Ambient Context tools ──────────────────────────────────────────
+
+def _h_get_context(args: dict) -> str:
+    from services import context_engine
+    return context_engine.describe()
+
+
+def _h_set_focus_mode(args: dict) -> str:
+    from services import context_engine
+    minutes = int(args.get("minutes") or 60)
+    result = context_engine.set_focus(minutes)
+    if result.get("status") != "ok":
+        return f"I couldn't enable focus mode: {result.get('message')}."
+    return (f"Focus mode on for {minutes} minutes, Prem. I'll hold all "
+            "suggestions and non-critical notifications until then.")
+
+
+register_function(
+    name="get_context",
+    description="Get FRIDAY's live situational awareness: time of day, market status, next meeting, unread emails, focus mode.",
+    parameters={"type": "object", "properties": {}},
+    handler=_h_get_context,
+)
+
+register_function(
+    name="set_focus_mode",
+    description="Enable focus/do-not-disturb mode for N minutes — mutes proactive suggestions and forces approval-first on autonomy.",
+    parameters={
+        "type": "object",
+        "properties": {"minutes": {"type": "integer", "description": "Focus duration, 5–480 (default 60)"}},
+    },
+    handler=_h_set_focus_mode,
+)

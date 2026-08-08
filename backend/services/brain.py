@@ -296,6 +296,14 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     # 🎙️ Compute dynamic brevity mode for this turn
     brevity_mode = compute_response_brevity(text)
 
+    # 🧭 Phase 2.3 — situational pressure shortens replies (meeting shield,
+    # focus mode, high calendar pressure). Guarded: context may be unavailable.
+    try:
+        from services import context_engine
+        brevity_mode = context_engine.cap_brevity(brevity_mode)
+    except Exception:
+        pass
+
     # Ignore isolated single non-command filler words like "please"
     if lower_text in ["please", "pls", "thank you", "thanks"]:
         return {"reply": "", "action": "none"}
