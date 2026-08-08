@@ -30,6 +30,7 @@ _DB_MODULES = [
     ("services.learning_engine", "init_brain_db"),
     ("services.autonomy_engine", "init_autonomy_db"),
     ("services.memory_consolidator", "init_consolidator_db"),
+    ("services.macros", "init_macros_db"),
     ("services.career_db", "init_career_db"),
     ("services.platform_session", "init_session_db"),
     ("services.meeting_agent", "init_meetings_db"),

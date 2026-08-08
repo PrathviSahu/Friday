@@ -293,6 +293,17 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     if is_boss:
         extract_job_profile_from_text(text)
 
+    # ⚡ Phase 2.4 — Voice Macro fast path (0ms): an exact saved trigger phrase
+    # runs its tool chain BEFORE regex intents and before any LLM round-trip.
+    if authorized:
+        try:
+            from services import macros as _macros
+            macro_result = _macros.match_and_maybe_run(text)
+            if macro_result is not None:
+                return macro_result
+        except Exception:
+            pass  # macro engine must never break the chat pipeline
+
     # 🎙️ Compute dynamic brevity mode for this turn
     brevity_mode = compute_response_brevity(text)
 

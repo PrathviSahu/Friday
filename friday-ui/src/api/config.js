@@ -53,6 +53,7 @@ export const API_ENDPOINTS = {
   notifications: `${API_BASE_URL}/api/notifications`,
   briefing: `${API_BASE_URL}/api/briefing`,
   autonomy: `${API_BASE_URL}/api/autonomy`,
+  macros: `${API_BASE_URL}/api/macros`,
   agents: `${API_BASE_URL}/api/agents`,
   learning: `${API_BASE_URL}/api/learning`,
   lifeMemory: `${API_BASE_URL}/api/life-memory`,
