@@ -579,4 +579,4 @@ Learning Coach streaks, goal progress, job applications, meetings
 
 ---
 
-*Generated from the live codebase — v4.0. All 173 endpoints, 41 tools, and 14 panels verified present in the running application.*
+*Generated from the live codebase — v4.0. All 173 endpoints, 43 tools, and 14 panels verified present in the running application.*

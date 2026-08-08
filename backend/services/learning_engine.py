@@ -329,14 +329,18 @@ def detect_and_log_correction(user_text: str, last_action_context: dict) -> bool
     if not query or not target:
         return False
 
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO user_corrections (query_pattern, rejected_target, penalty_weight)
-        VALUES (?, ?, -40.0)
-        ON CONFLICT(query_pattern, rejected_target) DO UPDATE SET
-            penalty_weight = MIN(penalty_weight - 10.0, -80.0)
-        """, (query, target))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            # Escalate the soft penalty by -10 per repeat correction, floored at -80.
+            # NOTE: must be MAX() here — penalties are negative, so MIN() would jump
+            # straight to the -80 floor on the second correction (bug, fixed).
+            conn.execute("""
+            INSERT INTO user_corrections (query_pattern, rejected_target, penalty_weight)
+            VALUES (?, ?, -40.0)
+            ON CONFLICT(query_pattern, rejected_target) DO UPDATE SET
+                penalty_weight = MAX(penalty_weight - 10.0, -80.0)
+            """, (query, target))
+            conn.commit()
 
     print(f"[FRIDAY Brain] 📝 Correction logged: '{query}' → reject '{target}'")
     return True
@@ -389,13 +393,14 @@ BREVITY_INSTRUCTIONS = {
 
 def save_job_profile(field: str, value: str):
     """Save or update Prem's career profile field (e.g. primary_role, skills)."""
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO job_profile (field, value, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(field) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-        """, (field.strip().lower(), value.strip()))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            INSERT INTO job_profile (field, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(field) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+            """, (field.strip().lower(), value.strip()))
+            conn.commit()
     print(f"[FRIDAY Brain] 💼 Job profile updated: {field} = {value}")
 
 
@@ -408,20 +413,21 @@ def get_job_profile() -> dict:
 
 def save_resume_section(section: str, content: str):
     """Save or update a resume section (summary, skills, experience, education, projects)."""
-    with _db() as conn:
-        existing = conn.execute(
-            "SELECT id FROM resume_data WHERE section = ?", (section,)
-        ).fetchone()
-        if existing:
-            conn.execute(
-                "UPDATE resume_data SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE section = ?",
-                (content, section)
-            )
-        else:
-            conn.execute(
-                "INSERT INTO resume_data (section, content) VALUES (?, ?)", (section, content)
-            )
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            existing = conn.execute(
+                "SELECT id FROM resume_data WHERE section = ?", (section,)
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    "UPDATE resume_data SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE section = ?",
+                    (content, section)
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO resume_data (section, content) VALUES (?, ?)", (section, content)
+                )
+            conn.commit()
     print(f"[FRIDAY Brain] 📄 Resume section saved: {section}")
 
 
@@ -439,12 +445,13 @@ def get_resume_context() -> str:
 
 def save_found_job(portal: str, title: str, company: str, url: str = "", match_score: float = 0.0):
     """Record a job FRIDAY found during a search."""
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO job_applications (portal, job_title, company, job_url, match_score)
-        VALUES (?, ?, ?, ?, ?)
-        """, (portal, title, company, url, match_score))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            INSERT INTO job_applications (portal, job_title, company, job_url, match_score)
+            VALUES (?, ?, ?, ?, ?)
+            """, (portal, title, company, url, match_score))
+            conn.commit()
     print(f"[FRIDAY Brain] 🔍 Job found: {title} @ {company} ({portal}) — Match: {match_score:.0f}%")
 
 
