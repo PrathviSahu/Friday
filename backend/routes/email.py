@@ -67,6 +67,21 @@ def email_draft_endpoint(req: DraftRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except email_agent.EmailUnavailableError as exc:
         raise _handle_unavailable(exc) from exc
+
+    # Phase 2.5 — when sending is an 'ask' capability, offer the approval on
+    # Prem's trusted devices (Telegram ✅/❌, PWA push) so the draft can be
+    # approved & sent from anywhere. Guarded: never breaks draft creation.
+    pushed = False
+    try:
+        from services import permissions, presence
+        if permissions.get_mode("email.send") == "ask":
+            result = presence.create_approval(
+                "email.send",
+                f"Send email to {draft['to']} — “{(draft['subject'] or '(no subject)')[:80]}”",
+                action={"kind": "email_send_draft", "draft_id": draft["id"]})
+            pushed = result.get("status") == "ok"
+    except Exception:
+        pass
     return {
         "draft_id": draft["id"],
         "preview": {
@@ -75,6 +90,7 @@ def email_draft_endpoint(req: DraftRequest):
             "body": draft["body"],
         },
         "expires_in_seconds": email_agent.DRAFT_TTL_SECONDS,
+        "presence_prompt_sent": pushed,
     }
 
 

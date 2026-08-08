@@ -62,6 +62,13 @@ def _build_context_messages(text: str) -> list:
 
     # Permanent facts + semantically relevant memories
     context_bits = [get_memory_context_string()]
+    # Phase 2.3 — Ambient Context Vector: one situation line so the LLM adapts
+    # tone/pace and prioritization (guarded; a broken signal never breaks chat).
+    try:
+        from services import context_engine
+        context_bits.append(context_engine.situation_line())
+    except Exception:
+        pass
     sem = semantic_context(text, k=3)
     if sem:
         context_bits.append(sem)

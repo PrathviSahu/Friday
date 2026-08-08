@@ -157,17 +157,51 @@ def save_fact(key: str, value: str, category: str = "preference"):
 
 def get_all_memories() -> list:
     with _db() as conn:
-        rows = conn.execute("SELECT key_fact, value_fact, category FROM memories").fetchall()
+        try:
+            # Phase 2.2 shape: pruned (archived) facts are excluded, highest
+            # confidence first. Columns exist once memory_consolidator migrates.
+            rows = conn.execute(
+                "SELECT key_fact, value_fact, category FROM memories "
+                "WHERE archived = 0 ORDER BY confidence DESC").fetchall()
+        except sqlite3.OperationalError:
+            rows = conn.execute("SELECT key_fact, value_fact, category FROM memories").fetchall()
         return [{"key": r["key_fact"], "value": r["value_fact"], "category": r["category"]} for r in rows]
+
+
+def _note_memories_accessed(keys: list) -> None:
+    """Mark facts as accessed — shields them from Ebbinghaus decay (Phase 2.2)."""
+    if not keys:
+        return
+    try:
+        with _db_lock, _db() as conn:
+            conn.execute(
+                "UPDATE memories SET last_accessed = CURRENT_TIMESTAMP, "
+                f"access_count = access_count + 1 WHERE key_fact IN ({','.join('?' * len(keys))})",
+                keys)
+            conn.commit()
+    except sqlite3.OperationalError:
+        pass  # consolidation columns not migrated on this database yet
 
 
 def get_memory_context_string() -> str:
     memories = get_all_memories()
-    if not memories:
-        return "No prior user preferences saved yet."
-    lines = ["Permanent facts about Prem:"]
+    lines = ["Permanent facts about Prem:"] if memories else []
     for m in memories:
         lines.append(f"- [{m['category']}] {m['key']}: {m['value']}")
+    # Phase 2.2: consolidated knowledge (deduped, confidence-ranked) + access
+    # tracking. Guarded — the consolidator may not be imported on this boot.
+    try:
+        _note_memories_accessed([m["key"] for m in memories])
+        from services import memory_consolidator as mc
+        facts = mc.get_brain_facts()
+        if facts:
+            lines.append("Consolidated knowledge (auto-learned):")
+            for f in facts:
+                lines.append(f"- [{f['kind']}] {f['content']}")
+    except Exception:
+        pass
+    if not lines:
+        return "No prior user preferences saved yet."
     return "\n".join(lines)
 
 
@@ -245,9 +279,14 @@ HIGH_VALUE_ACTIONS = {
     "job_search",
 }
 
-def log_user_action(action_type: str):
-    """Log a high-value action by current hour and day of week."""
-    if action_type not in HIGH_VALUE_ACTIONS:
+def log_user_action(action_type: str, force: bool = False):
+    """Log a high-value action by current hour and day of week.
+
+    force=True bypasses the HIGH_VALUE_ACTIONS allowlist — used by engines
+    (e.g. Autonomy & Trust) where an accepted suggestion IS explicit
+    execution evidence for any action name, not just the curated set.
+    """
+    if not force and action_type not in HIGH_VALUE_ACTIONS:
         return
     now = datetime.now()
     with _db_lock:
@@ -260,6 +299,20 @@ def log_user_action(action_type: str):
                 last_executed = CURRENT_TIMESTAMP
             """, (action_type, now.hour, now.weekday()))
             conn.commit()
+
+
+def get_action_frequency(action_type: str) -> int:
+    """Total tracked executions of an action across all time slots — N(a).
+
+    Public accessor so other engines (e.g. the Phase 2.1 Autonomy & Trust
+    Engine) can read habit counts through this module's own connection
+    instead of reaching into friday_brain.db tables directly.
+    """
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(frequency), 0) AS n FROM user_action_habits WHERE action_type = ?",
+            (action_type,)).fetchone()
+    return int(row["n"] or 0)
 
 
 def get_proactive_habit_suggestion() -> dict | None:
@@ -329,14 +382,18 @@ def detect_and_log_correction(user_text: str, last_action_context: dict) -> bool
     if not query or not target:
         return False
 
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO user_corrections (query_pattern, rejected_target, penalty_weight)
-        VALUES (?, ?, -40.0)
-        ON CONFLICT(query_pattern, rejected_target) DO UPDATE SET
-            penalty_weight = MIN(penalty_weight - 10.0, -80.0)
-        """, (query, target))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            # Escalate the soft penalty by -10 per repeat correction, floored at -80.
+            # NOTE: must be MAX() here — penalties are negative, so MIN() would jump
+            # straight to the -80 floor on the second correction (bug, fixed).
+            conn.execute("""
+            INSERT INTO user_corrections (query_pattern, rejected_target, penalty_weight)
+            VALUES (?, ?, -40.0)
+            ON CONFLICT(query_pattern, rejected_target) DO UPDATE SET
+                penalty_weight = MAX(penalty_weight - 10.0, -80.0)
+            """, (query, target))
+            conn.commit()
 
     print(f"[FRIDAY Brain] 📝 Correction logged: '{query}' → reject '{target}'")
     return True
@@ -389,13 +446,14 @@ BREVITY_INSTRUCTIONS = {
 
 def save_job_profile(field: str, value: str):
     """Save or update Prem's career profile field (e.g. primary_role, skills)."""
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO job_profile (field, value, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(field) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-        """, (field.strip().lower(), value.strip()))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            INSERT INTO job_profile (field, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(field) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+            """, (field.strip().lower(), value.strip()))
+            conn.commit()
     print(f"[FRIDAY Brain] 💼 Job profile updated: {field} = {value}")
 
 
@@ -408,20 +466,21 @@ def get_job_profile() -> dict:
 
 def save_resume_section(section: str, content: str):
     """Save or update a resume section (summary, skills, experience, education, projects)."""
-    with _db() as conn:
-        existing = conn.execute(
-            "SELECT id FROM resume_data WHERE section = ?", (section,)
-        ).fetchone()
-        if existing:
-            conn.execute(
-                "UPDATE resume_data SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE section = ?",
-                (content, section)
-            )
-        else:
-            conn.execute(
-                "INSERT INTO resume_data (section, content) VALUES (?, ?)", (section, content)
-            )
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            existing = conn.execute(
+                "SELECT id FROM resume_data WHERE section = ?", (section,)
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    "UPDATE resume_data SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE section = ?",
+                    (content, section)
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO resume_data (section, content) VALUES (?, ?)", (section, content)
+                )
+            conn.commit()
     print(f"[FRIDAY Brain] 📄 Resume section saved: {section}")
 
 
@@ -439,12 +498,13 @@ def get_resume_context() -> str:
 
 def save_found_job(portal: str, title: str, company: str, url: str = "", match_score: float = 0.0):
     """Record a job FRIDAY found during a search."""
-    with _db() as conn:
-        conn.execute("""
-        INSERT INTO job_applications (portal, job_title, company, job_url, match_score)
-        VALUES (?, ?, ?, ?, ?)
-        """, (portal, title, company, url, match_score))
-        conn.commit()
+    with _db_lock:
+        with _db() as conn:
+            conn.execute("""
+            INSERT INTO job_applications (portal, job_title, company, job_url, match_score)
+            VALUES (?, ?, ?, ?, ?)
+            """, (portal, title, company, url, match_score))
+            conn.commit()
     print(f"[FRIDAY Brain] 🔍 Job found: {title} @ {company} ({portal}) — Match: {match_score:.0f}%")
 
 

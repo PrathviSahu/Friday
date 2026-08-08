@@ -79,6 +79,20 @@ def save_memory_endpoint(req: SaveMemoryRequest):
     return {"status": "ok", "memories": get_all_memories()}
 
 
+@router.post("/memory/consolidate", dependencies=[Depends(require_boss)])
+def consolidate_memory_endpoint():
+    """Phase 2.2 — manually trigger one consolidation pass (owner only)."""
+    from services import memory_consolidator
+    return memory_consolidator.run()
+
+
+@router.get("/memory/digest", dependencies=[Depends(require_boss)])
+def memory_digest_endpoint():
+    """Phase 2.2 — consolidated knowledge digest + pruned count."""
+    from services import memory_consolidator
+    return {"status": "ok", **memory_consolidator.get_digest()}
+
+
 @router.post("/speech/correct", dependencies=[Depends(require_boss)])
 def record_speech_correction(req: SpeechCorrectionRequest):
     """Record a user speech correction permanently in personal vocabulary memory."""
