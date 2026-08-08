@@ -47,7 +47,7 @@
 | **Docker for Windows** | `docker compose up` — Friday runs on any OS; macOS automation auto-disabled; no Python setup for family/friends |
 | **Lock-screen declutter** | Widget capsules hidden behind an "ALL WIDGETS" toggle — Spotify stays visible |
 | **43 function tools** | Email/Calendar/Meetings/WhatsApp/Documents/Company/Coding agents all registered in the Tool Router |
-| **177 API endpoints** | 7 new route modules (email, calendar, meetings, whatsapp, documents, company, coding) + Phase 2.1 autonomy routes |
+| **179 API endpoints** | 7 new route modules (email, calendar, meetings, whatsapp, documents, company, coding) + Phase 2 autonomy & memory routes |
 | **Data-integrity locks** | Todos, reminders & Spotify cache now thread-locked — no silent data loss |
 
 ---

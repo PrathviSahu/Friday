@@ -157,17 +157,51 @@ def save_fact(key: str, value: str, category: str = "preference"):
 
 def get_all_memories() -> list:
     with _db() as conn:
-        rows = conn.execute("SELECT key_fact, value_fact, category FROM memories").fetchall()
+        try:
+            # Phase 2.2 shape: pruned (archived) facts are excluded, highest
+            # confidence first. Columns exist once memory_consolidator migrates.
+            rows = conn.execute(
+                "SELECT key_fact, value_fact, category FROM memories "
+                "WHERE archived = 0 ORDER BY confidence DESC").fetchall()
+        except sqlite3.OperationalError:
+            rows = conn.execute("SELECT key_fact, value_fact, category FROM memories").fetchall()
         return [{"key": r["key_fact"], "value": r["value_fact"], "category": r["category"]} for r in rows]
+
+
+def _note_memories_accessed(keys: list) -> None:
+    """Mark facts as accessed — shields them from Ebbinghaus decay (Phase 2.2)."""
+    if not keys:
+        return
+    try:
+        with _db_lock, _db() as conn:
+            conn.execute(
+                "UPDATE memories SET last_accessed = CURRENT_TIMESTAMP, "
+                f"access_count = access_count + 1 WHERE key_fact IN ({','.join('?' * len(keys))})",
+                keys)
+            conn.commit()
+    except sqlite3.OperationalError:
+        pass  # consolidation columns not migrated on this database yet
 
 
 def get_memory_context_string() -> str:
     memories = get_all_memories()
-    if not memories:
-        return "No prior user preferences saved yet."
-    lines = ["Permanent facts about Prem:"]
+    lines = ["Permanent facts about Prem:"] if memories else []
     for m in memories:
         lines.append(f"- [{m['category']}] {m['key']}: {m['value']}")
+    # Phase 2.2: consolidated knowledge (deduped, confidence-ranked) + access
+    # tracking. Guarded — the consolidator may not be imported on this boot.
+    try:
+        _note_memories_accessed([m["key"] for m in memories])
+        from services import memory_consolidator as mc
+        facts = mc.get_brain_facts()
+        if facts:
+            lines.append("Consolidated knowledge (auto-learned):")
+            for f in facts:
+                lines.append(f"- [{f['kind']}] {f['content']}")
+    except Exception:
+        pass
+    if not lines:
+        return "No prior user preferences saved yet."
     return "\n".join(lines)
 
 

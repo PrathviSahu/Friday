@@ -190,6 +190,11 @@ def run_action(action: str, params: dict = None) -> str:
         from services.learning import check_streak
         return check_streak()
 
+    if action == "consolidate_memory":
+        # Phase 2.2 — nightly memory distillation (cron 03:30 local).
+        from services.memory_consolidator import run as consolidate_run
+        return consolidate_run()["report"]
+
     return f"Unknown action: {action}"
 
 
