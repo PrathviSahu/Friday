@@ -1,6 +1,6 @@
 # ⚡ F.R.I.D.A.Y. — Complete Capability Reference
 
-**Version:** v4.0 · **API surface:** 173 endpoints · **Function tools:** 41 · **HUD panels:** 14 · **Permissions:** 24
+**Version:** v4.0 · **API surface:** 177 endpoints · **Function tools:** 43 · **HUD panels:** 15 · **Permissions:** 24
 **Stack:** React 19 + Vite frontend · FastAPI backend · SQLite (WAL) + JSON (thread-locked) · Groq/Gemini LLM · Gemini embeddings · Groq Whisper STT · Edge-TTS · Vitest (frontend tests)
 
 > This document is the definitive, machine-accurate list of everything F.R.I.D.A.Y.
@@ -579,4 +579,4 @@ Learning Coach streaks, goal progress, job applications, meetings
 
 ---
 
-*Generated from the live codebase — v4.0. All 173 endpoints, 43 tools, and 14 panels verified present in the running application.*
+*Generated from the live codebase — v4.0. All 177 endpoints, 43 tools, and 15 panels verified present in the running application.*

@@ -71,11 +71,18 @@ def test_correction_skipped_without_context():
 
 def test_proactive_suggestion_after_repeated_habit():
     """S_habit = min(1, freq/5) >= 0.70 requires freq >= 4 (with freq >= 3 gate)."""
-    with le._db() as conn:  # isolate from other tests sharing the session DB
-        conn.execute("DELETE FROM user_action_habits WHERE action_type = 'weather'")
+    # Isolate the current time slot: the suggestion picks the single highest-
+    # frequency habit for this hour/day, so clear the whole slot (session DB
+    # is shared across test files — autonomy tests seed other habits here).
+    from datetime import datetime as _dt
+    _now = _dt.now()
+    with le._db() as conn:
+        conn.execute(
+            "DELETE FROM user_action_habits WHERE hour_of_day = ? AND day_of_week = ?",
+            (_now.hour, _now.weekday()))
         conn.commit()
 
-    assert le.get_proactive_habit_suggestion() is None or True  # baseline may vary
+    assert le.get_proactive_habit_suggestion() is None  # empty slot → nothing
 
     for _ in range(3):
         le.log_user_action("weather")

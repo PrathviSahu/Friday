@@ -245,9 +245,14 @@ HIGH_VALUE_ACTIONS = {
     "job_search",
 }
 
-def log_user_action(action_type: str):
-    """Log a high-value action by current hour and day of week."""
-    if action_type not in HIGH_VALUE_ACTIONS:
+def log_user_action(action_type: str, force: bool = False):
+    """Log a high-value action by current hour and day of week.
+
+    force=True bypasses the HIGH_VALUE_ACTIONS allowlist — used by engines
+    (e.g. Autonomy & Trust) where an accepted suggestion IS explicit
+    execution evidence for any action name, not just the curated set.
+    """
+    if not force and action_type not in HIGH_VALUE_ACTIONS:
         return
     now = datetime.now()
     with _db_lock:
@@ -260,6 +265,20 @@ def log_user_action(action_type: str):
                 last_executed = CURRENT_TIMESTAMP
             """, (action_type, now.hour, now.weekday()))
             conn.commit()
+
+
+def get_action_frequency(action_type: str) -> int:
+    """Total tracked executions of an action across all time slots — N(a).
+
+    Public accessor so other engines (e.g. the Phase 2.1 Autonomy & Trust
+    Engine) can read habit counts through this module's own connection
+    instead of reaching into friday_brain.db tables directly.
+    """
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(frequency), 0) AS n FROM user_action_habits WHERE action_type = ?",
+            (action_type,)).fetchone()
+    return int(row["n"] or 0)
 
 
 def get_proactive_habit_suggestion() -> dict | None:

@@ -16,6 +16,7 @@ import MeetingsCard from './MeetingsCard';
 import WhatsAppCard from './WhatsAppCard';
 import DocumentsCard from './DocumentsCard';
 import CodingCard from './CodingCard';
+import AutonomyCard from './AutonomyCard';
 
 export const CAPSULES_CATALOG = [
   { id: 'todo',         label: 'Task Manager',         icon: '✅', category: 'Productivity',  component: TodoCard },
@@ -33,6 +34,7 @@ export const CAPSULES_CATALOG = [
   { id: 'coding',       label: 'Coding Assistant',     icon: '💻', category: 'AI Tools',      component: CodingCard },
   { id: 'permissions',  label: 'Permission Center',    icon: '🛡️', category: 'Security',      component: PermissionCenterCard },
   { id: 'notifications',label: 'Notification Center',  icon: '🔔', category: 'System',        component: NotificationCenterCard },
+  { id: 'autonomy',     label: 'Autonomy & Trust',     icon: '🤖', category: 'System',        component: AutonomyCard },
 ];
 
 export default function SlidingDashboard({ isOpen, onClose }) {

@@ -9,6 +9,11 @@
 > **Design thesis** — Phase 1 → v4 taught FRIDAY to *respond* and *suggest*: 43 tools, an agentic loop, semantic memory, and scheduled automations. Phase 2 teaches her to **anticipate and act safely**: graduate proven habits from "Shall I…?" to silent execution under an explicit trust model, consolidate raw memory into durable knowledge, sense the user's situation before speaking, chain tools into user-defined voice macros, and keep every autonomous action approval-first on any device.
 
 > [!IMPORTANT]
+> **Implementation status (August 2026)**:
+> - ✅ **Phase 2.1 — Autonomy & Trust Engine**: **BUILT & TESTED** — `services/autonomy_engine.py` (trust math `T = (A+1)/(A+R+2)·e^(−0.10·Δt)`, tier hysteresis 0.85/0.82, budget 4/h/class, quiet hours 22:00–07:00, 300s undo window, `action_trust` + `autonomy_journal` tables), routes `routes/autonomy.py` (`/api/autonomy/{status,journal,undo,revoke}`), HUD **Autonomy & Trust** panel (`friday-ui/.../AutonomyCard.jsx`), and 34 tests in `tests/test_autonomy.py`. One spec refinement shipped: `rejected` outcomes no longer clear `last_undo_at`, and failed dispatches are journaled with `outcome='failed'`.
+> - ⏳ **Phases 2.2–2.5**: not started. The Autonomy Engine already consults `context_engine` via a guarded import, so 2.3 plugs in without changes here.
+
+> [!IMPORTANT]
 > **Relationship to existing code** — nothing in Phase 2 replaces shipped modules; every new engine *plugs into* them:
 > - `learning_engine.py` (habits, corrections, pace matching) → consumed by the **Autonomy & Trust Engine** and **Memory Consolidator**.
 > - `permissions.py` (enabled / ask / disabled + one-time approvals + `permission_audit`) → the Autonomy Engine **cannot** execute a capability whose policy blocks or requires interactive approval; trust is layered *under* permissions, never over them.
@@ -308,7 +313,7 @@ CREATE TABLE IF NOT EXISTS presence_tokens (
 [Phase 2.5: Cross-Device Presence] <--- [Phase 2.4: Voice Macro Composer] <------------+
 ```
 
-1. **★ Phase 2.1 (FIRST PRIORITY)**: `autonomy_engine.py` + `action_trust` / `autonomy_journal` tables + Undo + Autonomy HUD panel. Everything else assumes trust-gated acting exists. **Acceptance**: unit tests for `decide()` tier math (incl. hysteresis and the 300s undo window) on a temp DB; journal round-trip via API.
+1. **★ Phase 2.1 (FIRST PRIORITY)**: `autonomy_engine.py` + `action_trust` / `autonomy_journal` tables + Undo + Autonomy HUD panel. Everything else assumes trust-gated acting exists. ✅ **Built** (see status note above). **Acceptance**: unit tests for `decide()` tier math (incl. hysteresis and the 300s undo window) on a temp DB; journal round-trip via API — **34/34 passing** in `tests/test_autonomy.py`.
 2. **Phase 2.2**: `memory_consolidator.py` as a nightly `automation.py` action + decay columns. **Acceptance**: seeded conversations consolidate into `memory_digest`; confidence decays per §4-B; brain context shrinks on repeat runs (idempotent).
 3. **Phase 2.3**: `context_engine.py` + `GET /api/context` + focus mode wired into brevity + proactive suppression. **Acceptance**: meeting shield suppresses suggestions during a calendar event; focus mode forces `confirm` tier.
 4. **Phase 2.4**: `macros.py` + voice creation + 0ms trigger match + Macro HUD panel. **Acceptance**: create-run-delete a 3-step macro by voice; failing step halts the chain and reports.
