@@ -55,25 +55,37 @@ def _transcribe_groq(audio_bytes: bytes, filename: str, mime_type: str) -> dict:
         raise STTUnavailableError("GROQ_API_KEY is not configured")
 
     def _call():
+        # Using prompt guides Whisper to output in Roman/Latin script (Hinglish/English)
+        # instead of translating or writing in Devanagari script.
         return client.audio.transcriptions.create(
             model=GROQ_STT_MODEL,
             file=(filename, audio_bytes),
+            prompt="F.R.I.D.A.Y., Prem, Spotify, play, pause, next, previous, song, gaana, chalao, band, volume, awaaz, badhao, kam, karo, trading, career, Hindi, English, playlist, song, please",
+            language="en",
         )
 
     try:
         transcription = _call()
     except Exception as exc:
-        # One retry on 429 (free-tier rate limit), then let Gemini take over.
-        if getattr(exc, "status_code", None) == 429:
-            import time
-            time.sleep(3)
-            transcription = _call()
-        else:
-            raise
+        # If language="en" fails on some audio, try with auto-detect with Roman prompt
+        try:
+            transcription = client.audio.transcriptions.create(
+                model=GROQ_STT_MODEL,
+                file=(filename, audio_bytes),
+                prompt="F.R.I.D.A.Y., Prem, Spotify, play, pause, next, previous, song, gaana chalao, volume, awaaz badhao",
+            )
+        except Exception:
+            # One retry on 429 (free-tier rate limit), then let Gemini take over.
+            if getattr(exc, "status_code", None) == 429:
+                import time
+                time.sleep(3)
+                transcription = _call()
+            else:
+                raise
 
     return {
         "transcript": (getattr(transcription, "text", "") or "").strip(),
-        "language": getattr(transcription, "language", None) or "auto",
+        "language": getattr(transcription, "language", None) or "en",
         "source": "groq",
     }
 
@@ -89,8 +101,9 @@ def _transcribe_gemini(audio_bytes: bytes, filename: str, mime_type: str) -> dic
         response = client.models.generate_content(
             model=GEMINI_STT_MODEL,
             contents=[
-                "Transcribe the speech in this audio exactly as spoken. "
-                "Preserve the original language (including Hinglish). "
+                "Transcribe the speech in this audio exactly as spoken in standard English/Latin alphabet. "
+                "Do NOT use Devanagari or Hindi script. If Hindi/Hinglish words are spoken (like 'gaana chalao' or 'awaaz kam'), "
+                "transcribe them phonetically in English/Latin letters (e.g., 'gaana chalao', 'play punjabi song'). "
                 "Reply with the transcript only — no quotes, no commentary.",
                 types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             ],
@@ -107,7 +120,7 @@ def _transcribe_gemini(audio_bytes: bytes, filename: str, mime_type: str) -> dic
 
     return {
         "transcript": text.strip(),
-        "language": "auto",
+        "language": "en",
         "source": "gemini",
     }
 

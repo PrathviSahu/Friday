@@ -717,26 +717,26 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             result = execute_system_command("play_hindi_playlist", "", volume_percent=extracted_vol)
             reply_msg = result or "Playing your Hindi playlist, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "play_hindi_playlist"}
+            return {"reply": reply_msg, "action": "play_hindi_playlist", "silence_tts": True}
 
         if re.search(r'\b(?:english|english playlist|angrezi)\b.*\b(?:playlist|songs|music)\b|\b(?:playlist|songs|music)\b.*\b(?:english|angrezi)\b', lower_text):
             result = execute_system_command("play_english_playlist", "", volume_percent=extracted_vol)
             reply_msg = result or "Playing your English playlist, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "play_english_playlist"}
+            return {"reply": reply_msg, "action": "play_english_playlist", "silence_tts": True}
 
         if re.search(r'\b(?:krishna|radha|radha krishna|radhe krishna|bhajan|devotional)\b', lower_text):
             result = execute_system_command("play_krishna_playlist", "", volume_percent=extracted_vol)
             reply_msg = result or "Playing your Krishna playlist, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "play_krishna_playlist"}
+            return {"reply": reply_msg, "action": "play_krishna_playlist", "silence_tts": True}
 
         # 4.6. SHUFFLE SHORTCUT (e.g. "shuffle", "play on shuffle", "turn on shuffle", "play it on shuffel")
         if re.search(r'\b(?:shuffle|shuffel)\b', lower_text):
             execute_system_command("shuffle", "")
             reply_msg = "Enabling Spotify shuffle mode, Prem."
             log_conversation(role="assistant", message=reply_msg)
-            return {"reply": reply_msg, "action": "shuffle"}
+            return {"reply": reply_msg, "action": "shuffle", "silence_tts": True}
 
         # 5. PHONETIC SONG SHORTCUT
         if any(kw in lower_text for kw in ["tempo city", "help away", "temper city", "temple city"]):
@@ -748,7 +748,7 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             log_conversation(role="assistant", message=msg)
             _last_action_context.update({"query": lower_text, "target": target_song})
             log_user_action("play_music")
-            return {"reply": msg, "action": "play_specific"}
+            return {"reply": msg, "action": "play_specific", "silence_tts": True}
 
         # 6. EXPLICIT "PLAY [SONG]" SHORTCUT
         # FIX: Thoroughly sanitize query by removing wake words ("friday"), fillers ("please"), and trailing qualifiers
@@ -758,11 +758,10 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
             cleaned_song = _clean_song_query(raw_song)
             if cleaned_song and cleaned_song.lower() not in ["music", "the music", "some music", "my music", "spotify", "playlist", "hindi", "english", "volume", "sound", "it", "this", "next", "next song", "next track", "previous", "previous song", "previous track"]:
                 execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
-                msg = "Ok." if not extracted_vol >= 0 else f"Ok. volume {extracted_vol}%."
-                log_conversation(role="assistant", message=msg)
+                log_conversation(role="assistant", message="ok")
                 _last_action_context.update({"query": lower_text, "target": cleaned_song})
                 log_user_action("play_music")
-                return {"reply": msg, "action": "play_specific"}
+                return {"reply": "", "action": "play_specific", "silence_tts": True}
 
     # Build dynamic prompt (Boss gets full permanent memory context; permitted guests get basic context)
     if is_boss:
@@ -930,9 +929,8 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
         fallback_song = re.sub(r'\s*on spotify\s*$', '', fallback_play_match.group(1)).strip()
         if fallback_song and fallback_song not in ["music", "spotify", "playlist", "it", "this"]:
             execute_system_command("play_specific", fallback_song, volume_percent=extracted_vol)
-            msg = f"Opening Spotify and playing '{fallback_song}', Prem."
-            log_conversation(role="assistant", message=msg)
-            return {"reply": msg, "action": "play_specific", "silence_tts": silence_tts}
+            log_conversation(role="assistant", message="ok")
+            return {"reply": "", "action": "play_specific", "silence_tts": True}
 
     fallback_reply = f"At your service, Prem. I heard: '{text}'. How can I assist you?"
     log_conversation(role="assistant", message=fallback_reply)

@@ -7,8 +7,10 @@ export function useFitScale() {
 
     useEffect(() => {
         const calc = () => {
-            const s = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
-            setScale(Math.max(0.55, Math.min(1.15, s)));
+            const wScale = window.innerWidth / 1280;
+            const hScale = window.innerHeight / 850;
+            const s = Math.min(wScale, hScale);
+            setScale(Math.max(0.5, Math.min(1.0, s)));
         };
         calc();
         window.addEventListener('resize', calc);

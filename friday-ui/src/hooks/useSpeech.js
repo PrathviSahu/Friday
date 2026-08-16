@@ -17,7 +17,7 @@ const withTimeout = (promise, ms) =>
 // so random noise / partial echoes never interrupt her.
 const COMMAND_LIKE = /\b(?:hey|ok|okay|suno|aye)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday)\b|\b(?:open|close|play|pause|next|previous|volume|mute|time|date|today|what|who|when|where|why|how|set|search|lock|unlock|trading|dashboard|career|weather|todo|song|music|gaana|chalu|band|kya|kaun|konsa|stop|quiet|hush|wait)\b/i;
 
-export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, mode = 'always', onCommand, onConversation }) {
+export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = true, mode = 'always', onCommand, onConversation, onStateChange }) {
   // Support both prop name variants: locked (LockScreen) and isLocked (legacy)
   const _locked = locked ?? isLocked ?? false;
   const activeRef         = useRef(false);  // true while a mic/recognizer is live
@@ -28,6 +28,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   const workspaceRef      = useRef(workspace);
   const onCommandRef      = useRef(onCommand);
   const onConvRef         = useRef(onConversation);
+  const onStateChangeRef  = useRef(onStateChange);
   const lastTranscriptRef = useRef(null); // { text, ts } — dedup guard for double-fired transcripts
   const lastSpokenTtsRef  = useRef({ text: '', ts: 0 }); // stores FRIDAY's own spoken text to prevent self-echo loops
   const speechGenRef      = useRef(0); // increments per TTS reply — stale replies can't clear the current speaking state
@@ -57,6 +58,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
   useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
   useEffect(() => { onConvRef.current = onConversation; }, [onConversation]);
+  useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
   useEffect(() => { listeningModeRef.current = mode; }, [mode]);
 
   // When enabled flips OFF → abort recognizer + whisper resources immediately.
@@ -127,8 +129,9 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     };
 
     const scheduleRestart = (ms) => {
-      if (cancelled || restartTimer || !enabledRef.current) return;
+      if (cancelled || !enabledRef.current) return;
       if (listeningModeRef.current === 'ptt') return; // PTT never auto-restarts
+      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
       restartTimer = setTimeout(() => {
         restartTimer = null;
         if (!cancelled && enabledRef.current) startAfterIdle();
@@ -268,6 +271,9 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           if (gen === speechGenRef.current) {
             speakingRef.current = false;
             setTtsDucking(false);
+            if (!cancelled && enabledRef.current) {
+              startAfterIdle();
+            }
           }
         });
     };
@@ -334,7 +340,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         speakingRef.current = false;
       } finally {
         processingRef.current = false;
-        if (!cancelled && enabledRef.current && !activeRef.current) {
+        if (!cancelled && enabledRef.current) {
           startAfterIdle();
         }
       }
@@ -347,6 +353,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     const startAfterIdle = () => {
       if (cancelled || !enabledRef.current || micBlockedRef.current) return;
       if (listeningModeRef.current === 'ptt') return; // PTT: mic opens only while held
+      activeRef.current = false;
       if (modeRef.current === 'whisper') startWhisper();
       else start();
     };
@@ -369,12 +376,13 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       rec = new SpeechRec();
       rec.continuous     = true;
       rec.interimResults = true; // interim for responsiveness; finals drive commands
-      rec.lang           = 'en-US';
+      rec.lang           = 'en-IN';
 
       rec.onstart = () => {
         console.log('[Voice] Microphone actively Listening...');
         activeRef.current = true;
         noSpeechStreak = 0;
+        onStateChangeRef.current?.('LISTENING');
       };
 
       rec.onerror = (e) => {
@@ -481,7 +489,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       const sessionRec = new SpeechRec();
       sessionRec.continuous     = false; // one utterance per hold
       sessionRec.interimResults = true;
-      sessionRec.lang           = 'en-US';
+      sessionRec.lang           = 'en-IN';
 
       sessionRec.onstart = () => { activeRef.current = true; };
 

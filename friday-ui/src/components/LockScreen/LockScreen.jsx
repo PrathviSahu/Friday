@@ -59,6 +59,9 @@ export default function LockScreen() {
     }) => {
         if (reply) {
             setResponseMessage?.(reply);
+            setTimeout(() => {
+                setResponseMessage?.((curr) => (curr === reply ? '' : curr));
+            }, 4500);
         }
         if (action === 'email_confirm' && email_draft_id) {
             // Approval-first email flow: show the preview, wait for explicit confirm.
@@ -343,6 +346,7 @@ export default function LockScreen() {
         mode: pttMode ? 'ptt' : 'always',
         onCommand: handleLocalCommand,
         onConversation: handleConversation,
+        onStateChange: (state) => orb.transitionTo?.(state),
     });
 
     return (
@@ -350,10 +354,10 @@ export default function LockScreen() {
             <Background />
 
             <div
-                className="absolute inset-0 px-10 py-6 flex flex-col justify-between"
-                style={{ zIndex: 20, pointerEvents: 'none', transform: `scale(${scale})`, transformOrigin: 'center center' }}
+                className="absolute inset-0 px-8 py-4 flex flex-col justify-between items-center"
+                style={{ zIndex: 20, pointerEvents: 'none', transform: `scale(${scale})`, transformOrigin: 'top center' }}
             >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between w-full">
                     <div className="font-orbitron text-[8px] tracking-[0.45em] text-[#00B7FF]/45 uppercase flex items-center gap-3">
                         <span className="inline-block w-6 h-px bg-[#00B7FF]/40" />
                         STARK INDUSTRIES
@@ -364,7 +368,7 @@ export default function LockScreen() {
                     </div>
                 </div>
 
-                <div className="relative flex flex-col items-center" style={{ transform: 'translateY(-140px)' }}>
+                <div className="relative flex flex-col items-center mt-1" style={{ transform: 'translateY(-20px)' }}>
                     <motion.div
                         className="text-center"
                         initial={{ opacity: 0, y: -16 }}
@@ -500,7 +504,7 @@ export default function LockScreen() {
                 </div>
 
                 {locked ? (
-                    <div className="relative flex items-center justify-between w-full max-w-[1220px] mx-auto mt-14" style={{ pointerEvents: 'auto' }}>
+                    <div className="relative flex items-center justify-between w-full max-w-[1280px] mx-auto mt-2" style={{ pointerEvents: 'auto' }}>
                         <motion.div
                             initial={{ opacity: 0, x: -28 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -525,11 +529,11 @@ export default function LockScreen() {
                         </motion.div>
                     </div>
                 ) : (
-                    <div className="mt-14" />
+                    <div className="mt-2" />
                 )}
 
                 <motion.div
-                    className="flex justify-center pb-6"
+                    className="flex justify-center pb-2"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5, duration: 0.9 }}
@@ -539,7 +543,7 @@ export default function LockScreen() {
                 </motion.div>
             </div>
 
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 10 }}>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 10, transform: `scale(${scale})`, transformOrigin: 'top center' }}>
                 <HudOrb size={340} />
             </div>
 

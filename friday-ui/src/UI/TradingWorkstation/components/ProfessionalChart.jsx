@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export default function ProfessionalChart({ symbol = 'FX:EURUSD', interval = '5' }) {
     const containerRef = useRef(null);
-    const widgetRef = useRef(null);
+    const widgetRef    = useRef(null);
+    const [error, setError] = useState(false);
 
-    // Map internal symbol names to TradingView symbols if needed
     const getTvSymbol = (sym) => {
         if (!sym) return 'FX:EURUSD';
         if (sym === 'EURUSD') return 'FX:EURUSD';
@@ -17,9 +17,6 @@ export default function ProfessionalChart({ symbol = 'FX:EURUSD', interval = '5'
         return sym;
     };
 
-    const tvSymbol = getTvSymbol(symbol);
-
-    // Format interval for TradingView widget: '1', '5', '15', '30', '60', '240', 'D', 'W'
     const getTvInterval = (intv) => {
         if (!intv) return '5';
         if (intv === '1h' || intv === '60') return '60';
@@ -29,42 +26,58 @@ export default function ProfessionalChart({ symbol = 'FX:EURUSD', interval = '5'
         return intv;
     };
 
+    const tvSymbol   = getTvSymbol(symbol);
     const tvInterval = getTvInterval(interval);
 
     useEffect(() => {
-        const containerId = `tradingview_widget_${Math.random().toString(36).substring(2, 9)}`;
+        setError(false);
+        if (!containerRef.current) return;
 
-        if (containerRef.current) {
-            containerRef.current.innerHTML = `<div id="${containerId}" style="width: 100%; height: 100%;" />`;
+        // Unique container ID per mount to prevent stale DOM conflicts
+        const uid = `tv_${Math.random().toString(36).slice(2, 9)}`;
+
+        // Destroy previous widget instance
+        if (widgetRef.current) {
+            try { widgetRef.current.remove?.(); } catch (_) {}
+            widgetRef.current = null;
         }
+        containerRef.current.innerHTML = `<div id="${uid}" style="width:100%;height:100%;"></div>`;
 
         const initWidget = () => {
-            if (!window.TradingView || !document.getElementById(containerId)) return;
-
+            const el = document.getElementById(uid);
+            if (!el || !window.TradingView) return;
             try {
                 widgetRef.current = new window.TradingView.widget({
-                    autosize: true,
-                    symbol: tvSymbol,
-                    interval: tvInterval,
-                    timezone: 'Asia/Kolkata',
-                    theme: 'dark',
-                    style: '1',
-                    locale: 'en',
-                    toolbar_bg: '#131722',
-                    enable_publishing: false,
-                    hide_side_toolbar: false, // 🛠️ Full Left Drawing Toolbar (Trendlines, Fibs, Position Tools, Ruler, Brush)
+                    autosize:            true,
+                    symbol:              tvSymbol,
+                    interval:            tvInterval,
+                    timezone:            'Asia/Kolkata',
+                    theme:               'dark',
+                    style:               '1',
+                    locale:              'en',
+                    toolbar_bg:          '#131722',
+                    enable_publishing:   false,
                     allow_symbol_change: true,
-                    details: false,
-                    hotlist: false,
-                    calendar: false,
-                    show_popup_button: true,
-                    popup_width: '1000',
-                    popup_height: '650',
-                    container_id: containerId,
-                    backgroundColor: '#131722',
-                    gridColor: 'rgba(42, 46, 57, 0.5)',
+                    container_id:        uid,
+                    backgroundColor:     '#131722',
+                    gridColor:           'rgba(42, 46, 57, 0.5)',
+
+                    // Disable features that try to access `.list` internals in the
+                    // embedded widget context and trigger the TypeError crash
                     disabled_features: [
-                        'widget_bar' // Disables inner details sidebar to prevent TypeError
+                        'widget_bar',
+                        'timeframes_toolbar',
+                        'go_to_date',
+                        'display_market_status',
+                        'header_saveload',
+                        'header_screenshot',
+                        'header_fullscreen_button',
+                        'popup_hints',
+                        'pane_context_menu',
+                        'show_chart_property_page',
+                        'items_favoriting',
+                        'border_around_the_chart',
+                        'chart_events',
                     ],
                     enabled_features: [
                         'header_widget',
@@ -77,42 +90,64 @@ export default function ProfessionalChart({ symbol = 'FX:EURUSD', interval = '5'
                         'study_templates',
                         'use_localstorage_for_settings',
                         'side_toolbar_in_fullscreen_mode',
-                        'items_favoriting'
                     ],
                     overrides: {
-                        "mainSeriesProperties.candleStyle.upColor": "#089981",
-                        "mainSeriesProperties.candleStyle.downColor": "#f23645",
-                        "mainSeriesProperties.candleStyle.drawWick": true,
-                        "mainSeriesProperties.candleStyle.drawBorder": true,
-                        "mainSeriesProperties.candleStyle.borderColor": "#089981",
-                        "mainSeriesProperties.candleStyle.borderUpColor": "#089981",
-                        "mainSeriesProperties.candleStyle.borderDownColor": "#f23645",
-                        "mainSeriesProperties.candleStyle.wickUpColor": "#089981",
-                        "mainSeriesProperties.candleStyle.wickDownColor": "#f23645",
-                        "paneProperties.background": "#131722",
-                        "paneProperties.vertGridProperties.color": "#1e222d",
-                        "paneProperties.horzGridProperties.color": "#1e222d",
+                        'mainSeriesProperties.candleStyle.upColor':         '#089981',
+                        'mainSeriesProperties.candleStyle.downColor':       '#f23645',
+                        'mainSeriesProperties.candleStyle.drawWick':        true,
+                        'mainSeriesProperties.candleStyle.drawBorder':      true,
+                        'mainSeriesProperties.candleStyle.borderUpColor':   '#089981',
+                        'mainSeriesProperties.candleStyle.borderDownColor': '#f23645',
+                        'mainSeriesProperties.candleStyle.wickUpColor':     '#089981',
+                        'mainSeriesProperties.candleStyle.wickDownColor':   '#f23645',
+                        'paneProperties.background':                        '#131722',
+                        'paneProperties.vertGridProperties.color':          '#1e222d',
+                        'paneProperties.horzGridProperties.color':          '#1e222d',
                     }
                 });
-            } catch (_) {}
+            } catch (err) {
+                console.warn('[ProfessionalChart] TradingView widget init error:', err);
+                setError(true);
+            }
         };
 
+        let cleanup = () => {};
+
         if (window.TradingView) {
-            initWidget();
+            const t = setTimeout(initWidget, 80);
+            cleanup = () => clearTimeout(t);
         } else {
-            const existingScript = document.getElementById('tradingview-tv-script');
-            if (existingScript) {
-                existingScript.addEventListener('load', initWidget);
+            const existing = document.getElementById('tradingview-tv-script');
+            if (existing) {
+                existing.addEventListener('load', initWidget);
+                cleanup = () => existing.removeEventListener('load', initWidget);
             } else {
                 const script = document.createElement('script');
-                script.id = 'tradingview-tv-script';
-                script.src = 'https://s3.tradingview.com/tv.js';
+                script.id    = 'tradingview-tv-script';
+                script.src   = 'https://s3.tradingview.com/tv.js';
                 script.async = true;
                 script.onload = initWidget;
                 document.head.appendChild(script);
             }
         }
+
+        return () => {
+            cleanup();
+            if (widgetRef.current) {
+                try { widgetRef.current.remove?.(); } catch (_) {}
+                widgetRef.current = null;
+            }
+            if (containerRef.current) containerRef.current.innerHTML = '';
+        };
     }, [tvSymbol, tvInterval]);
+
+    if (error) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[#131722] text-[#00B7FF] font-orbitron text-sm tracking-widest">
+                CHART UNAVAILABLE — RELOAD TO RETRY
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full relative bg-[#131722] overflow-hidden">

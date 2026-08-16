@@ -223,7 +223,7 @@ export function OrbProvider({ children }) {
             transitionTo('SPEAKING');
         },
         onEnd: () => {
-            transitionTo('IDLE');
+            transitionTo(micEnabled ? 'LISTENING' : 'IDLE');
             setResponseMessage('');
         },
         onError: (e) => {

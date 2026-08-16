@@ -736,16 +736,38 @@ def _control_spotify_web(command: str, query: str = "", volume_percent: int = -1
 
 
 def play_spotify_uri(uri: str) -> bool:
-    """Loads and plays a Spotify URI directly via AppleScript or Web API without UI keystrokes."""
+    """Loads and plays a Spotify URI directly without bringing Spotify to front."""
     if not uri:
         return False
     try:
-        if IS_MAC and is_spotify_running():
-            _execute_applescript_silent(f'tell application "Spotify" to play track "{uri}"')
-            print(f"[Spotify Direct Play] ✅ Direct URI playback triggered: {uri}")
+        if IS_MAC:
+            if not is_spotify_running():
+                wait_until_spotify_running()
+                time.sleep(1.5)
+
+            # Use `open location` to load the URI without activating/focusing Spotify window.
+            # Then immediately send `play` to ensure playback starts.
+            script = f'''
+            tell application "System Events"
+                set activeProc to name of first application process whose frontmost is true
+            end tell
+            tell application "Spotify"
+                open location "{uri}"
+                delay 0.4
+                play
+            end tell
+            tell application "System Events"
+                try
+                    set visible of process "Spotify" to false
+                    set frontmost of process activeProc to true
+                end try
+            end tell
+            '''
+            result = subprocess.run(["osascript", "-e", script], timeout=8, capture_output=True)
+            print(f"[Spotify Direct Play] ✅ URI playback triggered (no focus): {uri}")
             return True
 
-        # Fallback to Spotify Web API Player
+        # Fallback to Spotify Web API Player (non-Mac)
         token = _get_spotify_access_token()
         if token:
             url = "https://api.spotify.com/v1/me/player/play"
@@ -762,10 +784,6 @@ def play_spotify_uri(uri: str) -> bool:
                 if resp.status in (200, 204):
                     print(f"[Spotify Direct Play Web] ✅ Web URI playback triggered: {uri}")
                     return True
-
-        if IS_MAC:
-            subprocess.run(["osascript", "-e", f'tell application "Spotify" to play track "{uri}"'], timeout=5, capture_output=True)
-            return True
         return False
     except Exception as err:
         print(f"[Spotify Direct Play] URI play error: {err}")
@@ -863,23 +881,15 @@ def search_and_play_spotify(song_query: str) -> bool:
             _execute_applescript_silent(f'tell application "Spotify" to open location "{cand_uri}"')
             time.sleep(0.5)
             _execute_applescript_silent('tell application "Spotify" to play')
-            play_ok = True
+            return True
         else:
             play_ok = play_spotify_uri(cand_uri)
-
-        if play_ok:
-            time.sleep(1.0)
-            if verify_spotify_playback(expected_title=cand_title, expected_artist=cand_artist):
-                print(f"[Verification Loop] ✅ Verified candidate #{idx + 1} matches requested song!")
+            if play_ok:
                 with _spotify_cache_lock:
                     cache = _load_spotify_cache()
                     cache[norm_q] = cand_uri
                     _save_spotify_cache(cache)
                 return True
-            else:
-                print(f"[Verification Loop] ❌ Candidate #{idx + 1} failed verification — stopping playback and trying candidate #{idx + 2}...")
-                _execute_applescript_silent('tell application "Spotify" to pause')
-                time.sleep(0.5)
 
     print(f"[Spotify] ❌ All candidate verifications failed for '{song_query}'")
     return False
