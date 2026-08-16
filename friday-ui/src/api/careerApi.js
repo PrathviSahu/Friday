@@ -141,8 +141,24 @@ export const getJobs = (params = {}) => {
   return cached(key, () => api('GET', `/jobs?${qs.toString()}`));
 };
 
-export const fetchLinkedinJobs = (query = 'Java Software Engineer', location = 'India', expLevel = 'fresher') =>
-  api('POST', `/jobs/fetch-linkedin?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&exp_level=${encodeURIComponent(expLevel)}`);
+export const fetchLinkedinJobs = (query = 'Java Software Engineer', location = 'India', expLevel = 'fresher', timeFilter = 'week', purgeFirst = false) => {
+  invalidate('jobs_', 'dashboard');
+  const qs = new URLSearchParams({
+    query,
+    location,
+    exp_level: expLevel,
+    time_filter: timeFilter,
+    purge_first: String(purgeFirst)
+  });
+  return api('POST', `/jobs/fetch-linkedin?${qs.toString()}`);
+};
+
+export const purgeOldJobs = async (source = null) => {
+  const qs = source ? `?source=${encodeURIComponent(source)}` : '';
+  const result = await api('DELETE', `/jobs/purge${qs}`);
+  invalidate('jobs_', 'dashboard');
+  return result;
+};
 
 export const getJob = (id) => api('GET', `/jobs/${id}`);
 

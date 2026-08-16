@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Zap, ExternalLink, X, RotateCw } from 'lucide-react';
-import { getJobs, addJob, updateJobStatus, analyzeJob, createApplication, fetchLinkedinJobs } from '../../../api/careerApi.js';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Zap, ExternalLink, X, RotateCw, Trash2, Clock } from 'lucide-react';
+import { getJobs, addJob, updateJobStatus, analyzeJob, createApplication, fetchLinkedinJobs, purgeOldJobs } from '../../../api/careerApi.js';
 import JobCard from '../components/JobCard.jsx';
 import MatchScoreRing from '../components/MatchScoreRing.jsx';
 import SkillTag from '../components/SkillTag.jsx';
@@ -29,18 +29,38 @@ const LOCATION_OPTIONS = [
   { id: 'Worldwide',    label: '🌍 Global Remote' },
 ];
 
+const TIME_OPTIONS = [
+  { id: '24h',   label: '⚡ Past 24h' },
+  { id: 'week',  label: '📅 Past Week' },
+  { id: 'month', label: '📆 Past Month' },
+  { id: 'any',   label: '🌐 Any Time' },
+];
+
+const REFRESH_OPTIONS = [
+  { id: 'manual', label: 'Manual' },
+  { id: '15m',    label: 'Every 15m' },
+  { id: '1h',     label: 'Every 1h' },
+  { id: '6h',     label: 'Every 6h' },
+  { id: '24h',    label: 'Every 24h' },
+];
+
 export default function Opportunities() {
   const [jobs, setJobs]             = useState([]);
   const [loading, setLoading]       = useState(true);
   const [selected, setSelected]     = useState(null);
   const [source, setSource]         = useState('All');
   const [statusFilter, setStatus]   = useState('All');
-  const [expLevel, setExpLevel]     = useState('fresher');
-  const [locationPref, setLocationPref] = useState('India');
+  const [expLevel, setExpLevel]     = useState(() => localStorage.getItem('friday_career_exp') || 'fresher');
+  const [locationPref, setLocationPref] = useState(() => localStorage.getItem('friday_career_loc') || 'India');
+  const [timeFilter, setTimeFilter] = useState(() => localStorage.getItem('friday_career_time') || 'week');
+  const [roleQuery, setRoleQuery]   = useState(() => localStorage.getItem('friday_career_role') || 'Java Software Engineer');
+  const [refreshInterval, setRefreshInterval] = useState(() => localStorage.getItem('friday_career_refresh_int') || '1h');
+  const [lastSynced, setLastSynced] = useState(() => localStorage.getItem('friday_career_last_sync') ? Number(localStorage.getItem('friday_career_last_sync')) : Date.now());
   const [search, setSearch]         = useState('');
   const [minScore, setMinScore]     = useState(0);
   const [analyzing, setAnalyzing]   = useState(false);
   const [fetchingLinkedin, setFetchingLinkedin] = useState(false);
+  const [purging, setPurging]       = useState(false);
   const [showAddJob, setShowAddJob] = useState(false);
   const [newJob, setNewJob]         = useState({ title: '', company: '', description: '', source: 'manual', location: '', url: '' });
 
@@ -57,15 +77,51 @@ export default function Opportunities() {
 
   useEffect(loadJobs, [source, statusFilter, minScore]);
 
-  const handleFetchLinkedin = async (overrideExp = expLevel, overrideLoc = locationPref) => {
+  // ── Auto-Refresh Timer ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (refreshInterval === 'manual') return;
+    const msMap = { '15m': 15 * 60 * 1000, '1h': 60 * 60 * 1000, '6h': 6 * 60 * 60 * 1000, '24h': 24 * 60 * 60 * 1000 };
+    const intervalMs = msMap[refreshInterval] || 60 * 60 * 1000;
+
+    const timer = setInterval(() => {
+      console.log('[Opportunities] Auto-refreshing jobs...');
+      handleFetchLinkedin(expLevel, locationPref, timeFilter, roleQuery, false);
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [refreshInterval, expLevel, locationPref, timeFilter, roleQuery]);
+
+  const handleFetchLinkedin = async (
+    overrideExp = expLevel,
+    overrideLoc = locationPref,
+    overrideTime = timeFilter,
+    overrideRole = roleQuery,
+    purgeFirst = false
+  ) => {
     setFetchingLinkedin(true);
     try {
-      await fetchLinkedinJobs('Java Software Engineer', overrideLoc, overrideExp);
+      await fetchLinkedinJobs(overrideRole, overrideLoc, overrideExp, overrideTime, purgeFirst);
+      const now = Date.now();
+      setLastSynced(now);
+      localStorage.setItem('friday_career_last_sync', String(now));
       loadJobs();
     } catch (err) {
       console.error("Fetch LinkedIn jobs error:", err);
     } finally {
       setFetchingLinkedin(false);
+    }
+  };
+
+  const handlePurgeStale = async () => {
+    if (!window.confirm("Purge old/unbookmarked jobs to get a completely fresh batch? (Bookmarked and Applied jobs will be preserved)")) return;
+    setPurging(true);
+    try {
+      await purgeOldJobs('linkedin');
+      await handleFetchLinkedin(expLevel, locationPref, timeFilter, roleQuery, true);
+    } catch (err) {
+      console.error("Purge error:", err);
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -121,64 +177,84 @@ export default function Opportunities() {
   const selectedJob = selected ? jobs.find(j => j.id === selected?.id) || selected : null;
   const matchData   = selectedJob?.match || {};
 
+  const minutesAgo = Math.max(0, Math.floor((Date.now() - lastSynced) / 60000));
+  const syncLabel = minutesAgo === 0 ? 'Just now' : `${minutesAgo}m ago`;
+
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
       {/* ── Left Panel: Job List ───────────────────────────────────────────── */}
-      <div style={{ width: 360, borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      <div style={{ width: 380, borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         {/* Toolbar */}
-        <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: '14px 14px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
               <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search opportunities…" style={inputStyle({ paddingLeft: 32 })} />
+                placeholder="Filter by title / company…" style={inputStyle({ paddingLeft: 32, fontSize: 12 })} />
             </div>
-            <button onClick={() => loadJobs()} title="Refresh Opportunities list" style={{ ...btnPrimary, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '6px 9px' }}>
+            <button onClick={() => loadJobs()} title="Refresh list" style={{ ...btnPrimary, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '6px 8px' }}>
               <RotateCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
-            <button onClick={() => handleFetchLinkedin()} disabled={fetchingLinkedin} style={{ ...btnPrimary, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', padding: '6px 10px' }}>
-              <Zap size={13} style={{ animation: fetchingLinkedin ? 'spin 1s linear infinite' : 'none' }} /> {fetchingLinkedin ? 'Fetching…' : 'LinkedIn'}
+            <button
+              onClick={() => handleFetchLinkedin()}
+              disabled={fetchingLinkedin || purging}
+              title={`Fetch fresh ${timeFilter} jobs from LinkedIn`}
+              style={{ ...btnPrimary, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', padding: '6px 9px', fontSize: 12 }}
+            >
+              <Zap size={13} style={{ animation: fetchingLinkedin ? 'spin 1s linear infinite' : 'none' }} /> {fetchingLinkedin ? 'Syncing…' : 'Sync Live'}
             </button>
-            <button onClick={() => setShowAddJob(true)} style={{ ...btnPrimary, padding: '6px 10px' }}>
-              <Plus size={14} /> Add
+            <button
+              onClick={handlePurgeStale}
+              disabled={purging || fetchingLinkedin}
+              title="Purge old/unbookmarked jobs & re-fetch fresh"
+              style={{ ...btnPrimary, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', padding: '6px 8px' }}
+            >
+              <Trash2 size={13} style={{ animation: purging ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+            <button onClick={() => setShowAddJob(true)} style={{ ...btnPrimary, padding: '6px 8px', fontSize: 12 }}>
+              <Plus size={13} />
             </button>
           </div>
+
+          {/* Search Role Query Input */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: '#64748b', width: 32, flexShrink: 0 }}>Role:</span>
+            <input
+              value={roleQuery}
+              onChange={e => {
+                setRoleQuery(e.target.value);
+                localStorage.setItem('friday_career_role', e.target.value);
+              }}
+              onKeyDown={e => e.key === 'Enter' && handleFetchLinkedin()}
+              placeholder="Target Role (e.g. Java Engineer)"
+              style={inputStyle({ flex: 1, padding: '4px 8px', fontSize: 11, color: '#38bdf8' })}
+            />
+          </div>
+
           {/* Source tabs */}
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2 }}>
             {SOURCES.map(s => (
               <button key={s} onClick={() => setSource(s)} style={{
-                padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+                padding: '3px 8px', borderRadius: 5, border: 'none', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap',
                 background: source === s ? 'rgba(99,102,241,0.15)' : 'transparent',
                 color: source === s ? '#818cf8' : '#475569', fontWeight: source === s ? 600 : 400,
               }}>{s}</button>
             ))}
           </div>
-          {/* Status filter tabs */}
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4 }}>
-            {STATUSES.map(s => (
-              <button key={s} onClick={() => setStatus(s)} style={{
-                padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', textTransform: 'capitalize',
-                background: statusFilter === s ? 'rgba(99,102,241,0.12)' : 'transparent',
-                color: statusFilter === s ? '#a5b4fc' : '#334155', fontWeight: statusFilter === s ? 600 : 400,
-              }}>{s}</button>
-            ))}
-          </div>
-          {/* Experience, Location & Score filter */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+
+          {/* Filters Grid: Exp, Loc, Time, Auto-Refresh */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#475569', width: 28 }}>Exp:</span>
+              <span style={{ fontSize: 11, color: '#64748b', width: 32, flexShrink: 0 }}>Exp:</span>
               <select
                 value={expLevel}
                 onChange={e => {
                   const val = e.target.value;
                   setExpLevel(val);
-                  handleFetchLinkedin(val, locationPref);
+                  localStorage.setItem('friday_career_exp', val);
+                  handleFetchLinkedin(val, locationPref, timeFilter, roleQuery);
                 }}
-                style={{
-                  flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#818cf8', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                  outline: 'none', cursor: 'pointer'
-                }}
+                style={selectStyle('#818cf8')}
               >
                 {EXP_OPTIONS.map(opt => (
                   <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
@@ -186,21 +262,17 @@ export default function Opportunities() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#475569', width: 28 }}>Loc:</span>
+
+              <span style={{ fontSize: 11, color: '#64748b', width: 28, flexShrink: 0 }}>Loc:</span>
               <select
                 value={locationPref}
                 onChange={e => {
                   const val = e.target.value;
                   setLocationPref(val);
-                  handleFetchLinkedin(expLevel, val);
+                  localStorage.setItem('friday_career_loc', val);
+                  handleFetchLinkedin(expLevel, val, timeFilter, roleQuery);
                 }}
-                style={{
-                  flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#34d399', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
-                  outline: 'none', cursor: 'pointer'
-                }}
+                style={selectStyle('#34d399')}
               >
                 {LOCATION_OPTIONS.map(opt => (
                   <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
@@ -208,8 +280,54 @@ export default function Opportunities() {
                   </option>
                 ))}
               </select>
-              <span style={{ fontSize: 11, color: '#475569', marginLeft: 2, whiteSpace: 'nowrap' }}>Min: {minScore}%</span>
-              <input type="range" min={0} max={90} step={10} value={minScore} onChange={e => setMinScore(+e.target.value)} style={{ width: 45, accentColor: '#6366f1' }} />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: '#64748b', width: 32, flexShrink: 0 }}>Date:</span>
+              <select
+                value={timeFilter}
+                onChange={e => {
+                  const val = e.target.value;
+                  setTimeFilter(val);
+                  localStorage.setItem('friday_career_time', val);
+                  handleFetchLinkedin(expLevel, locationPref, val, roleQuery);
+                }}
+                style={selectStyle('#fbbf24')}
+              >
+                {TIME_OPTIONS.map(opt => (
+                  <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              <span style={{ fontSize: 11, color: '#64748b', width: 28, flexShrink: 0 }}>Auto:</span>
+              <select
+                value={refreshInterval}
+                onChange={e => {
+                  const val = e.target.value;
+                  setRefreshInterval(val);
+                  localStorage.setItem('friday_career_refresh_int', val);
+                }}
+                style={selectStyle('#a78bfa')}
+              >
+                {REFRESH_OPTIONS.map(opt => (
+                  <option key={opt.id} value={opt.id} style={{ background: '#0f172a', color: '#f1f5f9' }}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sync Timestamp & Min Score */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, fontSize: 10, color: '#64748b' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Clock size={10} style={{ color: '#4ade80' }} /> Synced {syncLabel}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span>Min Match: {minScore}%</span>
+                <input type="range" min={0} max={90} step={10} value={minScore} onChange={e => setMinScore(+e.target.value)} style={{ width: 40, accentColor: '#6366f1' }} />
+              </div>
             </div>
           </div>
         </div>
@@ -219,8 +337,8 @@ export default function Opportunities() {
           {loading ? <Skeleton count={8} /> : filtered.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: '#475569', fontSize: 13 }}>
               No opportunities found.<br />
-              <button onClick={() => setShowAddJob(true)} style={{ ...btnPrimary, marginTop: 12 }}>
-                <Plus size={13} /> Add manually
+              <button onClick={() => handleFetchLinkedin()} style={{ ...btnPrimary, marginTop: 12, background: '#22c55e', color: '#000' }}>
+                <Zap size={13} /> Fetch Live from LinkedIn
               </button>
             </div>
           ) : filtered.map(job => (
@@ -493,3 +611,17 @@ const iconBtn = {
   width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
   background: 'rgba(255,255,255,0.04)',
 };
+
+const selectStyle = (color = '#818cf8') => ({
+  flex: 1,
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color,
+  fontSize: 11,
+  fontWeight: 600,
+  padding: '3px 6px',
+  borderRadius: 6,
+  outline: 'none',
+  cursor: 'pointer',
+});
+

@@ -428,6 +428,54 @@ def create_job(data: dict) -> int:
     return job_id
 
 
+def upsert_scraped_job(data: dict) -> tuple[int, bool]:
+    """Inserts a new job or updates an existing one if the URL or title+company matches.
+    Returns (job_id, is_new).
+    """
+    title = data.get("title", "").strip()
+    company = data.get("company", "").strip()
+    url = data.get("url", "").strip()
+
+    with _db() as conn:
+        existing = None
+        if url:
+            existing = conn.execute("SELECT id FROM career_jobs WHERE url = ?", (url,)).fetchone()
+        if not existing and title and company:
+            existing = conn.execute("SELECT id FROM career_jobs WHERE LOWER(title) = LOWER(?) AND LOWER(company) = LOWER(?)", (title, company)).fetchone()
+
+        if existing:
+            job_id = existing["id"]
+            # Update freshness & metadata
+            conn.execute("""
+                UPDATE career_jobs 
+                SET found_at = CURRENT_TIMESTAMP,
+                    location = COALESCE(NULLIF(?, ''), location),
+                    url = COALESCE(NULLIF(?, ''), url),
+                    experience_required = COALESCE(NULLIF(?, ''), experience_required)
+                WHERE id = ?
+            """, (data.get("location", ""), url, data.get("experience_required", ""), job_id))
+            conn.commit()
+            return job_id, False
+
+    new_id = create_job(data)
+    return new_id, True
+
+
+def purge_old_jobs(source: Optional[str] = None, exclude_statuses: tuple = ('bookmarked', 'approved', 'applied')) -> int:
+    """Removes non-bookmarked/non-applied jobs to give user a fresh slate."""
+    with _db() as conn:
+        query = "DELETE FROM career_jobs WHERE status NOT IN (?,?,?)"
+        params = list(exclude_statuses)
+        if source and source != "all":
+            query += " AND source = ?"
+            params.append(source.lower())
+        cur = conn.execute(query, params)
+        conn.commit()
+        deleted = cur.rowcount
+    log_activity("jobs_purged", f"Purged {deleted} old/unbookmarked job opportunities")
+    return deleted
+
+
 def update_job(job_id: int, updates: dict) -> bool:
     allowed = {"status", "match_json", "match_score", "analyzed_at",
                "salary_min", "salary_max", "visa_sponsorship", "deadline"}

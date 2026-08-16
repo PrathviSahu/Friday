@@ -18,7 +18,7 @@ from services.career_db import (
     get_profile, update_profile_bulk,
     get_all_resumes, get_resume, create_resume, update_resume,
     duplicate_resume, set_recommended_resume,
-    get_jobs, get_job, create_job, update_job,
+    get_jobs, get_job, create_job, update_job, purge_old_jobs,
     get_applications, create_application, update_application,
     save_cover_letter, get_cover_letters,
     get_recruiters, create_recruiter, update_recruiter,
@@ -490,15 +490,29 @@ def add_job(req: JobCreate):
 async def fetch_linkedin_jobs(
     query: Optional[str] = "Java Software Engineer",
     location: Optional[str] = "India",
-    exp_level: Optional[str] = "fresher"
+    exp_level: Optional[str] = "fresher",
+    time_filter: Optional[str] = "week",
+    purge_first: Optional[bool] = False
 ):
-    """Fetches and AI-analyzes 100% real live LinkedIn developer jobs with dynamic experience level filtering."""
+    """Fetches and AI-analyzes 100% real live, fresh LinkedIn developer jobs sorted by date."""
     try:
-        live_jobs = await fetch_live_linkedin_jobs(query, location, exp_level)
+        if purge_first:
+            purge_old_jobs(source="linkedin")
+        live_jobs = await fetch_live_linkedin_jobs(query, location, exp_level, time_filter=time_filter or "week")
         return {"status": "ok", "count": len(live_jobs), "jobs": live_jobs}
     except Exception as e:
         print("[LinkedIn Fetch Error]:", e)
         return {"status": "error", "message": str(e), "jobs": []}
+
+
+@router.delete("/jobs/purge")
+def purge_jobs_endpoint(source: Optional[str] = None):
+    """Purges unbookmarked/unapplied jobs to refresh opportunities list."""
+    try:
+        deleted = purge_old_jobs(source=source)
+        return {"status": "ok", "deleted": deleted}
+    except Exception as e:
+        raise HTTPException(500, f"Purge failed: {e}")
 
 
 @router.put("/jobs/{job_id}")

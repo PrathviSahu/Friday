@@ -46,24 +46,46 @@ EXP_CONFIG = {
     }
 }
 
-async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", location: str = "India", exp_level: str = "fresher"):
+TIME_FILTER_MAP = {
+    "24h": "r86400",     # Past 24 hours
+    "week": "r604800",   # Past week (7 days)
+    "month": "r2592000", # Past month (30 days)
+    "any": ""
+}
+
+async def fetch_live_linkedin_jobs(
+    query: str = "Java Software Engineer",
+    location: str = "India",
+    exp_level: str = "fresher",
+    time_filter: str = "week"
+):
     """
-    Scrapes 100% REAL live job postings from LinkedIn filtered dynamically by experience level
-    ('fresher', 'junior', 'mid', 'senior', 'any').
+    Scrapes 100% REAL live, recent job postings from LinkedIn filtered dynamically by:
+    - Experience level ('fresher', 'junior', 'mid', 'senior', 'any')
+    - Time posted ('24h', 'week', 'month', 'any') -> defaults to fresh jobs from past week
+    - Strictly sorted by most recent date posted (sortBy=DD)
     """
+    from services.career_db import upsert_scraped_job
     try:
         upsert_preference("experience_level", exp_level, "user")
+        if query:
+            upsert_preference("preferred_roles", [query], "user")
     except Exception:
         pass
 
     cfg = EXP_CONFIG.get(exp_level, EXP_CONFIG["fresher"])
     
-    clean_query = query
+    clean_query = query.strip() if query else "Software Engineer"
     encoded_query = urllib.parse.quote(clean_query)
     encoded_loc = urllib.parse.quote(location)
     
-    f_E_param = f"&f_E={cfg['f_E']}" if cfg['f_E'] else ""
-    target_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_query}&location={encoded_loc}{f_E_param}"
+    f_E_param = f"&f_E={cfg['f_E']}" if cfg.get('f_E') else ""
+    tpr_val = TIME_FILTER_MAP.get(time_filter, "r604800")
+    f_TPR_param = f"&f_TPR={tpr_val}" if tpr_val else ""
+    
+    # sortBy=DD forces LinkedIn to sort strictly by most recent date posted rather than stale algorithm relevance
+    target_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_query}&location={encoded_loc}{f_E_param}{f_TPR_param}&sortBy=DD"
+    print(f"[LinkedIn Scraper] Querying: {target_url}")
 
     cookies = []
     try:
@@ -92,7 +114,7 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         page = await context.new_page()
         try:
             await page.goto(target_url, timeout=30000)
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(3500)
 
             exclude_list = cfg["exclude"]
             raw_cards = await page.evaluate('''(excludeList) => {
@@ -104,14 +126,15 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
                     const company = c.querySelector('h4, .base-card__subtitle, .job-search-card__subtitle')?.innerText?.trim() || '';
                     const loc = c.querySelector('.job-search-card__location')?.innerText?.trim() || '';
                     const link = c.querySelector('a')?.href || '';
-                    const key = title + '||' + company;
+                    const timeText = c.querySelector('time, .job-search-card__listdate, .job-search-card__listdate--new')?.innerText?.trim() || '';
+                    const key = title.toLowerCase() + '||' + company.toLowerCase();
 
                     const titleLower = title.toLowerCase();
                     const isExcluded = excludeList.some(term => titleLower.includes(term));
 
                     if (title && company && !seen.has(key) && !isExcluded) {
                         seen.add(key);
-                        results.push({ title, company, location: loc, url: link });
+                        results.push({ title, company, location: loc, url: link, posted: timeText });
                     }
                 }
                 return results;
@@ -131,25 +154,27 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
             pass
 
     ingested = []
-    for raw in extracted_jobs[:10]:
+    for raw in extracted_jobs[:15]:
+        desc = f"Fresh LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']})."
+        if raw.get("posted"):
+            desc += f" Posted: {raw['posted']}."
+        desc += f" Matched from a {cfg['label']} search."
+
         job_data = {
             "title": raw["title"],
             "company": raw["company"],
-            "description": f"Live LinkedIn listing for {raw['title']} at {raw['company']} ({raw['location']}). Matched from a {cfg['label']} search.",
+            "description": desc,
             "source": "linkedin",
             "url": raw["url"],
             "location": raw["location"],
-            # Only title/company/location/URL are scraped — salary, visa and
-            # deadline are NOT present on the listing card, so keep them
-            # explicitly unset instead of inventing values.
             "remote_type": "unknown",
             "salary_raw": "",
             "experience_required": cfg["label"],
             "visa_sponsorship": 0,
-            "deadline": ""
+            "deadline": raw.get("posted", "")
         }
         
-        jid = create_job(job_data)
+        jid, is_new = upsert_scraped_job(job_data)
         analysis = analyze_job_match(job_data, resume_content, {})
         score = analysis.get("overall_score", 90)
         
@@ -161,7 +186,8 @@ async def fetch_live_linkedin_jobs(query: str = "Java Software Engineer", locati
         job_data["id"] = jid
         job_data["match_score"] = score
         job_data["match"] = analysis
+        job_data["is_new"] = is_new
         ingested.append(job_data)
 
-    log_activity("linkedin_sync", f"Scraped {len(ingested)} real jobs from LinkedIn for '{query}' [{cfg['label']}]")
+    log_activity("linkedin_sync", f"Scraped {len(ingested)} fresh jobs from LinkedIn for '{query}' [{cfg['label']}] (Time filter: {time_filter})")
     return ingested
