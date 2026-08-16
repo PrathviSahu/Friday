@@ -80,16 +80,28 @@ FRIDAY is built for **Prem** (Prathvi Sahu) as a voice-first personal operating 
 |                                                                       |
 |  Services Layer:                                                       |
 |  ├── brain_v2.py + function_engine.py  (v4 agentic brain, 41 tools)  |
-|  ├── brain.py                   (legacy regex brain — final fallback) |
+|  ├── brain/                     (Modular Brain Package with Plugins)  |
+|  │   ├── engine.py              (Cognitive Decision Orchestrator)     |
+|  │   ├── prompt_builder.py      (Dynamic System Prompt & Context)     |
+|  │   ├── clients.py             (Groq & Gemini Singletons)            |
+|  │   ├── constants.py           (System Prompts & Action Registry)    |
+|  │   └── handlers/              (Fast-Path Handlers, <15ms response)  |
+|  │       ├── security_handler.py    (Permissions, Guest Delegation)   |
+|  │       ├── navigation_handler.py  (Career, Trading, Dashboard)      |
+|  │       ├── agents_handler.py      (Meetings, WhatsApp, Email, Docs) |
+|  │       ├── hardware_handler.py    (Brightness, Dark Mode, Lock)     |
+|  │       ├── utilities_handler.py   (Weather, Reminders, Tasks, Time) |
+|  │       └── media_handler.py       (Spotify Playback, Vol, Aliases)  |
 |  ├── embeddings.py              (Gemini RAG over facts/notes/meetings)|
 |  ├── metrics.py                 (LLM/STT/TTS/tool latency ring buffer)|
 |  ├── email_agent / calendar_agent / meeting_agent / whatsapp_agent   |
 |  ├── document_agent / coding_agent / company_intelligence             |
 |  ├── stt.py                     (Groq Whisper large-v3-turbo + Gemini)|
+|  ├── job_scraper.py             (LinkedIn Scraper with Date Filters)  |
 |  ├── technical_analysis.py      (real TA from live OHLCV)             |
 |  ├── telegram_bot.py            (remote phone interface)              |
 |  ├── learning_engine.py         (habits, corrections, RAG memory)     |
-|  ├── career_db.py               (career tables, encrypted vault)      |
+|  ├── career_db.py               (career tables, upsert & purge, vault)|
 |  ├── chart_data.py              (shared OHLCV fetch + symbol search)  |
 |  ├── market_data.py / indian_market_data.py (lifespan-managed pollers)|
 |  ├── system_control.py          (macOS AppleScript + Spotify, locked) |

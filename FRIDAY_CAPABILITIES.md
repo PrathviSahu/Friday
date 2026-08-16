@@ -17,9 +17,9 @@ remembers you over time.
 
 | Layer | What it does | Where |
 |---|---|---|
-| **AI Core** | Conversation, intent routing, tool calling, memory | `brain.py`, `brain_v2.py`, `function_engine.py` |
-| **Voice** | Wake word, STT (browser + Groq Whisper free tier fallback), neural TTS, audio queue | `useSpeech.js`, `services/stt.py`, `tts.py` |
-| **Career OS** | Resumes, jobs, applications, interviews, recruiters | `routers/career.py` (42 endpoints) |
+| **AI Core** | Conversation, intent routing, tool calling, modular handler plugins, memory | `services/brain/`, `brain_v2.py`, `function_engine.py` |
+| **Voice** | Wake word, STT (browser + Groq Whisper free tier fallback, Romanized script lock), neural TTS, audio queue | `useSpeech.js`, `services/stt.py`, `tts.py` |
+| **Career OS** | Resumes, jobs, live LinkedIn scraper with date filtering & auto-refresh, applications, interviews, recruiters | `routers/career.py` (42 endpoints), `services/job_scraper.py` |
 | **Developer OS** | Trading workstation, technical analysis, devtools | `routes/trading.py`, `routes/devtools.py` |
 | **Knowledge OS** | Second brain, memory timeline, life memory, goals | `routes/knowledge.py`, `services/*` |
 | **Personal OS** | Tasks, reminders, weather, briefing, automations, notifications | `routes/*` |

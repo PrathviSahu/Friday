@@ -50,6 +50,17 @@
 | **193 API endpoints** | 7 new route modules (email, calendar, meetings, whatsapp, documents, company, coding) + Phase 2 autonomy, memory & context routes |
 | **Data-integrity locks** | Todos, reminders & Spotify cache now thread-locked — no silent data loss |
 
+## 🆕 What's New in v4.5 (Latest)
+
+| Feature | Description |
+|---|---|
+| **Modular Brain Package (`services/brain/`)** | Decomposed the 940-line monolithic brain into structured plugins (`constants.py`, `clients.py`, `prompt_builder.py`, `engine.py`) and fast-path handlers (`security`, `navigation`, `agents`, `hardware`, `utilities`, `media`) with `<15ms` execution and 100% backward compatibility |
+| **LinkedIn Job Scraper Freshness & Schedulers** | Added date filters (`Past 24h` / `Past Week` via `&f_TPR`), `&sortBy=DD` to force strictly fresh job postings, dynamic target role query input, configurable auto-refresh interval (`15m`, `1h`, `6h`, `24h`), sync countdown badge, and stale job purge (`purge_old_jobs`) |
+| **Deduplicated Job Storage (`upsert_scraped_job`)** | Smart in-place job record updating prevents stale duplicate listings while maintaining match scores and user application states |
+| **Silent Spotify Control & Zero Focus Stealing** | Voice commands for Spotify now execute silently (`silence_tts: True`) without speaking over music; AppleScript uses `open location` and restores the frontmost active application so Spotify never steals window focus |
+| **Voice STT Script & Language Pinning** | Speech-to-Text strictly pinned to English/Romanized Latin script (`language="en"` and `en-IN` dialect) with custom Groq Whisper vocabulary prompting to eliminate unwanted Devanagari Hindi text output |
+| **TradingView Widget Stabilization** | Fixed `TypeError: Cannot read properties of undefined (reading 'list')` in `ProfessionalChart.jsx` and eliminated duplicate keys in `Watchlist.jsx` |
+
 ---
 
 ## 📖 Overview
