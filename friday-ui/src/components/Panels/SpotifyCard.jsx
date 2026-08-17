@@ -281,6 +281,15 @@ export default function SpotifyCard() {
         );
     }
 
+    const openSpotifyApp = () => {
+        const q = songQuery.trim() || (spotifyTrack.title ? `${spotifyTrack.title} ${spotifyTrack.artist}` : '');
+        if (q) {
+            window.open(`https://open.spotify.com/search/${encodeURIComponent(q)}`, '_blank');
+        } else {
+            window.open('https://open.spotify.com', '_blank');
+        }
+    };
+
     return (
         <AnimatePresence>
             <motion.div
@@ -314,8 +323,6 @@ export default function SpotifyCard() {
                 }}
             >
                 {/* ── Top edge & side edge drag handle strips ── */}
-
-                {/* ── Top edge & side edge drag handle strips ── */}
                 <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 8, cursor: 'grab', zIndex: 50 }} />
                 <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 8, cursor: 'grab', zIndex: 50 }} />
                 <div onPointerDown={handlePointerDownHeader} style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 8, cursor: 'grab', zIndex: 50 }} />
@@ -337,6 +344,7 @@ export default function SpotifyCard() {
                         <span style={{ fontSize: 10, fontWeight: 700, color: '#535353', letterSpacing: '0.12em' }}>SPOTIFY</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onPointerDown={(e) => e.stopPropagation()}>
+                        <IconBtn icon={ExternalLink} size={14} title="Open in Spotify App / Web" onClick={openSpotifyApp} activeColor="#1DB954" />
                         <IconBtn icon={ListPlus} size={14} title="Create New Playlist" onClick={() => setShowCreatePlaylist(s => !s)} active={showCreatePlaylist} activeColor="#1DB954" />
                         <IconBtn icon={Search} size={14} title="Search a song" onClick={() => setShowSearch(s => !s)} active={showSearch} activeColor="#1DB954" />
                         <button onClick={() => setIsVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#535353', display: 'flex' }}
