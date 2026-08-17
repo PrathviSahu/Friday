@@ -608,9 +608,22 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('[Voice] App hidden / minimized — releasing Android mic hardware.');
+        teardownBrowserRec();
+        teardownWhisper();
+      } else {
+        if (enabledRef.current && listeningModeRef.current !== 'ptt' && !lockedRef.current) {
+          startAfterIdle();
+        }
+      }
+    };
+
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('friday-ptt-toggle', handlePttToggleEvent);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // ══════════════════ ENGINE 2: WHISPER BACKEND (GROQ FREE TIER) ══════════════════
     const switchToWhisper = (reason) => {
@@ -854,6 +867,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       stopRecognizer_ptr.current = null;
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('friday-ptt-toggle', handlePttToggleEvent);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (keepAlive)    clearInterval(keepAlive);
       if (restartTimer) clearTimeout(restartTimer);
       if (bootTimer)    clearTimeout(bootTimer);

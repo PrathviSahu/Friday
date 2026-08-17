@@ -7,10 +7,17 @@ export function FridayProvider({ children }) {
   const [micEnabled, setMicEnabled] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
 
-  // Push-to-talk mode: mic only opens while Space is held (instead of
-  // always-on listening). Remembered across reloads.
+  // Push-to-talk mode: mic only opens while Space / Button is held.
+  // On mobile (Android/iOS), defaults to PTT so browser does not lock Android system audio.
   const [pttMode, setPttMode] = useState(() => {
-    try { return localStorage.getItem('friday_ptt_mode') === '1'; } catch (_) { return false; }
+    try {
+      const saved = localStorage.getItem('friday_ptt_mode');
+      if (saved !== null) return saved === '1';
+      const isMobile = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      return isMobile;
+    } catch (_) {
+      return false;
+    }
   });
   useEffect(() => {
     try { localStorage.setItem('friday_ptt_mode', pttMode ? '1' : '0'); } catch (_) {}
