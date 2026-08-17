@@ -485,14 +485,15 @@ export default function LockScreen() {
                     </div>
                 </div>
 
-                {/* Cards Section */}
+                {/* Cards Section: Left & Right Default Screen Position */}
                 {locked ? (
-                    <div className="relative flex flex-col sm:flex-row items-center justify-center w-full max-w-[760px] mx-auto my-2 px-2 sm:px-4 gap-6 sm:gap-8" style={{ pointerEvents: 'auto' }}>
+                    <div className="w-full max-w-[1440px] mx-auto my-auto px-4 sm:px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6" style={{ pointerEvents: 'auto' }}>
+                        {/* Left Card: AccessCard */}
                         <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0, x: -30 }}
+                            animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-                            className="flex justify-center shrink-0"
+                            className="flex justify-start shrink-0"
                         >
                             <AccessCard
                                 onFingerprint={handleFingerprintClick}
@@ -503,11 +504,12 @@ export default function LockScreen() {
                             />
                         </motion.div>
 
+                        {/* Right Card: StatusCard */}
                         <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0, x: 30 }}
+                            animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.25, duration: 0.6, ease: 'easeOut' }}
-                            className="hidden sm:flex justify-center shrink-0"
+                            className="hidden md:flex justify-end shrink-0"
                         >
                             <StatusCard />
                         </motion.div>
