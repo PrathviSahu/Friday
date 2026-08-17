@@ -1,56 +1,28 @@
-# ⚡ F.R.I.D.A.Y. v4.0 — Voice-Controlled AI Operating System & Communication Center
+# ⚡ F.R.I.D.A.Y. v5.0 — Voice-Controlled AI Operating System & Communication Center
 
 > **F.R.I.D.A.Y.** is a full-stack, voice-controlled AI desktop operating system inspired by Iron Man's J.A.R.V.I.S., built using **React 19**, **Vite 8**, **Python FastAPI**, **Groq (Llama 3.3 70B)**, and **Google Gemini 2.5**.
 
----
-
-## 🆕 What's New in v3.0
-
-| Feature | Description |
-|---|---|
-| **Function Calling AI Brain** | `brain_v2.py` + `function_engine.py` — the LLM picks from 18 registered tools instead of 30 fragile regex patterns |
-| **Real Technical Analysis Engine** | `technical_analysis.py` — RSI, MACD, Bollinger, ATR, Stochastic, VWAP, candlestick patterns, support/resistance from live OHLCV |
-| **Telegram Bot Interface** | `telegram_bot.py` — control FRIDAY from your phone anywhere (`/time`, `/weather`, `/tasks`, `/market`, `/analyze`, free-form chat) |
-| **Permission Center** | Persisted capability policy (`enabled` / `ask` / `disabled`) + one-time approvals + enforcement on every sensitive endpoint + HUD panel |
-| **Automation Engine** | Scheduled workflows (`briefing`, `job_scan`, `market_summary`) with a lifespan-managed runner → Notification Center |
-| **Smart Daily Briefing** | Aggregates weather, tasks, reminders, career pipeline, markets, notifications into `GET /api/briefing` |
-| **Multi-Agent Framework** | 6 specialized agents (career, coding, research, finance, communication, automation) with filtered tool sets |
-| **Learning Coach** | Practice tracking (DSA / Java / AWS / System Design / interview prep), streaks, weekly goals, gentle "haven't practiced in N days" reminders |
-| **Life Memory (graph-lite)** | Searchable (subject → relation → target) memory: "Boss loves cold brew", "don't apply below 7 LPA" |
-| **Developer Mode** | HUD panel: overview counts, memory viewer, log tail, safe config inspector, in-process API tester |
-| **Second Brain (Knowledge OS)** | Auto-categorized notes (ideas, meetings, research, code, decisions…), full-text search, per-project memory |
-| **AI Memory Timeline** | Chronological milestones — "what changed last month?", "progress this year" |
-| **Goal Manager** | Goals → tasks → progress → deadlines → skill gaps → resources, voice-trackable |
-| **Explainable AI** | Career recommendations now include "reasons" (why I suggested this) |
-| **Modular API Routes** | Monolithic `app.py` (667 lines) split into 7 focused route modules under `backend/routes/` |
-| **Lifespan-managed Background Tasks** | Market pollers, gdrive sync & audio cleanup now start/stop cleanly with the FastAPI lifespan (no import-time zombie threads) |
-| **Thread-safe SQLite** | `check_same_thread=False` + WAL + `busy_timeout` across all DB layers, `_db_lock` serializes writes |
-| **SQL Injection Fix** | `update_job_status` now fully parameterized |
-| **Startup Env Validation** | Clear warnings for every missing/stubbed API key |
+🌐 **Live Production App:** [https://friday-ui-blush.vercel.app](https://friday-ui-blush.vercel.app)  
+🚀 **Production API Server:** [https://friday-api-wy2b.onrender.com](https://friday-api-wy2b.onrender.com)
 
 ---
 
-## 🆕 What's New in v4.0
+## 🆕 What's New in v5.0 (Latest Major Release)
 
 | Feature | Description |
 |---|---|
-| **Smart Brain v4** | Conversation context (last 6 turns), **semantic memory** (Gemini embeddings RAG over facts/notes/meetings), **agentic tool loop** (up to 4 tool calls per request), `GROQ_MODEL`-configurable |
-| **Whisper STT + barge-in + PTT** | Real STT fallback chain (Web Speech → Groq Whisper `large-v3-turbo` free tier → Gemini audio); **start talking and she stops instantly**; optional **push-to-talk** (hold Space) |
-| **Email Agent** | Gmail/Outlook (IMAP+SMTP, app password): unread, summary, search, priority — **approval-first send** (preview → confirm, voice "yes"/"no") |
-| **Calendar Agent** | Google Calendar (OAuth): today/upcoming/search — **approval-first create**; Calendar section in the Daily Briefing |
-| **Meeting Assistant** | Upload a recording (Whisper) or paste a transcript → summary, decisions & **action items** → saved + pushed to Todos |
-| **WhatsApp Agent** | FRIDAY's own Playwright driver (opt-in, QR pairing) — unread chats + **approval-first send** (experimental) |
-| **Document AI** | Upload PDF/DOCX/PPTX/XLSX/TXT → ask questions, summarize, compare (Groq RAG); voice: "ask my documents about X" |
-| **Company Intelligence** | "Tell me about Goldman Sachs" → overview, hiring signals, your application history, interview checklist |
-| **Coding AI** | Paste code → review, find bugs, explain, generate tests & docs, refactor suggestions |
-| **Latency Dev Dashboard** | Real LLM/STT/TTS/tool timings + last agent/tool/action in the DevTools Latency tab |
-| **Docker for Windows** | `docker compose up` — Friday runs on any OS; macOS automation auto-disabled; no Python setup for family/friends |
-| **Lock-screen declutter** | Widget capsules hidden behind an "ALL WIDGETS" toggle — Spotify stays visible |
-| **47 function tools** | Email/Calendar/Meetings/WhatsApp/Documents/Company/Coding agents + Phase 2 context tools, all registered in the Tool Router |
-| **193 API endpoints** | 7 new route modules (email, calendar, meetings, whatsapp, documents, company, coding) + Phase 2 autonomy, memory & context routes |
-| **Data-integrity locks** | Todos, reminders & Spotify cache now thread-locked — no silent data loss |
+| **Single-Audio Mutex & Monotonic Speech Lock** | `ttsService.js` guarantees **zero overlapping AI voices**. Every utterance is assigned a monotonic sequence ID; new speech requests instantly cancel and purge in-flight audio pipelines with deterministic audio locks. |
+| **Instant Spacebar & Mobile Thumb Push-to-Talk (PTT)** | Hold **Space** on desktop or press & hold the **mic button** on mobile for continuous speech capture. Releasing immediately flushes the interim buffer with **0ms latency**, while preventing page scrolling and bypassing input forms. |
+| **Stark Industries 17-in-1 Sliding Dashboard** | Completely redesigned Stark HUD with **real-time capsule search**, category filter pills (`AI Tools`, `System`, `Productivity`, `Communication`, `Security`, `Utilities`), live armed state badges (`● ARMED`), holographic glassmorphic cards, and 1-tap workspace launching. |
+| **Complete Mobile & PWA Optimization** | Native PWA meta tags (`viewport-fit=cover`, `theme-color: #02030A`), auto-unlock audio on first touch gesture (no blocking modals), **horizontal scrollable subnav** in Career OS, and full-width TradingView candlestick charts on mobile screens. |
+| **Android Microphone Hardware Conflict Resolution** | Automatic `visibilitychange` listener tears down mic hardware streams when minimizing the browser or switching apps on Android, eliminating *"Speech recognition from Google cannot record"* system warnings. Mobile automatically defaults to Push-to-Talk. |
+| **Native Android Spotify App Deep-Linking** | Mobile search and track suggestions use direct URL navigation (`window.location.href`), allowing Android to instantly intercept the Spotify protocol and launch the **native Spotify Android app** without creating empty/blank tabs. |
+| **1-Click Recruiter Demo Access** | Direct instant bypass via `⚡ Instant Demo Access` button and quick command workspace launcher (`Career OS`, `Trading Station`, `17-in-1 Dashboard`). |
+| **Graphify Codebase Knowledge Graph** | Full AST extraction of the entire repository into 2,701 code nodes, 4,823 dependency relations, and 174 architectural communities rendered in interactive force-directed (`graph.html`) and D3 tree (`GRAPH_TREE.html`) visualizers. |
 
-## 🆕 What's New in v4.5 (Latest)
+---
+
+## 🆕 What's New in v4.5
 
 | Feature | Description |
 |---|---|

@@ -1,7 +1,7 @@
 # F.R.I.D.A.Y. Technical Architecture
 
 **Document Purpose**
-This document describes the technical architecture of the **F.R.I.D.A.Y.** personal AI desktop operating system, detailing component hierarchy, data flows, LLM orchestration, security policies, real-time market data pipelines, and the **Career Intelligence Center (Career OS)** — fully operational as of August 2026.
+This document describes the technical architecture of the **F.R.I.D.A.Y. v5.0** personal AI desktop and mobile operating system, detailing component hierarchy, data flows, LLM orchestration, single-audio mutex locking, real-time market data pipelines, and the **Career Intelligence Center (Career OS)** — fully operational as of August 2026.
 
 ---
 
@@ -13,33 +13,33 @@ FRIDAY is built for **Prem** (Prathvi Sahu) as a voice-first personal operating 
    - **Fast-Path Engine**: Groq (`llama-3.3-70b-versatile`) delivering low-latency voice responses and direct system action execution.
    - **Reasoning & Failover Engine**: Google Gemini 2.5 for complex multi-turn logic, fallback scenarios, and document analysis.
 
-2. **Strict Female Voice Engine & Audio Queue**:
+2. **Single-Audio Mutex & Monotonic Speech Generation Lock**:
+   - **Deterministic Mutex**: Monotonic `audioGenRef` sequence counter enforces that only one audio source can play at any given moment.
+   - **Instant Purge**: New incoming voice replies or barge-in triggers instantly cancel and purge in-flight audio pipelines.
    - **Primary TTS**: Microsoft Edge-TTS neural voices `en-IN-NeerjaNeural` (English) / `hi-IN-SwaraNeural` (Hindi).
    - **Browser Fallback Gating**: `ttsService.js` prefers female voices when the Edge-TTS backend is unreachable.
-   - **Audio Queue System**: Non-blocking audio queue prevents overlapping voice responses.
 
-3. **Quantum Trading Workstation**:
-   - **TradingView Lightweight Charts Engine**: High-performance canvas-rendered candlestick charts with Volume histograms.
+3. **Stark Industries 17-in-1 Sliding Dashboard**:
+   - **Holographic Glassmorphic HUD**: Real-time capsule search, category filter pills (`AI Tools`, `System`, `Productivity`, `Communication`, `Security`, `Utilities`), and live armed/active capsule telemetry.
+   - **Dedicated Workspace Navigation**: 1-tap workspace activation for Career OS, Quantum Trading Station, and DevTools.
+
+4. **Quantum Trading Workstation**:
+   - **TradingView Lightweight Charts Engine**: High-performance canvas-rendered candlestick charts with Volume histograms and full-screen responsive viewports on mobile devices.
    - **OHLCV Data Pipeline (`/api/trading/ohlcv`)**: Yahoo Finance (`yfinance`) supporting 7 resolutions (`1m`, `5m`, `15m`, `30m`, `1h`, `1D`, `1W`).
    - **Multi-Asset Watchlist & SQLite Persistence**: 5000+ instruments across NSE/BSE, Forex, Crypto, US Equities. Stored in `friday_trading_db.sqlite`.
    - **Live Polling Loop**: Intraday charts update every 30 seconds.
 
-4. **Career Intelligence Center (Career OS)** — ✅ **Fully Operational**:
+5. **Career Intelligence Center (Career OS)** — ✅ **Fully Operational**:
    - **AI Engine** (`career_intelligence.py`): Groq Llama 3.3 70B for job match scoring, cover letter generation, interview questions, skill gap analysis, daily briefing, and preference learning.
    - **Database Layer** (`career_db.py`): 10 SQLite tables in `friday_brain.db` (WAL mode).
    - **REST API** (`routers/career.py`): 42 endpoints across 31 paths at `/api/career/*`.
-   - **React Frontend**: 12 fully functional modules, lazy-loaded, no placeholder components.
+   - **React Frontend**: 12 fully functional modules, lazy-loaded, with mobile horizontal sub-navigation.
    - **Voice Integration**: `"career"` command routes to Career OS via `useOrbState.jsx`.
 
-5. **Zero-Config Spotify Automation**:
-   - Web Player token resolver bypassing OAuth for playback control, track search, volume, and seek (`/api/spotify/seek`).
-
-6. **macOS System Controller & Security Policy**:
-   - AppleScript (`osascript`) app control, volume management, and process lifecycle.
-   - Strict regex sanitization on all shell inputs.
-   - Owner authentication: loopback traffic is trusted; non-localhost callers need `FRIDAY_API_TOKEN`.
-   - Sensitive Career OS profile fields are encrypted at rest (Fernet).
-   - Restricted local CORS policy (`localhost:5173`, `127.0.0.1:5173`).
+6. **Native Android & Mobile Ecosystem**:
+   - **Push-to-Talk (PTT)**: Continuous speech capture via Spacebar hold (desktop) or Pointer Hold-to-Talk (mobile) with **0ms release latency**.
+   - **Android Hardware Release**: `visibilitychange` listener immediately shuts down microphone streams on tab blur/minimize to prevent Android audio subsystem conflicts.
+   - **Spotify Mobile Deep-Linking**: Direct URL navigation opening the native Android Spotify app with zero blank tabs.
 
 ---
 
@@ -47,7 +47,14 @@ FRIDAY is built for **Prem** (Prathvi Sahu) as a voice-first personal operating 
 
 ```
 +-----------------------------------------------------------------------+
-|                    React 19 Frontend (friday-ui :5173)                |
+|                    React 19 Frontend (friday-ui)                      |
+|                                                                       |
+|  [useSpeech PTT] --> [ttsService: Single Audio Mutex]                 |
+|        |                    |              |              |           |
+|  [LockScreen]        [Stark 17-in-1] [TradingWS]    [Career OS]       |
+|                       Dashboard       Full-screen    Horizontal       |
+|                       + HUD Stream    Mobile Charts  Subnav           |
++-----------------------------------------------------------------------+
 |                                                                       |
 |  [useSpeech STT] --> [useOrbState: workspace router]                  |
 |        |                    |              |              |            |

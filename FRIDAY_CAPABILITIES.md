@@ -1,7 +1,8 @@
 # ⚡ F.R.I.D.A.Y. — Complete Capability Reference
 
-**Version:** v4.0 · **API surface:** 193 endpoints · **Function tools:** 47 · **HUD panels:** 16 · **Permissions:** 24
-**Stack:** React 19 + Vite frontend · FastAPI backend · SQLite (WAL) + JSON (thread-locked) · Groq/Gemini LLM · Gemini embeddings · Groq Whisper STT · Edge-TTS · Vitest (frontend tests)
+**Version:** v5.0 · **API surface:** 193 endpoints · **Function tools:** 47 · **Stark HUD Capsules:** 17 · **Permissions:** 24  
+**Deployments:** Live Web Vercel (`https://friday-ui-blush.vercel.app`) · Render Backend (`https://friday-api-wy2b.onrender.com`)  
+**Stack:** React 19 + Vite 8 frontend · FastAPI backend · SQLite (WAL) + JSON (thread-locked) · Groq (Llama 3.3 70B) / Gemini 2.5 LLM · Gemini embeddings · Groq Whisper STT (`whisper-large-v3-turbo`) · Edge-TTS · Graphify (D3 AST Graph) · Vitest (frontend tests)
 
 > This document is the definitive, machine-accurate list of everything F.R.I.D.A.Y.
 > can do. Every capability below is implemented and tested — none are placeholders.
@@ -18,12 +19,13 @@ remembers you over time.
 | Layer | What it does | Where |
 |---|---|---|
 | **AI Core** | Conversation, intent routing, tool calling, modular handler plugins, memory | `services/brain/`, `brain_v2.py`, `function_engine.py` |
-| **Voice** | Wake word, STT (browser + Groq Whisper free tier fallback, Romanized script lock), neural TTS, audio queue | `useSpeech.js`, `services/stt.py`, `tts.py` |
-| **Career OS** | Resumes, jobs, live LinkedIn scraper with date filtering & auto-refresh, applications, interviews, recruiters | `routers/career.py` (42 endpoints), `services/job_scraper.py` |
-| **Developer OS** | Trading workstation, technical analysis, devtools | `routes/trading.py`, `routes/devtools.py` |
-| **Knowledge OS** | Second brain, memory timeline, life memory, goals | `routes/knowledge.py`, `services/*` |
-| **Personal OS** | Tasks, reminders, weather, briefing, automations, notifications | `routes/*` |
-| **Security** | Owner auth, permission center, encryption, audit log | `auth.py`, `permissions.py` |
+| **Voice & Audio** | Wake word, Single-Audio Mutex, STT (browser + Groq Whisper fallback, Romanized script lock), neural TTS, sub-ms Push-to-Talk (Space / Touch) | `ttsService.js`, `useSpeech.js`, `services/stt.py`, `tts.py` |
+| **Career OS** | Resumes, jobs, live LinkedIn scraper with date filtering & auto-refresh, applications, interviews, recruiters | `routers/career.py` (42 endpoints), `services/job_scraper.py`, `CareerOS.jsx` |
+| **Developer OS** | Quantum Trading workstation, technical analysis, devtools, full-screen mobile charts | `routes/trading.py`, `routes/devtools.py`, `QuantumTradingWorkstation.jsx` |
+| **Knowledge OS** | Second brain, memory timeline, life memory, goals, Graphify AST visualizer | `routes/knowledge.py`, `graphify-out/` |
+| **Stark HUD & Dashboard** | 17-in-1 holographic sliding capsule center with real-time search, category filters, live arming telemetry | `SlidingDashboard.jsx`, `HUDOverlay.jsx` |
+| **Personal OS & Mobile** | Tasks, reminders, weather, briefing, automations, native Android Spotify deep-linking, PWA meta | `routes/*`, `SpotifyCard.jsx` |
+| **Security & Access** | Owner auth, 1-Click Recruiter Instant Demo, permission center, encryption, audit log | `auth.py`, `permissions.py`, `LockScreen.jsx` |
 
 ---
 
@@ -31,13 +33,14 @@ remembers you over time.
 
 | Capability | Detail |
 |---|---|
+| Single-Audio Mutex | **Guaranteed zero double-speaking**. Every utterance is tracked via a monotonically increasing sequence ID (`audioGenRef`). Any subsequent command, interruption, or speech immediately interrupts and cleans up the previous audio buffer |
 | Wake word | "Hey Friday", "OK Friday", "Friday…" (stripped before processing) |
 | Barge-in | Start talking while F.R.I.D.A.Y. is speaking → she stops instantly and listens. Browser engine: transcript-based (her echo is blocked, your command wins). Whisper engine: TTS volume ducks + fresh voice-onset detection |
-| Push-to-talk | Optional hold-**Space** mode — mic opens only while held (barge-in stops speech instantly); toggle in the bottom bar, remembered across reloads |
+| Push-to-Talk (Desktop + Mobile) | **Desktop Spacebar hold** & **Mobile Thumb Hold-to-Talk**: mic activates only while held, interim buffer captures speech continuously, and releasing sends audio with **0ms latency**. Smart guard prevents Spacebar hijacking in text fields |
+| Android Mic Release | Automatic `visibilitychange` listener immediately shuts down microphone hardware when switching apps or minimizing Brave, freeing the Android microphone system |
 | Speech-to-text | Browser Web Speech API (instant path); auto-fallback to **Groq Whisper `whisper-large-v3-turbo`** (free tier) → Gemini `gemini-2.5-flash` audio when the browser engine is unsupported or flaky. Whisper is Hinglish-aware, so Hindi commands transcribe correctly |
 | Text-to-speech | Microsoft Edge-TTS — `en-IN-NeerjaNeural` (English), `hi-IN-SwaraNeural` (Hindi); auto-detects Devanagari |
-| Audio queue | Non-blocking queue; `stopSpeaking()` interrupts instantly |
-| Spotify ducking | Music dips to 20% while F.R.I.D.A.Y. speaks, restores after |
+| Spotify Ducking & Silent Actions | Music dips to 20% while speaking; Spotify playback commands run in pure silent mode (`silence_tts: True`) without shouting over songs |
 | Speech corrections | "No, I meant X" → permanently stored in personal vocabulary |
 | Brain intelligence | **Conversation context** (last 6 turns in every LLM call), **semantic memory** (Gemini embeddings RAG over facts/notes/meetings — recall in your own words), **multi-step agentic loop** (up to 4 tool calls per request), env-configurable model (`GROQ_MODEL`) |
 | Email Agent | Gmail/Outlook via IMAP+SMTP (app password): unread inbox, search, priority detection, summary, drafts — **approval-first send**: nothing is sent until you confirm (voice "yes"/"no" or the on-screen preview) |
