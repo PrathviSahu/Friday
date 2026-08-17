@@ -350,16 +350,23 @@ export default function LockScreen() {
     });
 
     return (
-        <div className="w-screen h-screen relative overflow-hidden select-none bg-[#02030A]">
+    return (
+        <div className="w-full min-h-screen relative overflow-x-hidden overflow-y-auto select-none bg-[#02030A] flex flex-col justify-between">
             <Background />
 
+            {/* Ambient Background 3D Orb */}
+            <div className="fixed inset-0 flex items-center justify-center pointer-events-none opacity-30 md:opacity-100" style={{ zIndex: 5 }}>
+                <HudOrb size={320} />
+            </div>
+
             <div
-                className="absolute inset-0 px-8 py-4 flex flex-col justify-between items-center"
-                style={{ zIndex: 20, pointerEvents: 'none', transform: `scale(${scale})`, transformOrigin: 'top center' }}
+                className="relative z-20 w-full min-h-screen px-4 sm:px-8 py-4 flex flex-col justify-between items-center gap-4"
+                style={{ pointerEvents: 'none' }}
             >
-                <div className="flex items-center justify-between w-full">
-                    <div className="font-orbitron text-[8px] tracking-[0.45em] text-[#00B7FF]/45 uppercase flex items-center gap-3">
-                        <span className="inline-block w-6 h-px bg-[#00B7FF]/40" />
+                {/* Top Header Bar */}
+                <div className="flex items-center justify-between w-full max-w-[1280px] mx-auto pt-1" style={{ pointerEvents: 'auto' }}>
+                    <div className="font-orbitron text-[8px] sm:text-[9px] tracking-[0.35em] sm:tracking-[0.45em] text-[#00B7FF]/50 uppercase flex items-center gap-2 sm:gap-3">
+                        <span className="inline-block w-4 sm:w-6 h-px bg-[#00B7FF]/40" />
                         STARK INDUSTRIES
                     </div>
 
@@ -368,23 +375,24 @@ export default function LockScreen() {
                     </div>
                 </div>
 
-                <div className="relative flex flex-col items-center mt-1" style={{ transform: 'translateY(-20px)' }}>
+                {/* Center Title & Status HUD */}
+                <div className="relative flex flex-col items-center my-2 text-center" style={{ pointerEvents: 'auto' }}>
                     <motion.div
                         className="text-center"
                         initial={{ opacity: 0, y: -16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
                     >
-                        <h1 className="font-orbitron text-[3.4rem] tracking-[0.8em] text-[#DFFAFF] font-light" style={{ textShadow: '0 0 26px rgba(0,183,255,0.24)' }}>
+                        <h1 className="font-orbitron text-3xl sm:text-5xl md:text-[3.4rem] tracking-[0.3em] sm:tracking-[0.6em] md:tracking-[0.8em] text-[#DFFAFF] font-light" style={{ textShadow: '0 0 24px rgba(0,183,255,0.28)' }}>
                             F.R.I.D.A.Y.
                         </h1>
-                        <p className="font-grotesk text-[10px] tracking-[0.35em] text-[#00B7FF]/45 mt-2 uppercase">
+                        <p className="font-grotesk text-[9px] sm:text-[10px] tracking-[0.35em] text-[#00B7FF]/60 mt-1 uppercase">
                             PERSONAL AI ASSISTANT
                         </p>
-                        <div className="mx-auto mt-4 h-px w-28 bg-gradient-to-r from-transparent via-[#00B7FF]/80 to-transparent" />
+                        <div className="mx-auto mt-2 sm:mt-3 h-px w-24 sm:w-28 bg-gradient-to-r from-transparent via-[#00B7FF]/80 to-transparent" />
                     </motion.div>
 
-                    <div className="mt-7 text-center">
+                    <div className="mt-3 sm:mt-5 text-center">
                         <AnimatePresence mode="wait">
                             {appState === 'BOOTING' ? (
                                 <motion.div
@@ -392,9 +400,9 @@ export default function LockScreen() {
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="flex flex-col items-center gap-3"
+                                    className="flex flex-col items-center gap-2"
                                 >
-                                    <div className="relative w-8 h-8">
+                                    <div className="relative w-7 h-7">
                                         <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
@@ -406,12 +414,9 @@ export default function LockScreen() {
                                             className="absolute inset-1 rounded-full border border-t-[#22ff99]/20 border-r-transparent border-b-[#22ff99] border-l-transparent"
                                         />
                                     </div>
-                                    <h2 className="font-orbitron text-[1rem] tracking-[0.4em] text-[#00D9FF] uppercase drop-shadow-[0_0_8px_rgba(0,183,255,0.6)]">
+                                    <h2 className="font-orbitron text-[0.95rem] tracking-[0.35em] text-[#00D9FF] uppercase drop-shadow-[0_0_8px_rgba(0,183,255,0.6)]">
                                         {stateLabel}
                                     </h2>
-                                    <p className="font-grotesk text-[8px] text-[#DFFAFF]/30 tracking-[0.3em] uppercase animate-pulse">
-                                        POWERING COGNITIVE CORES
-                                    </p>
                                 </motion.div>
                             ) : authStep ? (
                                 <motion.div
@@ -431,13 +436,13 @@ export default function LockScreen() {
                                     key="locked"
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="flex flex-col items-center gap-2"
+                                    className="flex flex-col items-center gap-1.5"
                                 >
-                                    <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#00B7FF] font-light" style={{ textShadow: '0 0 16px rgba(0,183,255,0.35)' }}>
+                                    <h2 className="font-orbitron text-lg sm:text-[1.2rem] tracking-[0.4em] text-[#00B7FF] font-light" style={{ textShadow: '0 0 16px rgba(0,183,255,0.35)' }}>
                                         LOCKED
                                     </h2>
-                                    <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
-                                        AWAITING FINGERPRINT VERIFICATION
+                                    <p className="font-grotesk text-[8.5px] sm:text-[9px] text-[#DFFAFF]/45 tracking-[0.25em] uppercase">
+                                        AWAITING VERIFICATION · DEMO UNLOCK AVAILABLE
                                     </p>
                                 </motion.div>
                             ) : (
@@ -445,12 +450,12 @@ export default function LockScreen() {
                                     key="ambient"
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="flex flex-col items-center gap-2"
+                                    className="flex flex-col items-center gap-1.5"
                                 >
-                                    <h2 className="font-orbitron text-[1.2rem] tracking-[0.5em] text-[#FF8C00] font-light" style={{ textShadow: '0 0 16px rgba(255,140,0,0.45)' }}>
+                                    <h2 className="font-orbitron text-lg sm:text-[1.2rem] tracking-[0.4em] text-[#FF8C00] font-light" style={{ textShadow: '0 0 16px rgba(255,140,0,0.45)' }}>
                                         LISTENING...
                                     </h2>
-                                    <p className="font-grotesk text-[9px] text-[#DFFAFF]/35 tracking-[0.35em] uppercase">
+                                    <p className="font-grotesk text-[8.5px] sm:text-[9px] text-[#DFFAFF]/45 tracking-[0.25em] uppercase">
                                         VOICE ACTIVE · SPEAK FREELY
                                     </p>
                                 </motion.div>
@@ -458,55 +463,36 @@ export default function LockScreen() {
                         </AnimatePresence>
 
                         {responseMessage && (
-                            <div className="mt-3 text-[11px] text-[#DFFAFF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
+                            <div className="mt-2 text-[11px] text-[#DFFAFF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
                                 {responseMessage}
                             </div>
                         )}
 
                         {ttsLoading ? (
-                            <div className="mt-3 text-[11px] text-[#DFFAFF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
+                            <div className="mt-2 text-[10px] text-[#DFFAFF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
                                 Generating voice...
                             </div>
                         ) : isSpeaking ? (
-                            <div className="mt-3 text-[11px] text-[#00D9FF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
+                            <div className="mt-2 text-[10px] text-[#00D9FF] font-grotesk tracking-[0.08em] uppercase drop-shadow-[0_0_6px_#00D9FF]">
                                 Speaking...
                             </div>
                         ) : null}
 
                         {pttHeld ? (
-                            <div className="mt-3 text-[11px] font-orbitron text-[#22ff99] tracking-[0.35em] uppercase drop-shadow-[0_0_12px_rgba(34,255,153,0.7)] animate-pulse">
-                                🎙️ LISTENING (HOLD SPACE) — RELEASE TO SEND
+                            <div className="mt-2 text-[10px] sm:text-[11px] font-orbitron text-[#22ff99] tracking-[0.3em] uppercase drop-shadow-[0_0_12px_rgba(34,255,153,0.7)] animate-pulse">
+                                🎙️ LISTENING (HOLD) — RELEASE TO SEND
                             </div>
-                        ) : pttMode ? (
-                            <div className="mt-3 text-[10px] font-orbitron text-[#00B7FF]/70 tracking-[0.35em] uppercase animate-pulse">
-                                HOLD SPACE TO TALK
-                            </div>
-                        ) : (
-                            <div className="mt-3 flex items-center justify-center gap-3">
-                                {!audioEnabled ? (
-                                    <button
-                                        onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
-                                        className="px-4 py-2 rounded bg-[#00B7FF] text-[#001018] text-[11px] uppercase font-bold"
-                                        style={{ pointerEvents: 'auto' }}
-                                    >
-                                        Enable Voice
-                                    </button>
-                                ) : (
-                                    <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
-                                        Voice enabled (Hold Space to Talk)
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
 
+                {/* Cards Section */}
                 {locked ? (
-                    <div className="relative flex flex-col md:flex-row items-center justify-center md:justify-between w-full max-w-[1280px] mx-auto mt-2 px-4 gap-6" style={{ pointerEvents: 'auto' }}>
+                    <div className="relative flex flex-col md:flex-row items-center justify-center w-full max-w-[1280px] mx-auto my-2 px-2 sm:px-4 gap-6" style={{ pointerEvents: 'auto' }}>
                         <motion.div
-                            initial={{ opacity: 0, x: -28 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
                             className="w-full md:w-auto flex justify-center"
                         >
                             <AccessCard
@@ -518,59 +504,30 @@ export default function LockScreen() {
                             />
                         </motion.div>
 
-                        <div className="hidden md:block w-16" />
-
                         <motion.div
-                            initial={{ opacity: 0, x: 28 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}
-                            className="w-full md:w-auto flex justify-center"
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
+                            className="hidden md:flex justify-center"
                         >
                             <StatusCard />
                         </motion.div>
                     </div>
                 ) : (
-                    <div className="mt-2" />
+                    <div className="my-1" />
                 )}
 
+                {/* Bottom Bar Controls */}
                 <motion.div
-                    className="flex justify-center pb-2"
+                    className="w-full flex justify-center pb-3 pt-1"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.9 }}
+                    transition={{ delay: 0.4, duration: 0.7 }}
                     style={{ pointerEvents: 'auto' }}
                 >
                     <BottomBar />
                 </motion.div>
             </div>
-
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 10, transform: `scale(${scale})`, transformOrigin: 'top center' }}>
-                <HudOrb size={340} />
-            </div>
-
-
-
-            {!audioEnabled ? (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#02030A]/95 px-6 py-10" style={{ pointerEvents: 'auto' }}>
-                    <div className="max-w-2xl w-full rounded-[2rem] border border-[#00B7FF]/30 bg-[#001018]/95 p-10 text-center shadow-[0_0_80px_rgba(0,183,255,0.20)]">
-                        <div className="font-orbitron text-[9px] tracking-[0.45em] text-[#00B7FF]/45 uppercase mb-4">
-                            VOICE ENGINE OFFLINE
-                        </div>
-                        <h2 className="font-orbitron text-[2rem] tracking-[0.5em] text-[#DFFAFF] uppercase mb-4">
-                            F.R.I.D.A.Y.
-                        </h2>
-                        <p className="font-grotesk text-sm text-[#DFFAFF]/80 leading-6 mb-8">
-                            Voice output requires permission. Click Enable Voice to initialize the speech engine and bring audio online.
-                        </p>
-                        <button
-                            onClick={() => enableAudioFromGesture({ speakConfirmation: true })}
-                            className="inline-flex items-center justify-center rounded-full bg-[#00B7FF] px-8 py-3 text-[11px] font-bold uppercase tracking-[0.35em] text-[#001018] transition hover:bg-[#00d1ff]"
-                        >
-                            Enable Voice
-                        </button>
-                    </div>
-                </div>
-            ) : null}
 
             {/* ── Pending approval cards (approval-first: email + calendar) ── */}
             {pendingEmail && (

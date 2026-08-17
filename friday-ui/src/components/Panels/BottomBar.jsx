@@ -92,7 +92,7 @@ export default function BottomBar() {
                 Hold Space or Hold button to talk · release to send
             </div>
 
-            <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
                 {QUICK_COMMANDS.map(({ cmd, label }) => (
                     <button
                         key={cmd}
@@ -113,8 +113,8 @@ export default function BottomBar() {
                             }
                             runAuthSequence(cmd);
                         }}
-                        className="rounded border border-[#00B7FF]/30 bg-[#001018]/80 px-3 py-1 text-[9px] tracking-[0.2em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:bg-[#00B7FF]/15 hover:text-[#DFFAFF] disabled:opacity-30 disabled:cursor-not-allowed"
-                        style={{ pointerEvents: 'auto' }}
+                        className="rounded border border-[#00B7FF]/35 bg-[#001018]/90 px-3 sm:px-3.5 py-2 sm:py-1.5 text-[9.5px] sm:text-[9px] tracking-[0.15em] sm:tracking-[0.2em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:bg-[#00B7FF]/20 hover:text-[#DFFAFF] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_8px_rgba(0,183,255,0.1)]"
+                        style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                     >
                         {label}
                     </button>

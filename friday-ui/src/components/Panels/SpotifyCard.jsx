@@ -258,14 +258,14 @@ export default function SpotifyCard() {
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setIsVisible(true)}
                 style={{
-                    position: 'fixed', bottom: 32, right: 40, zIndex: 50,
+                    position: 'fixed', bottom: 16, right: 16, zIndex: 50,
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '6px 12px', borderRadius: 20,
                     background: '#121212', border: '1px solid #282828',
                     cursor: 'grab', pointerEvents: 'auto', userSelect: 'none',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
                 }}
-                className="active:cursor-grabbing"
+                className="active:cursor-grabbing max-w-[calc(100vw-32px)]"
             >
                 <SpotifyIcon size={14} />
                 <span
@@ -298,8 +298,8 @@ export default function SpotifyCard() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 32 }}
                 style={{
-                    position: 'fixed', bottom: 88, right: 40, zIndex: 40,
-                    width: 360, borderRadius: 12,
+                    position: 'fixed', bottom: 70, right: 16, zIndex: 40,
+                    width: 'min(360px, calc(100vw - 32px))', borderRadius: 12,
                     background: '#121212', border: '1px solid #282828',
                     boxShadow: isDragging ? '0 45px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.15)' : '0 32px 80px rgba(0,0,0,0.8)',
                     pointerEvents: 'auto', userSelect: 'none', overflow: 'hidden',
