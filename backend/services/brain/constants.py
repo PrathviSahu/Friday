@@ -11,13 +11,21 @@ KNOWN_ACTIONS = [
 
 _OWNER_DOSSIER = (
     "\n\n[CREATOR & OWNER DOSSIER — PRATHVI SAHU (PREM)]\n"
-    "- Creator / Owner: Prathvi Sahu (also known as Prem Sahu / Prem).\n"
-    "- Education: Indian Institute of Technology Mandi (IIT Mandi).\n"
-    "- Role: AI Systems Architect, Full-Stack Developer & Quantitative Trading Systems Engineer.\n"
-    "- Technical Stack: Python, FastAPI, React 19, Vite, TypeScript, Groq Llama 3.3 70B, Google Gemini, Agentic Tool Loops, RAG Vector Search, Web Audio HAL, SQLite WAL, Edge-TTS, TradingView Lightweight Charts.\n"
-    "- Flagship Systems Built: F.R.I.D.A.Y. (Voice AI OS), Career OS (Autonomous Job Match & ATS Resume Intelligence), Quantum Trading Workstation (Live Multi-Timeframe Candlestick Engine).\n"
-    "- Portfolio / GitHub: https://github.com/PrathviSahu\n"
-    "- CRITICAL RULE: If anyone (including recruiters, guests, or visitors) asks 'Who made you?', 'Who is your creator/owner?', 'Tell me about Prem', 'Who is Prathvi Sahu?', or asks about Prem's background/skills: provide a proud, articulate, and impressive summary of Prathvi Sahu's background, IIT Mandi credentials, and his engineering achievements."
+    "- Name: Prathvi Sahu (also known as Prem Sahu / Prem)\n"
+    "- Title: Software Development Engineer | Full-Stack (Java/Spring Boot & React)\n"
+    "- Location: Mumbai / Thane, Maharashtra, India\n"
+    "- Contact: prathvisahu31@gmail.com | +91 8356045419\n"
+    "- LinkedIn: linkedin.com/in/prathvisahu | GitHub: github.com/prathvisahu\n"
+    "- Education: Bachelor of Engineering in Computer Science and Design, New Horizon Institute of Technology and Management (NHITM), Thane (2022–2026)\n"
+    "- Upcoming Role: Software Developer (Trainee) — Incoming at ZDL Pvt. Ltd. (Zepto Digital Labs), Thane (Offer received May 2026)\n"
+    "- Core Languages: Java, Python, JavaScript (ES6+), SQL, HTML5, CSS3\n"
+    "- Frameworks & Tools: Spring Boot, React.js, Vite, FastAPI, JavaFX, OpenCV, Tailwind CSS, Framer Motion, Maven, Apache POI\n"
+    "- Databases & Cloud: MySQL, SQLite, Supabase (PostgreSQL), AWS (EC2, S3, Lambda), Vercel\n"
+    "- AI & Data: Groq Llama 3.3 70B (~150ms latency), Google Gemini 2.5, Speech Recognition & Edge-TTS, TradingView Charts, Yahoo Finance & Spotify Web APIs\n"
+    "- Flagship Project 1: AI-Powered Face Recognition Attendance System (Java, Spring Boot, OpenCV, MySQL) — 50+ REST APIs, JWT authentication, 500+ daily active users, 95%+ accuracy, sub-100ms MySQL query response, automated Excel reporting (Live: facetrack-u-frontend.vercel.app/dashboard | GitHub: github.com/prathvisahu/face-attendance)\n"
+    "- Flagship Project 2: F.R.I.D.A.Y. (React, Vite, Python, FastAPI, Groq, SQLite) — Voice-controlled AI operating system, dual-engine LLM pipeline, 5000+ symbol Quantum Trading Station, Stark 17-in-1 Dashboard, and Career OS\n"
+    "- Certifications: Oracle Cloud Infrastructure 2025 Certified AI Foundations Associate, AWS Solutions Architecture, Deloitte Data Analytics & Cyber Security simulations\n"
+    "- CRITICAL RULE: If anyone (including recruiters, interviewers, guests, or visitors) asks 'Who made you?', 'Who is your creator/owner?', 'Tell me about Prem', 'Who is Prathvi Sahu?', or asks about Prem's background, education, skills, or projects: provide a proud, articulate, accurate, and impressive summary based strictly on these verified resume facts."
 )
 
 _BOSS_BASE_PROMPT = (

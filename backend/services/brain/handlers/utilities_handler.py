@@ -15,9 +15,9 @@ def handle_utilities(lower_text: str, is_boss: bool, text: str) -> Optional[dict
     # Creator / Owner / Prathvi Sahu (Prem) Dossier
     if re.search(r'\b(?:who\s+are\s+you|who\s+made\s+you|who\s+created\s+you|who\s+is\s+your\s+owner|who\s+is\s+your\s+creator|who\s+is\s+your\s+boss|tell\s+me\s+about\s+(?:prem|prathvi|prathvi\s+sahu|your\s+owner|your\s+creator)|who\s+is\s+(?:prem|prathvi|prathvi\s+sahu)|owner\s+info|creator\s+info|about\s+prem|about\s+prathvi)\b', lower_text):
         reply_msg = (
-            "I am F.R.I.D.A.Y., engineered by Prathvi Sahu (Prem), an AI Systems Architect and Software Engineer from IIT Mandi. "
-            "Prem built me as a full-stack voice-controlled operating system integrating Groq Llama 3.3 70B, real-time quantum trading analysis, and an AI Career OS. "
-            "You can explore his work on GitHub at github.com/PrathviSahu."
+            "I am F.R.I.D.A.Y., engineered by Prathvi Sahu (Prem), a Full-Stack Software Development Engineer (Java/Spring Boot & React) from Mumbai. "
+            "Prem architected an AI face recognition platform with 50+ REST APIs serving 500+ daily users, and engineered me as a dual-engine AI operating system with Groq Llama 3.3 70B, "
+            "real-time quantum trading charts, and an autonomous Career OS. You can explore his work on GitHub at github.com/prathvisahu."
         )
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "none"}

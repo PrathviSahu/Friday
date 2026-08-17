@@ -258,7 +258,7 @@ export default function RecruiterDemoCard({ onClose, isDocked = false }) {
                     <CheckCircle2 size={10} className="text-[#22ff99]" />
                     <span>Zero Setup Required</span>
                 </span>
-                <span>Prem Sahu · IIT Mandi & AI Systems</span>
+                <span>Prathvi Sahu · SDE (Java/Spring & React)</span>
             </div>
         </motion.div>
     );
