@@ -487,7 +487,7 @@ export default function LockScreen() {
 
                 {/* Cards Section */}
                 {locked ? (
-                    <div className="relative flex flex-col md:flex-row items-center justify-center w-full max-w-[1280px] mx-auto my-2 px-2 sm:px-4 gap-6" style={{ pointerEvents: 'auto' }}>
+                    <div className="relative flex flex-col md:flex-row items-center justify-center md:justify-around w-full max-w-[1000px] mx-auto my-2 px-2 sm:px-6 gap-6 sm:gap-12" style={{ pointerEvents: 'auto' }}>
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}

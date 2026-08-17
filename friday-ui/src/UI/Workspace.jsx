@@ -31,7 +31,7 @@ export default function Workspace() {
     if (workspace === 'lockscreen') return null;
 
     const isTradingActive = workspace === 'trading' || workspace === 'trading_minimized';
-    const isCareerActive  = workspace === 'career' || workspace === 'dashboard';
+    const isCareerActive  = workspace === 'career';
 
     return (
         <div className="absolute inset-0" style={{ zIndex: 40, pointerEvents: 'auto' }}>
