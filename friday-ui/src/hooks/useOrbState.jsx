@@ -232,127 +232,18 @@ export function OrbProvider({ children }) {
     });
 
     const speakText = useCallback(async (text) => {
-        if (typeof window === 'undefined') return false;
-        // Try backend Edge TTS first (asynchronously generate and enqueue audio)
+        if (typeof window === 'undefined' || !text) return false;
         try {
             setTtsLoading(true);
-            const url = await backendSpeak(text);
-            if (url) {
-                // enqueue backend audio for playback
-                enqueue(url);
-                setTtsLoading(false);
-                return true;
-            }
-        } catch (err) {
-            console.warn('Backend TTS failed, falling back to browser TTS', err);
+            await backendSpeak(text);
             setTtsLoading(false);
-        }
-
-        const CUSTOM_VOICE_ASSETS = {
-            'en-IE-EmilyNeural': '/voices/en-IE-EmilyNeural.mp3',
-        };
-
-        // If a pre-generated Edge Neural asset exists for this voice, play it instead
-        if (voiceName && CUSTOM_VOICE_ASSETS[voiceName]) {
-            const played = await playAudioAsset(CUSTOM_VOICE_ASSETS[voiceName]);
-            if (played) return true;
-        }
-
-        if (!window.speechSynthesis) {
-            playTone();
+            return true;
+        } catch (err) {
+            console.warn('Speech playback error:', err);
+            setTtsLoading(false);
             return false;
         }
-
-        try {
-            window.speechSynthesis.resume?.();
-        } catch (_e) {
-            // ignore resume failures
-        }
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        const available = window.speechSynthesis.getVoices() || [];
-        const normalize = (input = '') => input.toString().toLowerCase();
-        const voiceLabel = (voice) => `${normalize(voice.name)} ${normalize(voice.voiceURI)} ${normalize(voice.lang)}`;
-
-        const preferenceMatchers = [
-            /emily|emilyneural/, // top priority
-            /neural/,
-            /google uk english female/, // good Chrome voice
-            /google uk english male/, // still better than default
-            /google us english/, // high-quality US voice
-            /microsoft zira desktop/, // good Windows voice
-            /microsoft heather desktop/,
-            /microsoft hazel desktop/, 
-            /en-IE/, // prefer Irish if available
-            /en-GB/, // UK English fallback
-            /en-US/, // US English fallback
-            /en-/, // any English voice
-        ];
-
-        const scoreVoice = (voice) => {
-            const label = voiceLabel(voice);
-            let score = 0;
-
-            for (let i = 0; i < preferenceMatchers.length; i += 1) {
-                if (preferenceMatchers[i].test(label)) {
-                    score += (preferenceMatchers.length - i) * 15;
-                }
-            }
-            if (/default|native|standard/.test(label)) score -= 20;
-            if (/female|woman|woman/.test(label)) score += 5;
-            if (/male|man|paul|david|alex/.test(label) && !/neural/.test(label)) score -= 10;
-            return score;
-        };
-
-        const findBestAvailableVoice = () => {
-            if (!available.length) return null;
-            return available.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
-        };
-
-        const matchesVoiceName = (x) => x.name === voiceName || x.voiceURI === voiceName;
-        let v = null;
-        if (voiceName) v = available.find(matchesVoiceName);
-        if (!v) v = findBestAvailableVoice();
-        if (v) {
-            utterance.voice = v;
-            if (v.name !== voiceName && v.voiceURI !== voiceName) {
-                setVoiceName(v.name);
-            }
-            console.debug('Friday selected TTS voice:', v.name, v.voiceURI, v.lang);
-        } else {
-            console.warn('Friday could not find any speechSynthesis voice, using default output');
-        }
-
-        return new Promise((resolve) => {
-            let resolved = false;
-            let timeoutId;
-            const finish = (result) => {
-                if (resolved) return;
-                resolved = true;
-                clearTimeout(timeoutId);
-                resolve(result);
-            };
-            utterance.onstart = () => finish(true);
-            utterance.onerror = () => finish(false);
-            utterance.onend = () => finish(true);
-            try {
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(utterance);
-                timeoutId = setTimeout(() => finish(false), 4000);
-            } catch (_e) {
-                console.warn('SpeechSynthesis speak failed', e);
-                finish(false);
-            }
-        }).then((started) => {
-            if (!started) {
-                playTone();
-            }
-            return started;
-        });
-    }, [playAudioAsset, playTone, voiceName, enqueue]);
+    }, []);
 
     // Attempt to unlock audio autoplay by briefly playing a silent buffer.
     const unlockAudio = useCallback(async () => {

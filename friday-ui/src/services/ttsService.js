@@ -3,6 +3,7 @@ import { API_ENDPOINTS, resolveApiUrl } from '../api/config.js';
 let currentAudio = null;
 let currentResolve = null; // Holds the pending speak() promise resolver for instant abort
 let duckTts = false;       // when true, TTS volume is lowered so the mic can hear the user
+let speechSeq = 0;         // Monotonic sequence ID ensuring strict single-speech exclusivity
 
 /**
  * Lower/restore FRIDAY's own TTS volume. Whisper-mode VAD uses this so her
@@ -21,18 +22,15 @@ export function setTtsDucking(on) {
  * so the await speak(...) in useSpeech.js returns immediately.
  */
 export function stopSpeaking() {
-  // Restore Spotify volume immediately on interrupt
+  speechSeq += 1; // Invalidate any in-flight async TTS fetches or callbacks
   fetch(`${API_ENDPOINTS.spotify}/unduck`, { method: 'POST' }).catch(() => {});
 
-  // Resolve pending promise immediately so await speak() returns and loop continues
   if (currentResolve) {
     const resolve = currentResolve;
     currentResolve = null;
-    resolve();
-    console.log('[TTS] Speech interrupted — stopped mid-sentence.');
+    try { resolve(); } catch (_) {}
   }
 
-  // Hard-stop browser audio element
   if (currentAudio) {
     try {
       currentAudio.pause();
@@ -41,55 +39,50 @@ export function stopSpeaking() {
     currentAudio = null;
   }
 
-  // Cancel Web Speech API fallback
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (_) {}
   }
 }
 
 export async function speak(text) {
   if (!text || typeof text !== 'string') return;
+  const clean = text.trim();
+  if (!clean) return;
 
-  // Duck Spotify music volume while FRIDAY is speaking
+  // Kill ANY ongoing audio/speech instantly before starting a new one
+  stopSpeaking();
+  const mySeq = speechSeq;
+
   fetch(`${API_ENDPOINTS.spotify}/duck`, { method: 'POST' }).catch(() => {});
-
   const doneSpeaking = () => {
     fetch(`${API_ENDPOINTS.spotify}/unduck`, { method: 'POST' }).catch(() => {});
   };
-
-  // Only stop a PREVIOUS audio if something is actively playing
-  if (currentAudio) {
-    try { currentAudio.pause(); currentAudio.currentTime = 0; } catch (_) {}
-    currentAudio = null;
-  }
-
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
 
   try {
     const response = await fetch(API_ENDPOINTS.tts, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text: clean }),
     });
+
+    // Check if another speak() or stopSpeaking() was called while fetching
+    if (mySeq !== speechSeq) return;
 
     if (response.ok) {
       const data = await response.json();
+      if (mySeq !== speechSeq) return;
+
       if (data.audio_url) {
         return new Promise((resolve) => {
-          // Store resolver so stopSpeaking() can resolve this promise instantly from outside
           currentResolve = resolve;
-
-          // Backend returns a relative path (/temp_audio/...); resolve against
-          // the configured API base so it works via the dev proxy or a
-          // production VITE_API_URL alike.
           const audio = new Audio(resolveApiUrl(data.audio_url));
           currentAudio = audio;
           audio.volume = duckTts ? 0.35 : 1;
 
-          audio.onended = () => {
-            currentAudio = null;
+          const finish = () => {
+            if (currentAudio === audio) currentAudio = null;
             doneSpeaking();
             if (currentResolve === resolve) {
               currentResolve = null;
@@ -97,73 +90,89 @@ export async function speak(text) {
             }
           };
 
+          audio.onended = finish;
           audio.onerror = () => {
-            currentAudio = null;
-            if (currentResolve === resolve) {
-              currentResolve = null;
-            }
-            fallbackWebSpeech(text, () => {
+            if (mySeq !== speechSeq) return;
+            if (currentAudio === audio) currentAudio = null;
+            fallbackWebSpeech(clean, mySeq, () => {
               doneSpeaking();
-              resolve();
+              if (currentResolve === resolve) {
+                currentResolve = null;
+                resolve();
+              }
             });
           };
 
           audio.play().catch(() => {
-            currentAudio = null;
-            if (currentResolve === resolve) {
-              currentResolve = null;
-            }
-            fallbackWebSpeech(text, () => {
+            if (mySeq !== speechSeq) return;
+            if (currentAudio === audio) currentAudio = null;
+            fallbackWebSpeech(clean, mySeq, () => {
               doneSpeaking();
-              resolve();
+              if (currentResolve === resolve) {
+                currentResolve = null;
+                resolve();
+              }
             });
           });
         });
       }
     }
   } catch (err) {
-    console.warn('[TTS] Backend TTS error, using browser fallback:', err);
+    console.warn('[TTS] Backend TTS error, using fallback:', err);
   }
+
+  if (mySeq !== speechSeq) return;
 
   return new Promise((resolve) => {
     currentResolve = resolve;
-    fallbackWebSpeech(text, () => {
+    fallbackWebSpeech(clean, mySeq, () => {
       doneSpeaking();
       if (currentResolve === resolve) {
         currentResolve = null;
+        resolve();
       }
-      resolve();
     });
   });
-
 }
 
-function fallbackWebSpeech(text, onEnd) {
-  if (!('speechSynthesis' in window)) {
+function fallbackWebSpeech(text, expectedSeq, onEnd) {
+  if (expectedSeq !== undefined && expectedSeq !== speechSeq) {
     if (onEnd) onEnd();
     return;
   }
-  window.speechSynthesis.cancel();
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    if (onEnd) onEnd();
+    return;
+  }
+
+  try {
+    window.speechSynthesis.cancel();
+  } catch (_) {}
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.pitch = 1.0;
   utterance.rate = 1.0;
   utterance.volume = duckTts ? 0.35 : 1;
 
-  const voices = window.speechSynthesis.getVoices();
-  // Target Indian English voices first (en-IN, Neerja, Rishi, Veena, Swara)
-  const indianVoice = voices.find(v => {
+  const voices = window.speechSynthesis.getVoices() || [];
+  const preferredVoice = voices.find(v => {
     const lang = (v.lang || '').toLowerCase();
     const name = (v.name || '').toLowerCase();
-    return (lang.includes('en-in') || lang.includes('en_in') || name.includes('india') || name.includes('neerja') || name.includes('swara') || name.includes('veena') || name.includes('rishi'));
-  }) || voices.find(v => {
-    const lang = (v.lang || '').toLowerCase();
-    const name = (v.name || '').toLowerCase();
-    return !lang.includes('en-gb') && !name.includes('uk') && !name.includes('british') && !name.includes('daniel');
-  });
+    return lang.includes('en-in') || name.includes('neerja') || name.includes('swara') || name.includes('rishi');
+  }) || voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
 
-  if (indianVoice) utterance.voice = indianVoice;
+  if (preferredVoice) utterance.voice = preferredVoice;
 
-  utterance.onend = () => { if (onEnd) onEnd(); };
-  utterance.onerror = () => { if (onEnd) onEnd(); };
-  window.speechSynthesis.speak(utterance);
+  utterance.onend = () => {
+    if (onEnd) onEnd();
+  };
+  utterance.onerror = () => {
+    if (onEnd) onEnd();
+  };
+
+  try {
+    window.speechSynthesis.speak(utterance);
+  } catch (_) {
+    if (onEnd) onEnd();
+  }
 }
