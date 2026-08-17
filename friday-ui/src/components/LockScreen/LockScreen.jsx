@@ -487,12 +487,12 @@ export default function LockScreen() {
 
                 {/* Cards Section */}
                 {locked ? (
-                    <div className="relative flex flex-col md:flex-row items-center justify-center md:justify-around w-full max-w-[1000px] mx-auto my-2 px-2 sm:px-6 gap-6 sm:gap-12" style={{ pointerEvents: 'auto' }}>
+                    <div className="relative flex flex-col sm:flex-row items-center justify-center w-full max-w-[760px] mx-auto my-2 px-2 sm:px-4 gap-6 sm:gap-8" style={{ pointerEvents: 'auto' }}>
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-                            className="w-full md:w-auto flex justify-center"
+                            className="flex justify-center shrink-0"
                         >
                             <AccessCard
                                 onFingerprint={handleFingerprintClick}
@@ -506,8 +506,8 @@ export default function LockScreen() {
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-                            className="hidden md:flex justify-center"
+                            transition={{ delay: 0.25, duration: 0.6, ease: 'easeOut' }}
+                            className="hidden sm:flex justify-center shrink-0"
                         >
                             <StatusCard />
                         </motion.div>

@@ -12,50 +12,12 @@ const STATUS_ITEMS = [
 ];
 
 export default function StatusCard() {
-    const { showDebug } = useFriday();
-    const [shift, setShift] = useState(0);
-    const [fixedStyle, setFixedStyle] = useState(null);
-    const wrapperRef = useRef(null);
-
-    useEffect(() => {
-        const calcShift = () => {
-            const max = 320; // debug panel width
-            const vw = window.innerWidth;
-            const computed = Math.min(max, Math.round(vw * 0.3));
-            setShift(showDebug ? computed : 0);
-        };
-
-        if (wrapperRef.current) {
-            const rect = wrapperRef.current.getBoundingClientRect();
-            const gap = 18;
-            setFixedStyle({
-                position: 'fixed',
-                top: rect.top,
-                right: gap,
-                width: rect.width,
-                zIndex: 40,
-                transition: 'all 260ms cubic-bezier(.2,.9,.2,1)'
-            });
-        }
-
-        calcShift();
-        window.addEventListener('resize', calcShift);
-        return () => window.removeEventListener('resize', calcShift);
-    }, [showDebug]);
-
     return (
-        <div
-            ref={wrapperRef}
-            style={{
-                ...fixedStyle,
-                transition: 'transform 260ms cubic-bezier(.2,.9,.2,1)',
-                transform: `translateX(${shift}px)`,
-            }}
-        >
-            <AnimatedCard width={260} height={340}>
-                <div className="flex flex-col gap-3">
+        <div className="flex justify-center">
+            <AnimatedCard width={220} height={350}>
+                <div className="flex flex-col gap-2.5">
                     {/* Header */}
-                    <div className="font-orbitron text-[9px] tracking-[0.25em] text-[#00B7FF]/60 border-b border-[#00B7FF]/10 pb-2 mb-1">
+                    <div className="font-orbitron text-[9px] tracking-[0.25em] text-[#00B7FF]/60 border-b border-[#00B7FF]/10 pb-2 mb-1 text-center">
                         SYSTEM STATUS
                     </div>
 
