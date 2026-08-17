@@ -103,6 +103,7 @@ async function authenticate() {
 
 // High-level helper: first use registers the fingerprint, then authenticates.
 // Subsequent uses just authenticate. Returns { ok, error?, reason? }.
+export async function unlockWithFingerprint() {
     // WebAuthn requires a secure context AND a registrable RP ID domain.
     // IP literals (127.0.0.1, LAN IPs) are rejected by browser WebAuthn spec.
     if (typeof window === 'undefined' || !window.isSecureContext) {
