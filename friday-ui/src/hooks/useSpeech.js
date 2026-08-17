@@ -325,10 +325,12 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         const data   = await withTimeout(fetchChatText(cmd), 12000);
         const reply  = data.reply?.trim()  || 'At your service, Boss.';
+        const action = data.action?.trim() || 'none';
+
         if (action && action !== 'none') onCommandRef.current?.(action);
         onConvRef.current?.({ transcript: cmd, reply, action });
 
-        // ── Direct Browser Client Handlers (WhatsApp, Web URLs) ────────────
+        // ── Direct Browser Client Handlers (WhatsApp, Spotify, Web URLs) ───
         const lowerCmd = cmd.toLowerCase().trim();
         if (
           action === 'open_whatsapp' ||
@@ -372,6 +374,26 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
               }
             }));
           } catch (_) {}
+        } else if (
+          action.startsWith('spotify_') ||
+          action === 'play_track' ||
+          /\b(?:play|pause|resume|spotify)\b/i.test(lowerCmd)
+        ) {
+          window.dispatchEvent(new CustomEvent('friday-open-spotify'));
+          if (/\b(?:play|resume)\b/i.test(lowerCmd)) {
+            const songQuery = lowerCmd.replace(/^(?:friday\s+)?(?:please\s+)?(?:play|resume)\s+(?:my\s+)?/i, '').replace(/\s+playlist$/i, '').trim();
+            if (songQuery) {
+              window.dispatchEvent(new CustomEvent('friday-external-action', {
+                detail: {
+                  title: `Spotify: ${songQuery}`,
+                  subtitle: `Playing · "${songQuery}"`,
+                  url: `https://open.spotify.com/search/${encodeURIComponent(songQuery)}`,
+                  label: 'OPEN IN SPOTIFY',
+                  type: 'spotify'
+                }
+              }));
+            }
+          }
         } else if (action === 'open_url' && data.target) {
           try { window.open(data.target, '_blank'); } catch (_) {}
         }

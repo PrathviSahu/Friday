@@ -124,6 +124,12 @@ export default function SpotifyCard() {
         return () => clearTimeout(timer);
     }, [songQuery]);
 
+    useEffect(() => {
+        const handleOpen = () => setIsVisible(true);
+        window.addEventListener('friday-open-spotify', handleOpen);
+        return () => window.removeEventListener('friday-open-spotify', handleOpen);
+    }, []);
+
     const playSuggestion = async (title, artist) => {
         const query = `${title} ${artist}`.trim();
         setSearching(true);
