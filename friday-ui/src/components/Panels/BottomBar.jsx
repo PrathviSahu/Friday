@@ -5,7 +5,7 @@ import Waveform from '../Animations/Waveform';
 
 export default function BottomBar() {
     const { micEnabled, setMicEnabled, pttMode, setPttMode } = useFriday();
-    const { stateLabel, appState, responseMessage, conversationMode, runAuthSequence, locked } = useOrbState();
+    const { stateLabel, appState, responseMessage, conversationMode, runAuthSequence, locked, setWorkspace } = useOrbState();
 
     // Quick-launch commands so panels open even when voice recognition is
     // unavailable (offline Web Speech, or the Tauri webview). These mirror the
@@ -92,8 +92,17 @@ export default function BottomBar() {
                         type="button"
                         disabled={locked && cmd !== 'lock'}
                         onClick={() => {
+                            if (cmd === 'lock') {
+                                runAuthSequence('lock');
+                                return;
+                            }
                             if (cmd === 'dashboard') {
                                 window.dispatchEvent(new CustomEvent('friday-open-dashboard'));
+                                return;
+                            }
+                            if (cmd === 'career' || cmd === 'trading') {
+                                setWorkspace(cmd);
+                                return;
                             }
                             runAuthSequence(cmd);
                         }}
