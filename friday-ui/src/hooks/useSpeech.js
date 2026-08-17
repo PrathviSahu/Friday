@@ -335,23 +335,42 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           /^(?:open|launch|start)\s+(?:whatsapp|whats\s*app|wa)(?:\s+web)?$/i.test(lowerCmd)
         ) {
           try { window.open('https://web.whatsapp.com', '_blank'); } catch (_) {}
+          window.dispatchEvent(new CustomEvent('friday-external-action', {
+            detail: {
+              title: 'WhatsApp Web Launch',
+              subtitle: 'Click below if pop-up was blocked',
+              url: 'https://web.whatsapp.com',
+              label: 'OPEN WHATSAPP',
+              type: 'whatsapp'
+            }
+          }));
         } else if (
           action === 'whatsapp_send' ||
           /\b(?:send\s+(?:a\s+)?whatsapp|whatsapp|whats\s*app)\b/i.test(lowerCmd)
         ) {
           try {
             const waMatch = cmd.match(/(?:send\s+(?:a\s+)?whatsapp(?:\s+message)?\s+(?:to\s+)?([^:]+?)(?::|\s+saying\s+|\s+that\s+|\s+about\s+)|(?:whatsapp|whats\s*app)\s+([^:]+?)(?::|\s+saying\s+|\s+that\s+|\s+about\s+))(.*)/i);
+            let url = 'https://web.whatsapp.com';
+            let subtitle = 'Click to send pre-filled message';
             if (waMatch) {
               const recipient = (waMatch[1] || waMatch[2] || '').trim();
               const msg = (waMatch[3] || '').trim();
               const phone = recipient.replace(/[^\d+]/g, '');
-              const url = phone && phone.length >= 7
+              url = phone && phone.length >= 7
                 ? `https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(msg)}`
                 : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg || recipient)}`;
-              window.open(url, '_blank');
-            } else {
-              window.open('https://web.whatsapp.com', '_blank');
+              subtitle = `To: ${recipient} · "${(msg || recipient).slice(0, 40)}"`;
             }
+            try { window.open(url, '_blank'); } catch (_) {}
+            window.dispatchEvent(new CustomEvent('friday-external-action', {
+              detail: {
+                title: 'WhatsApp Message Ready',
+                subtitle,
+                url,
+                label: 'SEND VIA WHATSAPP',
+                type: 'whatsapp'
+              }
+            }));
           } catch (_) {}
         } else if (action === 'open_url' && data.target) {
           try { window.open(data.target, '_blank'); } catch (_) {}

@@ -37,11 +37,21 @@ function FridayCore() {
     // All other capsules (coach, weather, permissions, inbox, todos, …) are neatly
     // organized inside the Sliding Dashboard drawer panel.
     const [dashboardOpen, setDashboardOpen] = useState(false);
+    const [actionBanner, setActionBanner]   = useState(null); // { title, subtitle, url, label, type }
 
     useEffect(() => {
         const handleOpen = () => setDashboardOpen(true);
+        const handleAction = (e) => {
+            if (e.detail?.url) {
+                setActionBanner(e.detail);
+            }
+        };
         window.addEventListener('friday-open-dashboard', handleOpen);
-        return () => window.removeEventListener('friday-open-dashboard', handleOpen);
+        window.addEventListener('friday-external-action', handleAction);
+        return () => {
+            window.removeEventListener('friday-open-dashboard', handleOpen);
+            window.removeEventListener('friday-external-action', handleAction);
+        };
     }, []);
 
     const { confirmPendingAction } = useProactiveSuggestions({
@@ -107,6 +117,94 @@ function FridayCore() {
             <DebugKeys />
 
             {/* ── Proactive Suggestion Toast ── */}
+            {/* Holographic Action Banner (WhatsApp Web, Links, Quick Actions) */}
+            <AnimatePresence>
+                {actionBanner && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -50, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -50, scale: 0.9 }}
+                        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                        style={{
+                            position: 'fixed',
+                            top: 24,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 10000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            padding: '10px 16px',
+                            borderRadius: 14,
+                            background: 'rgba(3, 16, 28, 0.96)',
+                            border: '1px solid #00B7FF',
+                            boxShadow: '0 0 30px rgba(0, 183, 255, 0.35), 0 16px 48px rgba(0,0,0,0.8)',
+                            backdropFilter: 'blur(20px)',
+                            pointerEvents: 'auto',
+                        }}
+                    >
+                        <div style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            background: 'rgba(37, 211, 102, 0.2)',
+                            border: '1px solid rgba(37, 211, 102, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 16,
+                            color: '#25D366',
+                            flexShrink: 0
+                        }}>
+                            💬
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 140 }}>
+                            <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 11, fontWeight: 700, color: '#DFFAFF', letterSpacing: '0.08em' }}>
+                                {actionBanner.title}
+                            </span>
+                            {actionBanner.subtitle && (
+                                <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
+                                    {actionBanner.subtitle}
+                                </span>
+                            )}
+                        </div>
+                        <a
+                            href={actionBanner.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setActionBanner(null)}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '6px 14px',
+                                borderRadius: 8,
+                                background: '#25D366',
+                                color: '#052e16',
+                                fontFamily: 'Orbitron, sans-serif',
+                                fontSize: 10,
+                                fontWeight: 800,
+                                letterSpacing: '0.08em',
+                                textDecoration: 'none',
+                                cursor: 'pointer',
+                                boxShadow: '0 0 16px rgba(37, 211, 102, 0.4)',
+                                whiteSpace: 'nowrap',
+                                transition: 'transform 0.15s ease',
+                            }}
+                        >
+                            <span>{actionBanner.label || 'OPEN NOW'}</span>
+                            <span style={{ fontSize: 12 }}>↗</span>
+                        </a>
+                        <button
+                            onClick={() => setActionBanner(null)}
+                            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4, fontSize: 14, marginLeft: 4 }}
+                        >
+                            ✕
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <AnimatePresence>
                 {proactiveToast && (
                     <motion.div
