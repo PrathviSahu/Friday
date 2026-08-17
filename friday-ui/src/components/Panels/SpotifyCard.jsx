@@ -5,7 +5,8 @@ import {
     Volume2, VolumeX, X, Search,
     Shuffle, Repeat, Repeat1, Heart,
     GripHorizontal, Mic2, ListMusic,
-    Maximize2, Plus, ListPlus, Sparkles, Music
+    Maximize2, Plus, ListPlus, Sparkles, Music,
+    ExternalLink
 } from 'lucide-react';
 import { fetchChatText } from '../../api/chatText';
 import { API_ENDPOINTS } from '../../api/config.js';
