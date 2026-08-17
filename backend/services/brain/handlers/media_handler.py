@@ -7,7 +7,9 @@ from services.system_control import (
     execute_system_command,
     get_spotify_current_track,
     add_current_track_to_playlist,
-    close_app
+    close_app,
+    is_spotify_running,
+    wait_until_spotify_running
 )
 from services.learning_engine import log_user_action
 
@@ -23,6 +25,11 @@ def clean_song_query(query: str) -> str:
 
 def handle_media(lower_text: str, is_boss: bool, extracted_vol: int, silence_tts: bool, last_action_context: dict) -> Optional[dict]:
     """Handles Spotify media control, track cycling, playlist selection, volume levels, and aliases."""
+    # Ensure Spotify is running first if this is a playback or music control intent
+    if re.search(r'\b(?:play|unpause|resume|next|previous|skip|spotify|gaana|music)\b', lower_text) and not re.search(r'\b(?:close|quit|band)\b', lower_text):
+        if not is_spotify_running():
+            print("[Media Handler] Spotify not running — opening Spotify in background first...")
+            wait_until_spotify_running(timeout=6.0)
     # Close Spotify
     if re.search(r'\b(?:close|quit|stop|exit|band\s+karo)\s+(?:the\s+)?spotify\b|\bspotify\s+(?:close|quit|band\s+karo)\b', lower_text):
         close_app("Spotify")

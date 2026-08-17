@@ -12,6 +12,16 @@ from services.learning_engine import log_user_action
 
 def handle_utilities(lower_text: str, is_boss: bool, text: str) -> Optional[dict]:
     """Handles everyday assistant utilities without invoking the LLM."""
+    # Creator / Owner / Prathvi Sahu (Prem) Dossier
+    if re.search(r'\b(?:who\s+are\s+you|who\s+made\s+you|who\s+created\s+you|who\s+is\s+your\s+owner|who\s+is\s+your\s+creator|who\s+is\s+your\s+boss|tell\s+me\s+about\s+(?:prem|prathvi|prathvi\s+sahu|your\s+owner|your\s+creator)|who\s+is\s+(?:prem|prathvi|prathvi\s+sahu)|owner\s+info|creator\s+info|about\s+prem|about\s+prathvi)\b', lower_text):
+        reply_msg = (
+            "I am F.R.I.D.A.Y., engineered by Prathvi Sahu (Prem), an AI Systems Architect and Software Engineer from IIT Mandi. "
+            "Prem built me as a full-stack voice-controlled operating system integrating Groq Llama 3.3 70B, real-time quantum trading analysis, and an AI Career OS. "
+            "You can explore his work on GitHub at github.com/PrathviSahu."
+        )
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "none"}
+
     # Voice AI Quant Chart Analysis
     if re.search(r'\b(?:analyze|analysis|chart\s+analysis|technical\s+analysis|what\s+is\s+the\s+trend|quant\s+analysis)\b', lower_text):
         sym_match = re.search(r'\b(?:nas100|nasdaq|gold|xauusd|dxy|nifty|btc|bitcoin|eurusd|gbpusd|us100|reliance|tatamotors)\b', lower_text)
