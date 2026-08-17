@@ -350,7 +350,6 @@ export default function LockScreen() {
     });
 
     return (
-    return (
         <div className="w-full min-h-screen relative overflow-x-hidden overflow-y-auto select-none bg-[#02030A] flex flex-col justify-between">
             <Background />
 
