@@ -11,11 +11,11 @@ export default function BottomBar() {
     // unavailable (offline Web Speech, or the Tauri webview). These mirror the
     // voice commands in voiceCommands.js.
     const QUICK_COMMANDS = [
-        { cmd: 'career', label: '🎯 Career OS' },
+        { cmd: 'demo', label: '🎯 1-Click Demo' },
+        { cmd: 'career', label: '💼 Career OS' },
         { cmd: 'trading', label: '📈 Trading Station' },
         { cmd: 'dashboard', label: '⚡ 17-in-1 Dashboard' },
         { cmd: 'engineering', label: '🛠️ Dev Console' },
-        { cmd: 'vscode', label: '💻 Coding AI' },
         { cmd: 'lock', label: '🔒 Lock' },
     ];
     const prompt = (() => {
@@ -99,6 +99,10 @@ export default function BottomBar() {
                         type="button"
                         disabled={locked && cmd !== 'lock'}
                         onClick={() => {
+                            if (cmd === 'demo') {
+                                window.dispatchEvent(new CustomEvent('friday-open-recruiter-demo'));
+                                return;
+                            }
                             if (cmd === 'lock') {
                                 runAuthSequence('lock');
                                 return;
