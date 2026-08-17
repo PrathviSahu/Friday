@@ -600,8 +600,17 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       pttEnd();
     };
 
+    const handlePttToggleEvent = (e) => {
+      if (e.detail?.active) {
+        pttStart();
+      } else {
+        pttEnd();
+      }
+    };
+
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('friday-ptt-toggle', handlePttToggleEvent);
 
     // ══════════════════ ENGINE 2: WHISPER BACKEND (GROQ FREE TIER) ══════════════════
     const switchToWhisper = (reason) => {
