@@ -17,23 +17,12 @@ import { approveAndSendEmail, cancelEmailDraft } from '../../api/email';
 import { approveAndCreateEvent, cancelEventDraft } from '../../api/calendar';
 import { approveAndSendWhatsApp, cancelWhatsAppDraft } from '../../api/whatsapp';
 import PendingApprovalCard from '../Common/PendingApprovalCard';
-import RecruiterDemoCard from '../Panels/RecruiterDemoCard';
 
 export default function LockScreen() {
     const orb = useOrbState();
     const { appState, stateLabel, authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, authenticateWithPassword, unlockDemo, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled, pttMode } = useFriday();
     const scale = useFitScale();
-
-    // Recruiter 1-Click Demo Modal state
-    const [showRecruiterDemo, setShowRecruiterDemo] = useState(false);
-    const [lockCardView, setLockCardView] = useState('access');
-
-    React.useEffect(() => {
-        const onOpenDemo = () => setShowRecruiterDemo(true);
-        window.addEventListener('friday-open-recruiter-demo', onOpenDemo);
-        return () => window.removeEventListener('friday-open-recruiter-demo', onOpenDemo);
-    }, []);
 
     // Approval-first email flow: holds the pending draft + preview shown to
     // the user until they explicitly confirm ("yes") or cancel ("no").
@@ -498,66 +487,30 @@ export default function LockScreen() {
 
                 {/* Cards Section */}
                 {locked ? (
-                    <div className="relative flex flex-col items-center justify-center w-full max-w-[460px] mx-auto my-1 px-3" style={{ pointerEvents: 'auto' }}>
-                        {/* Clean Segmented Tab Switch */}
-                        <div className="flex items-center gap-1.5 p-1 mb-2.5 rounded-full bg-[#050B14]/85 border border-[#00B7FF]/30 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,183,255,0.12)]">
-                            <button
-                                type="button"
-                                onClick={() => setLockCardView('access')}
-                                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                                    lockCardView === 'access'
-                                        ? 'bg-[#00D9FF] text-[#02030A] shadow-[0_0_12px_rgba(0,217,255,0.4)]'
-                                        : 'text-slate-300 hover:text-white'
-                                }`}
-                            >
-                                🔐 Access Control
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setLockCardView('recruiter')}
-                                className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                                    lockCardView === 'recruiter'
-                                        ? 'bg-[#00D9FF] text-[#02030A] shadow-[0_0_12px_rgba(0,217,255,0.4)]'
-                                        : 'text-slate-300 hover:text-white'
-                                }`}
-                            >
-                                <span>🎯 1-Click Recruiter Demo</span>
-                                <span className={`w-1.5 h-1.5 rounded-full ${lockCardView === 'recruiter' ? 'bg-[#02030A]' : 'bg-[#22ff99]'} animate-pulse`} />
-                            </button>
-                        </div>
+                    <div className="relative flex flex-col md:flex-row items-center justify-center w-full max-w-[1280px] mx-auto my-2 px-2 sm:px-4 gap-6" style={{ pointerEvents: 'auto' }}>
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
+                            className="w-full md:w-auto flex justify-center"
+                        >
+                            <AccessCard
+                                onFingerprint={handleFingerprintClick}
+                                fingerprintState={fingerprintState}
+                                fingerprintError={fingerprintError}
+                                onPasswordUnlock={authenticateWithPassword}
+                                onDemoUnlock={unlockDemo}
+                            />
+                        </motion.div>
 
-                        {/* Active Card View */}
-                        <AnimatePresence mode="wait">
-                            {lockCardView === 'access' ? (
-                                <motion.div
-                                    key="access"
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -8 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="w-full flex justify-center"
-                                >
-                                    <AccessCard
-                                        onFingerprint={handleFingerprintClick}
-                                        fingerprintState={fingerprintState}
-                                        fingerprintError={fingerprintError}
-                                        onPasswordUnlock={authenticateWithPassword}
-                                        onDemoUnlock={unlockDemo}
-                                    />
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="recruiter"
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -8 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="w-full flex justify-center"
-                                >
-                                    <RecruiterDemoCard isDocked={true} />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
+                            className="hidden md:flex justify-center"
+                        >
+                            <StatusCard />
+                        </motion.div>
                     </div>
                 ) : (
                     <div className="my-1" />
@@ -622,20 +575,6 @@ export default function LockScreen() {
                     onCancel={cancelPendingCalendar}
                 />
             )}
-
-            {/* Recruiter 1-Click Demo Modal (When Unlocked) */}
-            <AnimatePresence>
-                {showRecruiterDemo && (
-                    <div 
-                        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
-                        onClick={() => setShowRecruiterDemo(false)}
-                    >
-                        <div onClick={e => e.stopPropagation()} className="w-full max-w-[480px]">
-                            <RecruiterDemoCard onClose={() => setShowRecruiterDemo(false)} />
-                        </div>
-                    </div>
-                )}
-            </AnimatePresence>
 
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 30 }}>
                 <Corners />
