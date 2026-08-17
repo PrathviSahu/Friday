@@ -38,6 +38,12 @@ function FridayCore() {
     // organized inside the Sliding Dashboard drawer panel.
     const [dashboardOpen, setDashboardOpen] = useState(false);
 
+    useEffect(() => {
+        const handleOpen = () => setDashboardOpen(true);
+        window.addEventListener('friday-open-dashboard', handleOpen);
+        return () => window.removeEventListener('friday-open-dashboard', handleOpen);
+    }, []);
+
     const { confirmPendingAction } = useProactiveSuggestions({
         enabled: true,
         onSuggestion: ({ message }) => {

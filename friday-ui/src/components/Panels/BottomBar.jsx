@@ -11,12 +11,12 @@ export default function BottomBar() {
     // unavailable (offline Web Speech, or the Tauri webview). These mirror the
     // voice commands in voiceCommands.js.
     const QUICK_COMMANDS = [
-        { cmd: 'trading', label: 'Trading' },
-        { cmd: 'dashboard', label: 'Dashboard' },
-        { cmd: 'engineering', label: 'Engineering' },
-        { cmd: 'vscode', label: 'VS Code' },
-        { cmd: 'browser', label: 'Browser' },
-        { cmd: 'lock', label: 'Lock' },
+        { cmd: 'career', label: '🎯 Career OS' },
+        { cmd: 'trading', label: '📈 Trading Station' },
+        { cmd: 'dashboard', label: '⚡ 17-in-1 Dashboard' },
+        { cmd: 'engineering', label: '🛠️ Dev Console' },
+        { cmd: 'vscode', label: '💻 Coding AI' },
+        { cmd: 'lock', label: '🔒 Lock' },
     ];
     const prompt = (() => {
         if (conversationMode === 'awaiting-command') return 'WAKE WORD DETECTED';
@@ -91,8 +91,13 @@ export default function BottomBar() {
                         key={cmd}
                         type="button"
                         disabled={locked && cmd !== 'lock'}
-                        onClick={() => runAuthSequence(cmd)}
-                        className="rounded border border-[#00B7FF]/30 bg-[#001018]/80 px-3 py-1 text-[9px] tracking-[0.2em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:text-[#DFFAFF] disabled:opacity-30 disabled:cursor-not-allowed"
+                        onClick={() => {
+                            if (cmd === 'dashboard') {
+                                window.dispatchEvent(new CustomEvent('friday-open-dashboard'));
+                            }
+                            runAuthSequence(cmd);
+                        }}
+                        className="rounded border border-[#00B7FF]/30 bg-[#001018]/80 px-3 py-1 text-[9px] tracking-[0.2em] text-[#00D9FF] uppercase transition hover:border-[#00B7FF] hover:bg-[#00B7FF]/15 hover:text-[#DFFAFF] disabled:opacity-30 disabled:cursor-not-allowed"
                         style={{ pointerEvents: 'auto' }}
                     >
                         {label}
