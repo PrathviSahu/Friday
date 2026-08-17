@@ -325,10 +325,37 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         const data   = await withTimeout(fetchChatText(cmd), 12000);
         const reply  = data.reply?.trim()  || 'At your service, Boss.';
-        const action = data.action?.trim() || 'none';
-
         if (action && action !== 'none') onCommandRef.current?.(action);
         onConvRef.current?.({ transcript: cmd, reply, action });
+
+        // ── Direct Browser Client Handlers (WhatsApp, Web URLs) ────────────
+        const lowerCmd = cmd.toLowerCase().trim();
+        if (
+          action === 'open_whatsapp' ||
+          /^(?:open|launch|start)\s+(?:whatsapp|whats\s*app|wa)(?:\s+web)?$/i.test(lowerCmd)
+        ) {
+          try { window.open('https://web.whatsapp.com', '_blank'); } catch (_) {}
+        } else if (
+          action === 'whatsapp_send' ||
+          /\b(?:send\s+(?:a\s+)?whatsapp|whatsapp|whats\s*app)\b/i.test(lowerCmd)
+        ) {
+          try {
+            const waMatch = cmd.match(/(?:send\s+(?:a\s+)?whatsapp(?:\s+message)?\s+(?:to\s+)?([^:]+?)(?::|\s+saying\s+|\s+that\s+|\s+about\s+)|(?:whatsapp|whats\s*app)\s+([^:]+?)(?::|\s+saying\s+|\s+that\s+|\s+about\s+))(.*)/i);
+            if (waMatch) {
+              const recipient = (waMatch[1] || waMatch[2] || '').trim();
+              const msg = (waMatch[3] || '').trim();
+              const phone = recipient.replace(/[^\d+]/g, '');
+              const url = phone && phone.length >= 7
+                ? `https://web.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(msg)}`
+                : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg || recipient)}`;
+              window.open(url, '_blank');
+            } else {
+              window.open('https://web.whatsapp.com', '_blank');
+            }
+          } catch (_) {}
+        } else if (action === 'open_url' && data.target) {
+          try { window.open(data.target, '_blank'); } catch (_) {}
+        }
 
         // ── Speak response (non-blocking → mic restarts while she talks,
         //    so the user can barge in) ─────────────────────────────────────
