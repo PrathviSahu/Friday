@@ -23,7 +23,8 @@ html, body, #root {
   background: var(--bg);
   overflow: hidden;
   color: var(--white);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 @keyframes scanlineMove {
@@ -45,8 +46,8 @@ html, body, #root {
   50%       { opacity: 1; }
 }
 
-.font-orbitron  { font-family: 'Orbitron', monospace; }
-.font-grotesk   { font-family: 'Space Grotesk', sans-serif; }
+.font-orbitron  { font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif; font-weight: 700; letter-spacing: 0.05em; }
+.font-grotesk   { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
 
 /* Scanline sweep */
 .hud-scanline {

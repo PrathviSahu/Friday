@@ -62,58 +62,58 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                 </motion.div>
 
                 <div className="text-center mt-0.5">
-                    <div className="font-orbitron text-xs tracking-[0.2em] text-[#00B7FF] font-bold">
-                        ACCESS REQUIRED
+                    <div className="text-sm font-semibold text-[#00D9FF] tracking-tight">
+                        Access Control
                     </div>
-                    <div className="w-12 h-px bg-[#00B7FF]/40 mx-auto mt-2" />
+                    <div className="w-10 h-px bg-[#00B7FF]/40 mx-auto mt-1.5" />
                 </div>
 
-                <div className="text-center space-y-1.5 mt-0.5 w-full">
-                    <form onSubmit={handleSubmit} className="w-full space-y-1.5">
+                <div className="text-center space-y-2 mt-1 w-full">
+                    <form onSubmit={handleSubmit} className="w-full space-y-2">
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter Passphrase..."
                             disabled={passPending}
-                            className="w-full text-center bg-[#02030A]/65 border border-[#00B7FF]/25 focus:border-[#00B7FF]/65 rounded px-2 py-1 text-[10px] font-grotesk tracking-widest text-[#DFFAFF] outline-none transition-all placeholder:text-[#DFFAFF]/20"
+                            className="w-full text-center bg-[#02030A]/70 border border-[#00B7FF]/30 focus:border-[#00B7FF] rounded-lg px-3 py-1.5 text-xs text-[#DFFAFF] outline-none transition-all placeholder:text-slate-500"
                             style={{ pointerEvents: 'auto' }}
                         />
                         <button
                             type="submit"
                             disabled={passPending || !password.trim()}
-                            className="w-full py-1 rounded bg-[#00B7FF]/10 border border-[#00B7FF]/35 text-[9px] tracking-[0.2em] uppercase font-orbitron text-[#00D9FF] cursor-pointer hover:bg-[#00B7FF]/20 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+                            className="w-full py-1.5 rounded-lg bg-[#00B7FF]/15 border border-[#00B7FF]/40 text-xs font-semibold text-[#00D9FF] cursor-pointer hover:bg-[#00B7FF]/25 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                             style={{ pointerEvents: 'auto' }}
                         >
                             {passPending ? 'Verifying...' : 'Authorize'}
                         </button>
                     </form>
 
-                    <div className="flex items-center gap-1 my-1">
-                        <div className="h-px flex-1 bg-[#00B7FF]/20" />
-                        <p className="text-[7.5px] text-[#00B7FF]/40 tracking-widest uppercase font-orbitron">OR</p>
-                        <div className="h-px flex-1 bg-[#00B7FF]/20" />
+                    <div className="flex items-center gap-2 my-1">
+                        <div className="h-px flex-1 bg-white/10" />
+                        <p className="text-[9px] text-slate-400 font-medium">OR</p>
+                        <div className="h-px flex-1 bg-white/10" />
                     </div>
 
                     <button
                         type="button"
                         onClick={onFingerprint}
                         disabled={scanPending}
-                        className={`w-full py-1 rounded border text-[9px] tracking-[0.2em] uppercase font-orbitron transition ${
+                        className={`w-full py-1.5 rounded-lg border text-xs font-medium transition ${
                             errored
-                                ? 'border-red-400/40 text-red-300'
-                                : 'border-[#00B7FF]/25 text-[#DFFAFF]/60 hover:border-[#00B7FF] hover:text-[#00D9FF]'
+                                ? 'border-red-400/50 text-red-300 bg-red-500/10'
+                                : 'border-[#00B7FF]/30 text-slate-300 hover:border-[#00B7FF] hover:text-[#00D9FF] hover:bg-white/[0.03]'
                         } ${scanPending ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                         style={{ pointerEvents: 'auto' }}
                     >
-                        {scanPending ? 'Scanning…' : 'Fingerprint'}
+                        {scanPending ? 'Scanning…' : 'Biometric Fingerprint'}
                     </button>
 
                     {onDemoUnlock && (
                         <button
                             type="button"
                             onClick={onDemoUnlock}
-                            className="w-full py-1.5 rounded bg-[#00D9FF]/20 border border-[#00D9FF]/60 text-[9px] tracking-[0.18em] uppercase font-orbitron text-[#00D9FF] cursor-pointer hover:bg-[#00D9FF]/35 shadow-[0_0_14px_rgba(0,217,255,0.25)] transition-all font-semibold"
+                            className="w-full py-2 rounded-lg bg-[#00D9FF]/20 border border-[#00D9FF]/60 text-xs font-bold text-[#00D9FF] cursor-pointer hover:bg-[#00D9FF]/35 shadow-[0_0_16px_rgba(0,217,255,0.2)] transition-all"
                             style={{ pointerEvents: 'auto' }}
                         >
                             ⚡ Instant Demo Access
@@ -121,7 +121,7 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                     )}
 
                     {errored && (
-                        <p className="text-[8px] text-red-400/80 tracking-[0.05em] mt-1 px-1 font-grotesk uppercase">
+                        <p className="text-[10px] text-red-400 mt-1 px-1">
                             {errText || fingerprintError}
                         </p>
                     )}

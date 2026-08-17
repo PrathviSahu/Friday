@@ -27,6 +27,8 @@ export default function LockScreen() {
 
     // Recruiter 1-Click Demo Modal state
     const [showRecruiterDemo, setShowRecruiterDemo] = useState(false);
+    const [lockCardView, setLockCardView] = useState('access');
+
     React.useEffect(() => {
         const onOpenDemo = () => setShowRecruiterDemo(true);
         window.addEventListener('friday-open-recruiter-demo', onOpenDemo);
@@ -496,30 +498,66 @@ export default function LockScreen() {
 
                 {/* Cards Section */}
                 {locked ? (
-                    <div className="relative flex flex-col lg:flex-row items-center justify-center w-full max-w-[1280px] mx-auto my-2 px-2 sm:px-4 gap-6" style={{ pointerEvents: 'auto' }}>
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-                            className="w-full lg:w-auto flex justify-center shrink-0"
-                        >
-                            <AccessCard
-                                onFingerprint={handleFingerprintClick}
-                                fingerprintState={fingerprintState}
-                                fingerprintError={fingerprintError}
-                                onPasswordUnlock={authenticateWithPassword}
-                                onDemoUnlock={unlockDemo}
-                            />
-                        </motion.div>
+                    <div className="relative flex flex-col items-center justify-center w-full max-w-[460px] mx-auto my-1 px-3" style={{ pointerEvents: 'auto' }}>
+                        {/* Clean Segmented Tab Switch */}
+                        <div className="flex items-center gap-1.5 p-1 mb-2.5 rounded-full bg-[#050B14]/85 border border-[#00B7FF]/30 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,183,255,0.12)]">
+                            <button
+                                type="button"
+                                onClick={() => setLockCardView('access')}
+                                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                                    lockCardView === 'access'
+                                        ? 'bg-[#00D9FF] text-[#02030A] shadow-[0_0_12px_rgba(0,217,255,0.4)]'
+                                        : 'text-slate-300 hover:text-white'
+                                }`}
+                            >
+                                🔐 Access Control
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setLockCardView('recruiter')}
+                                className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                    lockCardView === 'recruiter'
+                                        ? 'bg-[#00D9FF] text-[#02030A] shadow-[0_0_12px_rgba(0,217,255,0.4)]'
+                                        : 'text-slate-300 hover:text-white'
+                                }`}
+                            >
+                                <span>🎯 1-Click Recruiter Demo</span>
+                                <span className={`w-1.5 h-1.5 rounded-full ${lockCardView === 'recruiter' ? 'bg-[#02030A]' : 'bg-[#22ff99]'} animate-pulse`} />
+                            </button>
+                        </div>
 
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.25, duration: 0.6, ease: 'easeOut' }}
-                            className="w-full max-w-[480px] flex justify-center"
-                        >
-                            <RecruiterDemoCard isDocked={true} />
-                        </motion.div>
+                        {/* Active Card View */}
+                        <AnimatePresence mode="wait">
+                            {lockCardView === 'access' ? (
+                                <motion.div
+                                    key="access"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-full flex justify-center"
+                                >
+                                    <AccessCard
+                                        onFingerprint={handleFingerprintClick}
+                                        fingerprintState={fingerprintState}
+                                        fingerprintError={fingerprintError}
+                                        onPasswordUnlock={authenticateWithPassword}
+                                        onDemoUnlock={unlockDemo}
+                                    />
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="recruiter"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-full flex justify-center"
+                                >
+                                    <RecruiterDemoCard isDocked={true} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 ) : (
                     <div className="my-1" />
