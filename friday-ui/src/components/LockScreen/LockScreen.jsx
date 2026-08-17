@@ -20,7 +20,7 @@ import PendingApprovalCard from '../Common/PendingApprovalCard';
 
 export default function LockScreen() {
     const orb = useOrbState();
-    const { appState, stateLabel, authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, authenticateWithPassword, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
+    const { appState, stateLabel, authStep, responseMessage, audioEnabled, enableAudioFromGesture, ttsLoading, isSpeaking, locked, unlockWithFingerprintFlow, authenticateWithPassword, unlockDemo, setResponseMessage, workspace, setWorkspace, lockNow } = orb;
     const { micEnabled, pttMode } = useFriday();
     const scale = useFitScale();
 
@@ -504,26 +504,29 @@ export default function LockScreen() {
                 </div>
 
                 {locked ? (
-                    <div className="relative flex items-center justify-between w-full max-w-[1280px] mx-auto mt-2" style={{ pointerEvents: 'auto' }}>
+                    <div className="relative flex flex-col md:flex-row items-center justify-center md:justify-between w-full max-w-[1280px] mx-auto mt-2 px-4 gap-6" style={{ pointerEvents: 'auto' }}>
                         <motion.div
                             initial={{ opacity: 0, x: -28 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}
+                            className="w-full md:w-auto flex justify-center"
                         >
                             <AccessCard
                                 onFingerprint={handleFingerprintClick}
                                 fingerprintState={fingerprintState}
                                 fingerprintError={fingerprintError}
                                 onPasswordUnlock={authenticateWithPassword}
+                                onDemoUnlock={unlockDemo}
                             />
                         </motion.div>
 
-                        <div className="w-16" />
+                        <div className="hidden md:block w-16" />
 
                         <motion.div
                             initial={{ opacity: 0, x: 28 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.2, duration: 0.9, ease: 'easeOut' }}
+                            className="w-full md:w-auto flex justify-center"
                         >
                             <StatusCard />
                         </motion.div>

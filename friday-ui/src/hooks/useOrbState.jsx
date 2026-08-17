@@ -783,7 +783,7 @@ export function OrbProvider({ children }) {
             appState, stateLabel, responseMessage, authStep, workspace, setWorkspace,
             conversationMode, setConversationMode,
             locked, mode, setMode, adminAuthed,
-            unlockWithFingerprintFlow, authenticateWithPassword, lockNow,
+            unlockWithFingerprintFlow, authenticateWithPassword, unlockDemo: playUnlockAnimation, lockNow,
             uniforms, isHovered, setIsHovered,
             waveformRef, audioLevelRef, start: startMic, stop: stopMic,
             transitionTo, runAuthSequence, speakText, setResponseMessage,

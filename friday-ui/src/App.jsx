@@ -89,7 +89,7 @@ function FridayCore() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7, duration: 0.6 }}
-                    className="fixed bottom-8 left-10 z-[60] flex cursor-pointer items-center gap-2.5 rounded-full border border-[#00B7FF]/40 bg-[#001018]/85 px-5 py-2.5 font-orbitron text-[9px] uppercase tracking-[0.35em] text-[#00D9FF] shadow-[0_0_24px_rgba(0,183,255,0.15)] backdrop-blur-md transition-all hover:border-[#00B7FF]/70 hover:bg-[#001018] hover:shadow-[0_0_32px_rgba(0,183,255,0.3)]"
+                    className="fixed bottom-4 left-4 sm:bottom-8 sm:left-10 z-[60] flex cursor-pointer items-center gap-2 sm:gap-2.5 rounded-full border border-[#00B7FF]/40 bg-[#001018]/85 px-3.5 sm:px-5 py-2 sm:py-2.5 font-orbitron text-[8.5px] sm:text-[9px] uppercase tracking-[0.25em] sm:tracking-[0.35em] text-[#00D9FF] shadow-[0_0_24px_rgba(0,183,255,0.15)] backdrop-blur-md transition-all hover:border-[#00B7FF]/70 hover:bg-[#001018] hover:shadow-[0_0_32px_rgba(0,183,255,0.3)]"
                     style={{ pointerEvents: 'auto' }}
                 >
                     <span className={`inline-block h-2 w-2 rounded-full ${dashboardOpen ? 'bg-[#22ff99] shadow-[0_0_8px_#22ff99]' : 'bg-[#00B7FF] shadow-[0_0_8px_#00B7FF]'}`} />

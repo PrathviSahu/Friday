@@ -52,12 +52,12 @@ export default function Clock({ large = false }) {
     }
 
     return (
-        <div className="flex items-center gap-3 font-orbitron text-right">
+        <div className="flex items-center gap-2 sm:gap-3 font-orbitron text-right">
             <div>
-                <div className="text-2xl font-bold text-[#DFFAFF] tracking-widest leading-none drop-shadow-[0_0_8px_rgba(0,183,255,0.5)]">
-                    {h}:{m} <span className="text-sm text-[#00B7FF]">{ampm}</span>
+                <div className="text-lg sm:text-2xl font-bold text-[#DFFAFF] tracking-widest leading-none drop-shadow-[0_0_8px_rgba(0,183,255,0.5)]">
+                    {h}:{m} <span className="text-xs sm:text-sm text-[#00B7FF]">{ampm}</span>
                 </div>
-                <div className="text-[9px] text-[#00B7FF]/60 tracking-[0.2em] mt-0.5">{dateStr}</div>
+                <div className="text-[7.5px] sm:text-[9px] text-[#00B7FF]/60 tracking-[0.15em] sm:tracking-[0.2em] mt-0.5">{dateStr}</div>
             </div>
             <svg width="52" height="52">
                 <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(0,183,255,0.15)" strokeWidth="1.5" />

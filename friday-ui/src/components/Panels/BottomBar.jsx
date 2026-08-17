@@ -29,7 +29,7 @@ export default function BottomBar() {
     const micLabel = micEnabled ? 'VOICE LISTENING ON' : 'VOICE LISTENING OFF';
 
     return (
-        <div className="relative px-14 py-4 min-w-[360px] max-w-[720px] text-center">
+        <div className="relative px-4 sm:px-14 py-4 w-full max-w-[720px] text-center">
             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                 <rect
                     x="1" y="1"

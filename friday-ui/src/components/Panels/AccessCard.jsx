@@ -23,7 +23,7 @@ function LockIcon() {
     );
 }
 
-export default function AccessCard({ onFingerprint, fingerprintState = 'idle', fingerprintError = '', onPasswordUnlock }) {
+export default function AccessCard({ onFingerprint, fingerprintState = 'idle', fingerprintError = '', onPasswordUnlock, onDemoUnlock }) {
     const [password, setPassword] = useState('');
     const [passPending, setPassPending] = useState(false);
     const [errText, setErrText] = useState('');
@@ -52,8 +52,8 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
     };
 
     return (
-        <AnimatedCard width={220} height={310}>
-            <div className="flex flex-col items-center gap-3 mt-4 px-2">
+        <AnimatedCard width={220} height={350}>
+            <div className="flex flex-col items-center gap-2 mt-3 px-2">
                 <motion.div
                     animate={{ opacity: [0.7, 1, 0.7] }}
                     transition={{ duration: 2.5, repeat: Infinity }}
@@ -61,15 +61,15 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                     <LockIcon />
                 </motion.div>
 
-                <div className="text-center mt-1">
+                <div className="text-center mt-0.5">
                     <div className="font-orbitron text-xs tracking-[0.2em] text-[#00B7FF] font-bold">
                         ACCESS REQUIRED
                     </div>
-                    <div className="w-12 h-px bg-[#00B7FF]/40 mx-auto mt-2.5" />
+                    <div className="w-12 h-px bg-[#00B7FF]/40 mx-auto mt-2" />
                 </div>
 
-                <div className="text-center space-y-2 mt-1 w-full">
-                    <form onSubmit={handleSubmit} className="w-full space-y-2">
+                <div className="text-center space-y-1.5 mt-0.5 w-full">
+                    <form onSubmit={handleSubmit} className="w-full space-y-1.5">
                         <input
                             type="password"
                             value={password}
@@ -89,7 +89,11 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                         </button>
                     </form>
 
-                    <p className="text-[8px] text-[#00B7FF]/25 tracking-widest uppercase font-orbitron mt-1">— OR —</p>
+                    <div className="flex items-center gap-1 my-1">
+                        <div className="h-px flex-1 bg-[#00B7FF]/20" />
+                        <p className="text-[7.5px] text-[#00B7FF]/40 tracking-widest uppercase font-orbitron">OR</p>
+                        <div className="h-px flex-1 bg-[#00B7FF]/20" />
+                    </div>
 
                     <button
                         type="button"
@@ -104,8 +108,20 @@ export default function AccessCard({ onFingerprint, fingerprintState = 'idle', f
                     >
                         {scanPending ? 'Scanning…' : 'Fingerprint'}
                     </button>
+
+                    {onDemoUnlock && (
+                        <button
+                            type="button"
+                            onClick={onDemoUnlock}
+                            className="w-full py-1.5 rounded bg-[#00D9FF]/20 border border-[#00D9FF]/60 text-[9px] tracking-[0.18em] uppercase font-orbitron text-[#00D9FF] cursor-pointer hover:bg-[#00D9FF]/35 shadow-[0_0_14px_rgba(0,217,255,0.25)] transition-all font-semibold"
+                            style={{ pointerEvents: 'auto' }}
+                        >
+                            ⚡ Instant Demo Access
+                        </button>
+                    )}
+
                     {errored && (
-                        <p className="text-[8.5px] text-red-400/80 tracking-[0.05em] mt-1.5 px-1 font-grotesk uppercase">
+                        <p className="text-[8px] text-red-400/80 tracking-[0.05em] mt-1 px-1 font-grotesk uppercase">
                             {errText || fingerprintError}
                         </p>
                     )}

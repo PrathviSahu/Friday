@@ -7,10 +7,16 @@ export function useFitScale() {
 
     useEffect(() => {
         const calc = () => {
-            const wScale = window.innerWidth / 1280;
-            const hScale = window.innerHeight / 850;
-            const s = Math.min(wScale, hScale);
-            setScale(Math.max(0.5, Math.min(1.0, s)));
+            if (window.innerWidth < 768) {
+                // On mobile devices, don't downscale to micro sizes — preserve readability
+                const s = window.innerWidth / 390;
+                setScale(Math.max(0.85, Math.min(1.0, s)));
+            } else {
+                const wScale = window.innerWidth / 1280;
+                const hScale = window.innerHeight / 850;
+                const s = Math.min(wScale, hScale);
+                setScale(Math.max(0.65, Math.min(1.0, s)));
+            }
         };
         calc();
         window.addEventListener('resize', calc);
