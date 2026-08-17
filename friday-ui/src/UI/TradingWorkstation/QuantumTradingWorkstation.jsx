@@ -494,10 +494,12 @@ const QuantumTradingWorkstation = React.memo(function QuantumTradingWorkstation(
                 </div>
 
                 {/* Dedicated Custom Watchlist Panel (Forex + Indian Stock Market 🇮🇳) */}
-                <CustomWatchlist
-                    currentSymbol={selectedSymbol}
-                    onSelectSymbol={setSelectedSymbol}
-                />
+                <div className="hidden lg:flex shrink-0">
+                    <CustomWatchlist
+                        currentSymbol={selectedSymbol}
+                        onSelectSymbol={setSelectedSymbol}
+                    />
+                </div>
             </div>
         </motion.div>
     );

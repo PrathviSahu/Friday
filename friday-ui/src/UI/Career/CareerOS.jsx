@@ -50,7 +50,9 @@ const MODULE_MAP = {
 
 const CareerOS = memo(function CareerOS({ onClose }) {
   const [active, setActive]       = useState('opportunities');
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -76,25 +78,21 @@ const CareerOS = memo(function CareerOS({ onClose }) {
       {/* ── Top Header ─────────────────────────────────────────────────────── */}
       <div style={{
         height: 52, borderBottom: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16,
+        display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10,
         flexShrink: 0,
       }}>
         {/* Sidebar toggle */}
-        <button onClick={() => setCollapsed(c => !c)} style={iconBtn}>
+        <button onClick={() => setCollapsed(c => !c)} style={iconBtn} className="hidden md:flex">
           <ChevronLeft size={16} style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: '200ms' }} />
         </button>
 
         {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <span style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>
-            F.R.I.D.A.Y.
-          </span>
-          <span style={{ color: '#1e293b' }}>/</span>
-          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden' }}>
+          <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
             Career OS
           </span>
           <span style={{ color: '#1e293b' }}>/</span>
-          <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>
+          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {activeNav?.label}
           </span>
         </div>
@@ -102,60 +100,72 @@ const CareerOS = memo(function CareerOS({ onClose }) {
         {/* Refresh Button */}
         <button
           onClick={handleRefresh}
-          title="Refresh Job Portal Data"
+          title="Refresh Data"
+          className="hidden sm:flex"
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '5px 12px', borderRadius: 999,
+            alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 999,
             background: 'rgba(255, 255, 255, 0.05)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             color: '#94a3b8',
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms',
+            fontSize: 10, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms',
           }}
         >
-          <RotateCw size={13} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+          <RotateCw size={12} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
           <span>REFRESH</span>
         </button>
 
         {/* Voice Mute / Mic Off Button */}
         <button
           onClick={() => setMicEnabled(prev => !prev)}
-          title={isMuted ? "FRIDAY Voice Muted — Click to Enable Microphone" : "FRIDAY Active — Click to Mute Microphone"}
+          title={isMuted ? "FRIDAY Voice Muted" : "FRIDAY Active"}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '5px 12px', borderRadius: 999,
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 999,
             background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(99, 102, 241, 0.15)',
             border: isMuted ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(99, 102, 241, 0.35)',
             color: isMuted ? '#f87171' : '#818cf8',
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms',
+            fontSize: 10, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms',
           }}
         >
-          {isMuted ? <MicOff size={13} /> : <Mic size={13} />}
-          <span>{isMuted ? 'MIC OFF' : 'MIC ON'}</span>
+          {isMuted ? <MicOff size={12} /> : <Mic size={12} />}
+          <span className="hidden sm:inline">{isMuted ? 'MIC OFF' : 'MIC ON'}</span>
         </button>
 
-        {/* Status pill */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '4px 10px', borderRadius: 999,
-          background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
-        }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />
-          <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 600 }}>ACTIVE</span>
-        </div>
-
         {/* Close */}
-        <button onClick={onClose} style={{ ...iconBtn, color: '#ef4444' }}>
+        <button onClick={onClose} style={{ ...iconBtn, color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)' }} title="Return to Main HUD">
           <X size={16} />
         </button>
       </div>
 
+      {/* ── Mobile Horizontal Navigation Strip ──────────────────────────────── */}
+      <div className="flex md:hidden items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-[#050812] overflow-x-auto scrollbar-none shrink-0">
+        {NAV.map(({ id, label, Icon }) => {
+          const isActive = active === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setActive(id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition ${
+                isActive
+                  ? 'bg-[#6366f1]/25 text-[#818cf8] border border-[#6366f1]/50 font-semibold'
+                  : 'bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-white'
+              }`}
+            >
+              <Icon size={11} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-        <div style={{
+        {/* ── Desktop Sidebar ──────────────────────────────────────────────── */}
+        <div className="hidden md:flex" style={{
           width: collapsed ? 56 : 220, flexShrink: 0, overflow: 'hidden',
           borderRight: '1px solid rgba(255,255,255,0.05)',
-          padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2,
+          padding: '12px 8px', flexDirection: 'column', gap: 2,
           transition: 'width 220ms ease',
         }}>
           {NAV.map(({ id, label, Icon }) => {
