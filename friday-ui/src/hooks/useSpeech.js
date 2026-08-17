@@ -472,11 +472,10 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       try { window.dispatchEvent(new CustomEvent('friday-ptt', { detail: { held } })); } catch (_) {}
     };
 
-    // PTT session — browser engine: single-utterance recognizer, finalized on release.
+    // PTT session — browser engine: continuous utterance recognizer, finalized instantly on release.
     const startPttBrowser = () => {
-      if (cancelled || !enabledRef.current) return;
+      if (cancelled) return;
       if (!SpeechRec) {
-        // Browser engine unavailable — record the clip with the Whisper engine instead.
         modeRef.current = 'whisper';
         startWhisper();
         return;
@@ -486,12 +485,16 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
       let finals = '';
       let interim = '';
+      let latestCaptured = '';
       const sessionRec = new SpeechRec();
-      sessionRec.continuous     = false; // one utterance per hold
+      sessionRec.continuous     = true; // continuous capture while space is held
       sessionRec.interimResults = true;
       sessionRec.lang           = 'en-IN';
 
-      sessionRec.onstart = () => { activeRef.current = true; };
+      sessionRec.onstart = () => {
+        activeRef.current = true;
+        onStateChangeRef.current?.('LISTENING');
+      };
 
       sessionRec.onerror = (e) => {
         activeRef.current = false;
@@ -500,24 +503,31 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
           micBlockedRef.current = true;
         }
-        // 'no-speech' / 'network' — the PTT session just ends without a transcript.
       };
 
       sessionRec.onresult = (e) => {
-        for (let i = e.resultIndex; i < e.results.length; i++) {
+        let f = '';
+        let inter = '';
+        for (let i = 0; i < e.results.length; i++) {
           const res = e.results[i];
           const t = res[0]?.transcript ?? '';
-          if (res.isFinal) finals += ' ' + t;
-          else if (t) interim = t;
+          if (res.isFinal) f += ' ' + t;
+          else if (t) inter = t;
         }
+        finals = f;
+        interim = inter;
+        latestCaptured = (f.trim() + ' ' + inter.trim()).trim();
+        onStateChangeRef.current?.('LISTENING');
       };
 
       sessionRec.onend = () => {
         activeRef.current = false;
         if (cancelled) return;
-        const text = (finals.trim() || interim.trim());
-        if (text) processTranscript(text);
-        // No auto-restart — PTT is strictly hold-to-talk.
+        const text = (finals.trim() || interim.trim() || latestCaptured.trim());
+        if (text) {
+          onStateChangeRef.current?.('THINKING');
+          processTranscript(text);
+        }
       };
 
       rec = sessionRec;
@@ -530,18 +540,19 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
     };
 
     const pttStart = () => {
-      if (cancelled || !enabledRef.current || micBlockedRef.current) return;
+      if (cancelled || micBlockedRef.current) return;
       if (pttSessionRef.current.active) return;
 
       // Barge-in: holding the key while FRIDAY is speaking stops her instantly.
       stopSpeaking();
       speakingRef.current = false;
-      lastSpokenTtsRef.current = { text: '', ts: 0 }; // her words must not block the held utterance
+      lastSpokenTtsRef.current = { text: '', ts: 0 };
       setTtsDucking(false);
 
       pttSessionRef.current.active = true;
       notifyPtt(true);
-      console.log('[Voice][PTT] 🎙 Held — listening...');
+      onStateChangeRef.current?.('LISTENING');
+      console.log('[Voice][PTT] 🎙 Held Space — fast listening active...');
 
       if (modeRef.current === 'whisper') {
         startWhisper();
@@ -554,17 +565,16 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       if (!pttSessionRef.current.active) return;
       pttSessionRef.current.active = false;
       notifyPtt(false);
-      console.log('[Voice][PTT] Released — finalizing...');
+      console.log('[Voice][PTT] Released Space — finalizing speech capture...');
 
       if (modeRef.current === 'whisper') {
         if (recorderRef.current) {
           stopRecorder();
         } else {
-          // Mic was still starting up — close it right away.
           teardownWhisper();
         }
       } else if (rec) {
-        try { rec.stop(); } catch (_) {} // finalize the utterance
+        try { rec.stop(); } catch (_) {}
       }
     };
 
@@ -579,14 +589,14 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
     const onKeyDown = (e) => {
       if (e.code !== 'Space' || e.repeat) return;
-      if (listeningModeRef.current !== 'ptt' || !enabledRef.current) return;
-      if (isInteractiveTarget()) return; // don't hijack Space in inputs/buttons
-      e.preventDefault(); // stop page scroll while holding
+      if (isInteractiveTarget()) return; // don't hijack Space in text inputs
+      e.preventDefault(); // stop page scroll while holding Space
       pttStart();
     };
 
     const onKeyUp = (e) => {
       if (e.code !== 'Space') return;
+      if (isInteractiveTarget()) return;
       pttEnd();
     };
 

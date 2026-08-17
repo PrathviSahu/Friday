@@ -473,16 +473,14 @@ export default function LockScreen() {
                             </div>
                         ) : null}
 
-                        {pttMode ? (
-                            pttHeld ? (
-                                <div className="mt-3 text-[11px] font-orbitron text-[#22ff99] tracking-[0.4em] uppercase drop-shadow-[0_0_10px_rgba(34,255,153,0.6)]">
-                                    🎙 SPEAKING — RELEASE TO SEND
-                                </div>
-                            ) : (
-                                <div className="mt-3 text-[10px] font-orbitron text-[#00B7FF]/70 tracking-[0.35em] uppercase animate-pulse">
-                                    HOLD SPACE TO TALK
-                                </div>
-                            )
+                        {pttHeld ? (
+                            <div className="mt-3 text-[11px] font-orbitron text-[#22ff99] tracking-[0.35em] uppercase drop-shadow-[0_0_12px_rgba(34,255,153,0.7)] animate-pulse">
+                                🎙️ LISTENING (HOLD SPACE) — RELEASE TO SEND
+                            </div>
+                        ) : pttMode ? (
+                            <div className="mt-3 text-[10px] font-orbitron text-[#00B7FF]/70 tracking-[0.35em] uppercase animate-pulse">
+                                HOLD SPACE TO TALK
+                            </div>
                         ) : (
                             <div className="mt-3 flex items-center justify-center gap-3">
                                 {!audioEnabled ? (
@@ -495,7 +493,7 @@ export default function LockScreen() {
                                     </button>
                                 ) : (
                                     <span className="text-[11px] text-[#DFFAFF]/80 uppercase tracking-[0.2em]">
-                                        Voice enabled
+                                        Voice enabled (Hold Space to Talk)
                                     </span>
                                 )}
                             </div>
