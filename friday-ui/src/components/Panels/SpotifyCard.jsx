@@ -125,10 +125,16 @@ export default function SpotifyCard() {
     }, [songQuery]);
 
     const playSuggestion = async (title, artist) => {
-        const query = `${title} ${artist}`;
+        const query = `${title} ${artist}`.trim();
         setSearching(true);
         setSuggestions([]);
         setSongQuery('');
+
+        const isMobile = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile && query) {
+            window.location.href = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+        }
+
         try {
             await fetchChatText(`play ${query}`, true);
             setTimeout(async () => {
@@ -283,10 +289,15 @@ export default function SpotifyCard() {
 
     const openSpotifyApp = () => {
         const q = songQuery.trim() || (spotifyTrack.title ? `${spotifyTrack.title} ${spotifyTrack.artist}` : '');
-        if (q) {
-            window.open(`https://open.spotify.com/search/${encodeURIComponent(q)}`, '_blank');
+        const targetUrl = q 
+            ? `https://open.spotify.com/search/${encodeURIComponent(q)}`
+            : 'https://open.spotify.com';
+        
+        const isMobile = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+            window.location.href = targetUrl;
         } else {
-            window.open('https://open.spotify.com', '_blank');
+            window.open(targetUrl, '_blank', 'noopener,noreferrer');
         }
     };
 
