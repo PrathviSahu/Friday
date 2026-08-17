@@ -11,7 +11,7 @@ services:
       - key: FRIDAY_MODE
         value: demo
       - key: ALLOWED_ORIGINS
-        value: "https://friday-demo.vercel.app,http://localhost:5173,http://localhost:8080"
+        value: "https://friday-ui-blush.vercel.app,https://friday-oryyaypj7-prathvisahus-projects.vercel.app,http://localhost:5173,http://localhost:8080"
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY
