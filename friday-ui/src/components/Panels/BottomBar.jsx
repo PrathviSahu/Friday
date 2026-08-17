@@ -55,8 +55,9 @@ export default function BottomBar() {
     };
 
     return (
-        <div className="relative px-4 sm:px-14 py-4 w-full max-w-[760px] text-center">
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+        <div className="relative px-4 sm:px-14 py-4 w-full max-w-[760px] text-center" style={{ pointerEvents: 'auto', zIndex: 50 }}>
+            {/* SVG border overlay with pointer-events-none so it doesn't intercept clicks */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" style={{ zIndex: 0 }}>
                 <rect
                     x="1" y="1"
                     width="99%" height="99%"

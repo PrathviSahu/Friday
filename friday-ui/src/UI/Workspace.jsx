@@ -28,10 +28,10 @@ const FALLBACK = (
 export default function Workspace() {
     const { workspace, setWorkspace } = useOrbState();
 
-    if (workspace === 'lockscreen') return null;
-
     const isTradingActive = workspace === 'trading' || workspace === 'trading_minimized';
     const isCareerActive  = workspace === 'career';
+
+    if (!isTradingActive && !isCareerActive) return null;
 
     return (
         <div className="absolute inset-0" style={{ zIndex: 40, pointerEvents: 'auto' }}>
