@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: friday-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    envVars:
+      - key: FRIDAY_MODE
+        value: demo
+      - key: ALLOWED_ORIGINS
+        value: "https://friday-demo.vercel.app,http://localhost:5173,http://localhost:8080"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: FRIDAY_API_TOKEN
+        generateValue: true

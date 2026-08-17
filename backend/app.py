@@ -143,18 +143,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FRIDAY AI Core", version="3.3.0", lifespan=lifespan)
 
-# Enable CORS — frontend origins only (no self-referential backend origin)
+# Enable CORS — support environment-configured origins for production hosting
+raw_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080"
+)
+allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
+    allow_headers=["*"],
 )
 
 # Generated TTS audio (ensure the dir exists before mounting)

@@ -10,7 +10,7 @@
  * backend, e.g. `VITE_API_URL=http://localhost:8000 npm run build`.
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
 // API token for non-loopback deployments (Docker). Baked in at build time
 // via VITE_FRIDAY_TOKEN (docker-compose passes FRIDAY_API_TOKEN). Empty in
