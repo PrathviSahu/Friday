@@ -103,18 +103,19 @@ async function authenticate() {
 
 // High-level helper: first use registers the fingerprint, then authenticates.
 // Subsequent uses just authenticate. Returns { ok, error?, reason? }.
-export async function unlockWithFingerprint() {
-    // WebAuthn needs a secure context AND a registrable RP ID. localhost is the
-    // only origin browsers accept as an RP ID here — 127.0.0.1 / LAN IPs are
-    // rejected, so bail early with a clear reason instead of crashing.
+    // WebAuthn requires a secure context AND a registrable RP ID domain.
+    // IP literals (127.0.0.1, LAN IPs) are rejected by browser WebAuthn spec.
     if (typeof window === 'undefined' || !window.isSecureContext) {
-        console.log('[Fingerprint] Not a secure context');
+        console.log('[Fingerprint] Not a secure context (requires HTTPS or localhost)');
         return { ok: false, reason: 'insecure' };
     }
     const host = window.location.hostname;
     console.log('[Fingerprint] Host:', host, 'isSecureContext:', window.isSecureContext);
-    if (host !== 'localhost' && !host.endsWith('.localhost')) {
-        console.log('[Fingerprint] Invalid host, must use localhost');
+    
+    // Check if host is an IP address (WebAuthn forbids IP literals)
+    const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(':');
+    if (isIP && host !== 'localhost') {
+        console.log('[Fingerprint] IP address not supported by WebAuthn spec, use localhost or a domain name');
         return { ok: false, reason: 'use-localhost' };
     }
     const supported = await isSupported();
