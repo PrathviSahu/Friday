@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useOrbState } from '../../hooks/useOrbState';
 import { speak } from '../../services/ttsService';
-import { fetchChatText } from '../../api/chat';
+import { fetchChatText } from '../../api/chatText';
 
 export default function RecruiterDemoCard({ onClose, isDocked = false }) {
     const { setWorkspace, unlockDemo, locked } = useOrbState();
