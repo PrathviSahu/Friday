@@ -25,19 +25,22 @@ export const API_BASE_URL = (
 // unlocked by the owner. The static public production build NEVER contains hardcoded master secrets.
 export function getMasterSessionToken() {
   if (typeof window === 'undefined') return '';
-  return (
-    sessionStorage.getItem('FRIDAY_SESSION_TOKEN') ||
-    (import.meta.env.VITE_FRIDAY_TOKEN || '')
-  ).trim();
+  try {
+    return (window.sessionStorage?.getItem('FRIDAY_SESSION_TOKEN') || '').trim();
+  } catch (_) {
+    return '';
+  }
 }
 
 export function setMasterSessionToken(token) {
   if (typeof window === 'undefined') return;
-  if (token) {
-    sessionStorage.setItem('FRIDAY_SESSION_TOKEN', token.trim());
-  } else {
-    sessionStorage.removeItem('FRIDAY_SESSION_TOKEN');
-  }
+  try {
+    if (token) {
+      window.sessionStorage?.setItem('FRIDAY_SESSION_TOKEN', token.trim());
+    } else {
+      window.sessionStorage?.removeItem('FRIDAY_SESSION_TOKEN');
+    }
+  } catch (_) {}
 }
 
 export const FRIDAY_TOKEN = getMasterSessionToken();

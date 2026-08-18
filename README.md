@@ -231,7 +231,7 @@ cd friday-ui && npm run lint                   # oxlint, 0 errors
 |---|---|
 | **Docker Compose** | `docker compose up -d --build` (nginx frontend → FastAPI backend, same-origin) |
 | **Render (backend)** | `render.yaml` blueprint; set `GROQ_API_KEY`, `GEMINI_API_KEY`, `FRIDAY_API_TOKEN`. **Do not** set `FRIDAY_MODE=demo` unless you want a public unauthenticated demo. Data is ephemeral on Render free — attach a persistent disk at `/app/data` or run the backend on your own machine for persistent storage. |
-| **Vercel / static (frontend)** | build with `VITE_API_BASE_URL=https://<backend-url>` and `VITE_FRIDAY_TOKEN=<same token>`; SPA rewrite is included in `vercel.json`. |
+| **Vercel / static (frontend)** | build with standard `npm run build` (zero master secrets in bundle); SPA & API rewrites are handled server-side in `vercel.json`. |
 | **Desktop** | `npm run tauri dev` / `npm run tauri build` (Tauri 2 shell with scoped CSP) |
 
 ---

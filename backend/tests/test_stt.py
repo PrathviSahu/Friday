@@ -7,13 +7,15 @@ monkeypatched so tests stay offline and free.
 import pytest
 
 
-def test_stt_requires_auth(remote_client):
-    """A non-localhost caller without a token must be rejected."""
+def test_stt_public_demo_accessible(remote_client, monkeypatch):
+    """Public demo callers can transcribe speech without a token (mocked STT)."""
+    monkeypatch.setattr("routes.chat.transcribe_audio", lambda data, fn, mt: {"transcript": "hello friday", "engine": "groq"})
     r = remote_client.post(
         "/api/speech/transcribe",
         files={"audio": ("clip.ogg", b"fake-audio", "audio/ogg")},
     )
-    assert r.status_code == 401
+    assert r.status_code == 200
+    assert r.json()["transcript"] == "hello friday"
 
 
 def test_stt_oversized_upload_rejected(client):

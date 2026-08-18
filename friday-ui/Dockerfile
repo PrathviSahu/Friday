@@ -13,12 +13,6 @@ RUN npm ci --no-audit --no-fund
 
 COPY . .
 
-# API token baked into the bundle so every request carries
-# X-FRIDAY-Token (required: in Docker all traffic is non-loopback).
-# Passed automatically by docker-compose from FRIDAY_API_TOKEN.
-ARG VITE_FRIDAY_TOKEN=""
-ENV VITE_FRIDAY_TOKEN=$VITE_FRIDAY_TOKEN
-
 RUN npm run build
 
 # ── Runtime: nginx ──────────────────────────────────────────

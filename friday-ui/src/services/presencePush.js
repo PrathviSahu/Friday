@@ -7,13 +7,12 @@
  * notification permission on load — the HUD surfaces a one-tap enable
  * action when permission is 'default'.
  *
- * The FRIDAY_API_TOKEN baked into the bundle is forwarded to the service
- * worker via postMessage so its /api/presence/* fetches authenticate in
- * Docker / hosted deployments (the SW scope is not covered by the page's
- * window.fetch wrapper).
+ * The active master session token (if explicitly authenticated in the session)
+ * is forwarded to the service worker via postMessage so its /api/presence/*
+ * fetches authenticate without requiring any baked-in static secrets.
  */
 
-import { FRIDAY_TOKEN } from '../api/config.js';
+import { getMasterSessionToken } from '../api/config.js';
 
 const SW_PATH = '/sw.js';
 
@@ -24,8 +23,9 @@ export async function registerPresenceWorker() {
 
         const sendToken = () => {
             const target = reg.active || reg.waiting || navigator.serviceWorker.controller;
-            if (target && FRIDAY_TOKEN) {
-                target.postMessage({ type: 'FRIDAY_TOKEN', token: FRIDAY_TOKEN });
+            const token = getMasterSessionToken();
+            if (target && token) {
+                target.postMessage({ type: 'FRIDAY_TOKEN', token });
             }
         };
         if (reg.active) sendToken();

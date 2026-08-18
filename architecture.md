@@ -403,7 +403,7 @@ Workspace navigation is handled by `useOrbState.jsx` (client-side) and the
 | **Native macOS** (`start.sh`) | uvicorn :8000 (`--no-proxy-headers`) + Vite dev :5173 | Full system automation (brightness, volume, apps, Spotify) |
 | **Docker Compose** | nginx :8080 → FastAPI :8000 | Same-origin proxy (no CORS); `./backend/data` volume persists; `FRIDAY_API_TOKEN` baked into the frontend build |
 | **Render** (`render.yaml`) | FastAPI container, `${PORT:-8000}` | `FRIDAY_MODE=demo` is opt-in (never default); data is ephemeral unless a persistent disk is mounted at `/app/data` |
-| **Vercel / static** | `vercel.json` SPA rewrite | Build with `VITE_API_BASE_URL` + `VITE_FRIDAY_TOKEN` |
+| **Vercel / static** | `vercel.json` SPA & API proxy rewrites | Standard static build (zero master secrets in bundle) |
 | **Tauri 2** | Rust shell + webview | Scoped CSP; desktop packaging |
 
 ---

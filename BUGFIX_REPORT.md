@@ -80,7 +80,20 @@ A style object set `border: 'none'` then re-set `border` conditionally; the firs
 ## ⚠️ Remaining observations (not fixed — your call)
 
 1. **Public-data GETs gated now** — after redeploy, the Docker `healthcheck` still works (it hits `/api/system/stats` from loopback). No action needed.
-2. **Render + separate frontend:** after redeploying the backend, build the frontend with `VITE_FRIDAY_TOKEN` set to the same value as the backend's `FRIDAY_API_TOKEN` (Render generates one) and `VITE_API_BASE_URL` pointing at your Render URL. In pure Docker this is automatic.
+2. **Render + separate frontend:** after redeploying the backend, deploy the frontend to Vercel with zero baked-in secrets. In pure Docker this is automatic via nginx same-origin routing.
+
+---
+
+## Minimal reproduction checklist
+
+```bash
+# Backend:
+FRIDAY_API_TOKEN=prod_secret_123 ALLOWED_ORIGINS="https://friday-ui-blush.vercel.app" uvicorn app:app --host 0.0.0.0 --port 8000
+
+# Frontend:
+npm run build 
+```
+
 3. **`weather` defaults to Nashik, India** when IP geolocation fails (author's home city) — set `WEATHER_CITY` if you want your own (check `services/weather.py` for the env hook; it currently reads `city_query` only via the `get_weather()` call — worth wiring to an env var if weather matters to you).
 4. **Frontend `localStorage` reads** in `Opportunities.jsx`, `useOrbState.jsx`, `useFingerprint.js`, `SlidingDashboard.jsx`, `secureVault.js` are not wrapped in try/catch (works in normal browsers; can throw in hardened/private contexts).
 5. **`LockScreen.jsx` lint noise** (unused destructured vars `audioEnabled`, `enableAudioFromGesture`, `scale`) — cosmetic.
@@ -98,8 +111,7 @@ git push; trigger deploy        # new image includes --no-proxy-headers + gated 
 # → set GROQ/GEMINI keys + FRIDAY_API_TOKEN in dashboard (FRIDAY_MODE unset!)
 
 # Vercel / static frontend
-# Build env:  VITE_FRIDAY_TOKEN=<same as backend token>
-#             VITE_API_BASE_URL=https://<your-backend-url>
+# Build env:  VITE_API_BASE_URL=https://<your-backend-url>
 ```
 
 After redeploy, re-run: `cd backend && python -m pytest tests/` (323 tests) and open the UI — the dashboard, chat, trading, career and all panels keep working because every call already sends the token.

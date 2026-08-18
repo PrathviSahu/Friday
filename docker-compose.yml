@@ -46,10 +46,6 @@ services:
   frontend:
     build:
       context: ./friday-ui
-      args:
-        # Baked into the JS bundle so every API call carries X-FRIDAY-Token.
-        # (Rebuild with --build after changing it.)
-        VITE_FRIDAY_TOKEN: ${FRIDAY_API_TOKEN:-}
     ports:
       - "8080:80"
     depends_on:

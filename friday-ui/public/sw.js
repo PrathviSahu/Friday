@@ -11,9 +11,9 @@
 const PENDING_URL = '/api/presence/pending';
 const DECISION_URL = '/api/presence/decision';
 
-// In Docker / hosted deployments every request to the backend is
-// non-loopback and must carry X-FRIDAY-Token. The page passes the baked-in
-// token to this worker via postMessage (see services/presencePush.js).
+// In hosted/remote setups, same-origin rewrites handle proxying.
+// When an owner session token is entered interactively, it is passed
+// to this worker via postMessage (see services/presencePush.js).
 let apiToken = '';
 
 self.addEventListener('message', (event) => {
