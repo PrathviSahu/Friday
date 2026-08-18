@@ -58,7 +58,7 @@ class SmtpImapEmailProvider(EmailProvider):
             tested_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         )
 
-    def get_messages(self, limit: int = 10, unread_only: bool = True) -> List[EmailMessage]:
+    def get_messages(self, limit: int = 5, unread_only: bool = True) -> List[EmailMessage]:
         try:
             raw_unread = email_agent.get_unread(limit=limit)
             results = []
@@ -80,7 +80,7 @@ class SmtpImapEmailProvider(EmailProvider):
         except Exception:
             return []
 
-    def search_messages(self, query: str, limit: int = 10) -> List[EmailMessage]:
+    def search_messages(self, query: str, limit: int = 5) -> List[EmailMessage]:
         try:
             raw_searched = email_agent.search_emails(query, limit=limit)
             results = []

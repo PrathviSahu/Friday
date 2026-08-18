@@ -31,8 +31,9 @@ class FakeIMAP:
         self.select_called = False
         self.logged_out = False
 
-    def select(self, mailbox):
+    def select(self, mailbox="INBOX", readonly=False, *args, **kwargs):
         self.select_called = True
+        self.readonly = readonly
         return ("OK", [b"1"])
 
     def search(self, *args):

@@ -50,45 +50,62 @@ class EmailUnavailableError(RuntimeError):
     """Raised when email is not configured or the provider is unreachable."""
 
 
-# ── Config ────────────────────────────────────────────────────────────────
+def _get_credential(key_env: str, key_vault: str, default: str = "") -> str:
+    """Resolves credential first from environment, then from encrypted career_profile vault."""
+    val = os.getenv(key_env)
+    if val:
+        return val.strip()
+    try:
+        from services.career_db import get_profile
+        prof = get_profile()
+        if key_vault in prof and prof[key_vault].get("value"):
+            return prof[key_vault]["value"].strip()
+    except Exception:
+        pass
+    return default
+
 
 def is_configured() -> bool:
-    return bool(
-        os.getenv("FRIDAY_EMAIL_HOST")
-        and os.getenv("FRIDAY_EMAIL_USER")
-        and os.getenv("FRIDAY_EMAIL_PASS")
-    )
+    return bool(_user() and _password())
 
 
 def _imap_host() -> str:
-    return os.getenv("FRIDAY_EMAIL_HOST", "imap.gmail.com")
+    return _get_credential("FRIDAY_EMAIL_HOST", "email_host", "imap.gmail.com")
 
 
 def _imap_port() -> int:
-    return int(os.getenv("FRIDAY_EMAIL_IMAP_PORT", "993"))
+    port_str = _get_credential("FRIDAY_EMAIL_IMAP_PORT", "email_imap_port", "993")
+    try:
+        return int(port_str)
+    except ValueError:
+        return 993
 
 
 def _smtp_host() -> str:
-    return os.getenv("FRIDAY_EMAIL_SMTP_HOST") or _imap_host()
+    return _get_credential("FRIDAY_EMAIL_SMTP_HOST", "email_smtp_host", _imap_host())
 
 
 def _smtp_port() -> int:
-    return int(os.getenv("FRIDAY_EMAIL_SMTP_PORT", "587"))
+    port_str = _get_credential("FRIDAY_EMAIL_SMTP_PORT", "email_smtp_port", "587")
+    try:
+        return int(port_str)
+    except ValueError:
+        return 587
 
 
 def _user() -> str:
-    return os.getenv("FRIDAY_EMAIL_USER", "")
+    return _get_credential("FRIDAY_EMAIL_USER", "email_user", "")
 
 
 def _password() -> str:
-    return os.getenv("FRIDAY_EMAIL_PASS", "")
+    return _get_credential("FRIDAY_EMAIL_PASS", "email_password", _get_credential("FRIDAY_EMAIL_PASS", "email_pass", ""))
 
 
 def _ensure_configured() -> None:
     if not is_configured():
         raise EmailUnavailableError(
             "Email is not configured. Add FRIDAY_EMAIL_HOST, FRIDAY_EMAIL_USER "
-            "and FRIDAY_EMAIL_PASS to backend/.env (Gmail/Outlook app password)."
+            "and FRIDAY_EMAIL_PASS to backend/.env or configure email credentials in Career Vault."
         )
 
 
@@ -173,6 +190,17 @@ def _body_snippet(msg, limit: int = 240) -> str:
     return ""
 
 
+def _sanitize_untrusted_email_text(text: str) -> str:
+    """Sanitizes untrusted email content to neutralize prompt-injection and control characters."""
+    if not text:
+        return ""
+    # Strip system command prompts or instruction hijack markers
+    cleaned = text.replace("\r", " ").replace("\n", " ")
+    for tag in ["[SYSTEM]", "[ASSISTANT]", "[INSTRUCTION]", "<|im_start|>", "<|im_end|>"]:
+        cleaned = cleaned.replace(tag, "")
+    return cleaned.strip()
+
+
 def _parse_email(raw: bytes) -> dict:
     """Convert raw RFC822 bytes into a clean email dict."""
     msg = email.message_from_bytes(raw)
@@ -185,7 +213,8 @@ def _parse_email(raw: bytes) -> dict:
     except Exception:
         ts = 0
 
-    snippet = _body_snippet(msg)
+    raw_snippet = _body_snippet(msg)
+    snippet = _sanitize_untrusted_email_text(raw_snippet)
     from_name = sender.split("<")[0].strip().strip('"') or sender
     priority = bool(PRIORITY_KEYWORDS.search(subject + " " + snippet)) and not NOISE_KEYWORDS.search(sender + " " + subject)
 
@@ -194,13 +223,13 @@ def _parse_email(raw: bytes) -> dict:
         "from_name": from_name[:60],
         "subject": subject[:120],
         "date": ts,
-        "snippet": snippet,
+        "snippet": snippet[:240],
         "priority": priority,
     }
 
 
-def _fetch_recent_unseen(conn, limit: int = 15) -> list:
-    """Fetch the most recent `limit` unread messages without marking them seen."""
+def _fetch_recent_unseen(conn, limit: int = 5) -> list:
+    """Fetch the most recent `limit` unread messages in read-only mode using BODY.PEEK[]."""
     typ, data = conn.search(None, "UNSEEN")
     if typ != "OK":
         return []
@@ -221,12 +250,16 @@ def _fetch_recent_unseen(conn, limit: int = 15) -> list:
 
 # ── Public read API ───────────────────────────────────────────────────────
 
-def get_unread(limit: int = 15) -> list:
-    """Return the most recent unread emails (does NOT mark them read)."""
+def get_unread(limit: int = 5) -> list:
+    """Return the most recent unread emails in strict read-only mode (does NOT mark them read)."""
     _ensure_configured()
     conn = _connect_imap()
     try:
-        conn.select("INBOX")
+        # STRICT READ-ONLY: readonly=True ensures mailbox state is never modified
+        try:
+            conn.select("INBOX", readonly=True)
+        except TypeError:
+            conn.select("INBOX")
         return _fetch_recent_unseen(conn, limit=limit)
     finally:
         try:
@@ -235,12 +268,16 @@ def get_unread(limit: int = 15) -> list:
             pass
 
 
-def search_emails(query: str, limit: int = 10) -> list:
-    """Search subject/from for `query` across the inbox."""
+def search_emails(query: str, limit: int = 5) -> list:
+    """Search subject/from for `query` across the inbox in strict read-only mode."""
     _ensure_configured()
     conn = _connect_imap()
     try:
-        conn.select("INBOX")
+        # STRICT READ-ONLY: readonly=True ensures mailbox state is never modified
+        try:
+            conn.select("INBOX", readonly=True)
+        except TypeError:
+            conn.select("INBOX")
         crit = f'(OR (SUBJECT "{query}") (FROM "{query}"))'
         typ, data = conn.search(None, crit)
         if typ != "OK":
