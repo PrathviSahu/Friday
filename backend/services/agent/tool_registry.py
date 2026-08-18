@@ -10,6 +10,7 @@ Permission Tiers:
 - LEVEL 3: AUTOMATED (explicitly authorized background jobs)
 """
 
+import os
 from enum import Enum
 from typing import Callable, Dict, Any, Optional, List
 from pydantic import BaseModel, Field
@@ -200,11 +201,34 @@ def _handle_search_emails(args: dict) -> dict:
 def _handle_draft_email(args: dict) -> dict:
     from services.agent.integrations.email import get_email_provider
     provider = get_email_provider()
-    to = args.get("to", "recruiter@jpmorgan.com")
-    subject = args.get("subject", "Application for Software Engineer — Prem Sahu")
-    body = args.get("body", "Dear Hiring Team,\n\nI am reaching out regarding the Software Engineer position at JPMorgan Chase...")
-    attachments = args.get("attachments", ["Resume_v3.pdf"])
-    draft = provider.create_draft(to=to, subject=subject, body=body, attachments=attachments)
+    
+    to = args.get("to")
+    if not to or not isinstance(to, str) or not to.strip():
+        return {
+            "status": "error",
+            "error": "Recipient email ('to') is required to prepare a draft."
+        }
+    to = to.strip()
+
+    subject = args.get("subject")
+    if not subject or not isinstance(subject, str) or not subject.strip():
+        return {
+            "status": "error",
+            "error": "Email subject is required to prepare a draft."
+        }
+    subject = subject.strip()
+
+    body = args.get("body", "Dear Hiring Team,\n\nI am reaching out regarding this opportunity.\n\nBest regards,\nPrem Sahu")
+    
+    # Safe attachment validation
+    raw_attachments = args.get("attachments", ["Resume_v3.pdf"])
+    safe_attachments = []
+    allowed_exts = (".pdf", ".docx", ".txt", ".png", ".jpg")
+    for att in raw_attachments:
+        if isinstance(att, str) and att.lower().endswith(allowed_exts):
+            safe_attachments.append(os.path.basename(att))
+
+    draft = provider.create_draft(to=to, subject=subject, body=body, attachments=safe_attachments)
     return {
         "status": "drafted",
         "draft_id": draft.id,
@@ -212,6 +236,7 @@ def _handle_draft_email(args: dict) -> dict:
         "subject": draft.subject,
         "body": draft.body,
         "attachments": draft.attachments,
+        "content_hash": draft.content_hash,
         "preview": f"To: {draft.to}\nSubject: {draft.subject}\nAttachments: {', '.join(draft.attachments)}\n\n{draft.body}"
     }
 

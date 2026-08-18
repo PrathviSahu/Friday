@@ -42,6 +42,16 @@ class EmailMessage(BaseModel):
     provider: str = "email"
 
 
+import hashlib
+
+
+def compute_content_hash(to: str, subject: str, body: str, attachments: Optional[List[str]] = None) -> str:
+    """Computes a deterministic SHA-256 hash of email draft contents."""
+    att_str = ",".join(sorted(attachments or []))
+    raw = f"{to.strip().lower()}|{subject.strip()}|{body.strip()}|{att_str}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 class EmailDraft(BaseModel):
     id: str
     to: str
@@ -51,6 +61,8 @@ class EmailDraft(BaseModel):
     created_at: float
     expires_at: float
     status: str = "pending"  # "pending", "approved", "sent", "cancelled"
+    content_hash: str = ""
+    context_id: Optional[str] = None
 
 
 class SendResult(BaseModel):

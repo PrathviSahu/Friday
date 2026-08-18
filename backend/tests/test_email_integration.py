@@ -244,6 +244,56 @@ class TestEmailIntegrationSuite:
 
     # ── 3. DRAFTING WITH CAREER CONTEXT ──
 
+    def test_create_draft_explicit(self):
+        """Creating an explicit draft returns structured preview with content hash without sending."""
+        res = execute_tool(
+            "draft_email",
+            {
+                "to": "hiring@techcorp.com",
+                "subject": "Senior Backend Engineer Application",
+                "body": "Dear Hiring Manager,\n\nI am writing to express my interest.\n\nBest regards,\nPrem",
+                "attachments": ["Resume_v3.pdf"]
+            },
+            is_boss=True
+        )
+        assert res.success is True
+        assert res.result["status"] == "drafted"
+        assert res.result["draft_id"].startswith("draft-")
+        assert res.result["to"] == "hiring@techcorp.com"
+        assert res.result["content_hash"] != ""
+        assert "To: hiring@techcorp.com" in res.result["preview"]
+        assert "Resume_v3.pdf" in res.result["preview"]
+
+    def test_draft_input_validation_missing_recipient(self):
+        """Drafting without recipient returns structured error."""
+        res = execute_tool("draft_email", {"to": "", "subject": "Hi", "body": "Body"}, is_boss=True)
+        assert res.result.get("status") == "error"
+        assert "recipient email" in res.result.get("error", "").lower()
+
+    def test_draft_input_validation_missing_subject(self):
+        """Drafting without subject returns structured error."""
+        res = execute_tool("draft_email", {"to": "recruiter@test.com", "subject": "", "body": "Body"}, is_boss=True)
+        assert res.result.get("status") == "error"
+        assert "subject is required" in res.result.get("error", "").lower()
+
+    def test_draft_attachment_validation(self):
+        """Draft tool filters out dangerous file extensions and permits safe document types."""
+        res = execute_tool(
+            "draft_email",
+            {
+                "to": "recruiter@safe.com",
+                "subject": "Application",
+                "body": "Resume attached",
+                "attachments": ["Resume_v3.pdf", "exploit.exe", "script.sh", "CoverLetter.docx"]
+            },
+            is_boss=True
+        )
+        atts = res.result.get("attachments", [])
+        assert "Resume_v3.pdf" in atts
+        assert "CoverLetter.docx" in atts
+        assert "exploit.exe" not in atts
+        assert "script.sh" not in atts
+
     def test_draft_email_with_career_context(self):
         """Drafting resolves active job, recruiter, candidate details, and resume."""
         # Set active context to JPMorgan role
@@ -281,6 +331,16 @@ class TestEmailIntegrationSuite:
         new_body = new_ctx.active_pending_action["arguments"]["body"]
         assert new_body != prev_body
         assert "Prem Sahu" in new_body
+
+    def test_draft_content_hash_changes_on_edit(self):
+        """Verifies content hash changes deterministically when draft is edited."""
+        from services.agent.integrations.email.provider import compute_content_hash
+        hash1 = compute_content_hash("recruiter@jpmc.com", "Job App", "Original long body", ["Resume_v3.pdf"])
+        hash2 = compute_content_hash("recruiter@jpmc.com", "Job App", "Short concise body", ["Resume_v3.pdf"])
+        hash3 = compute_content_hash("recruiter@jpmc.com", "Job App", "Original long body", ["Resume_v3.pdf"])
+
+        assert hash1 != hash2
+        assert hash1 == hash3
 
     # ── 5. APPROVAL GATING & SEND ──
 

@@ -16,6 +16,7 @@ from services.agent.integrations.email.provider import (
     EmailDraft,
     SendResult,
     VerificationResult,
+    compute_content_hash,
 )
 
 
@@ -104,20 +105,23 @@ class MockEmailProvider(EmailProvider):
     def create_draft(self, to: str, subject: str, body: str, attachments: Optional[List[str]] = None) -> EmailDraft:
         draft_id = f"draft-{uuid.uuid4().hex[:8]}"
         now = time.time()
+        atts = attachments or []
+        chash = compute_content_hash(to, subject, body, atts)
         draft = EmailDraft(
             id=draft_id,
             to=to,
             subject=subject,
             body=body,
-            attachments=attachments or [],
+            attachments=atts,
             created_at=now,
             expires_at=now + 900,  # 15 min TTL
-            status="pending"
+            status="pending",
+            content_hash=chash
         )
         self.drafts[draft_id] = draft
         return draft
 
-    def update_draft(self, draft_id: str, to: Optional[str] = None, subject: Optional[str] = None, body: Optional[str] = None) -> Optional[EmailDraft]:
+    def update_draft(self, draft_id: str, to: Optional[str] = None, subject: Optional[str] = None, body: Optional[str] = None, attachments: Optional[List[str]] = None) -> Optional[EmailDraft]:
         draft = self.drafts.get(draft_id)
         if not draft:
             return None
@@ -127,8 +131,11 @@ class MockEmailProvider(EmailProvider):
             draft.subject = subject
         if body is not None:
             draft.body = body
+        if attachments is not None:
+            draft.attachments = attachments
         draft.created_at = time.time()
         draft.expires_at = time.time() + 900
+        draft.content_hash = compute_content_hash(draft.to, draft.subject, draft.body, draft.attachments)
         return draft
 
     def get_draft(self, draft_id: str) -> Optional[EmailDraft]:
