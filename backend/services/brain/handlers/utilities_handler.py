@@ -22,8 +22,22 @@ def handle_utilities(lower_text: str, is_boss: bool, text: str) -> Optional[dict
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "none"}
 
-    # Voice AI Quant Chart Analysis
-    if re.search(r'\b(?:analyze|analysis|chart\s+analysis|technical\s+analysis|what\s+is\s+the\s+trend|quant\s+analysis)\b', lower_text):
+    # Voice AI Quant Chart / Market Analysis
+    # Must have explicit financial/trading context and NOT be a career/job/resume query
+    has_financial_intent = bool(re.search(
+        r'\b(?:market\s+structure|chart\s+analysis|technical\s+analysis|quant\s+analysis|price\s+action|'
+        r'what\s+is\s+the\s+trend|rsi|macd|ema|sma|candlestick|candles?|support|resistance|ticker|'
+        r'(?:analyze|analysis|trend|structure|check|review)\s+(?:(?:the|this|that|current|active)\s+)?(?:market|markets|chart|charts|forex|stock|stocks|crypto|cryptocurrency|candles?|candlestick|nasdaq|nas100|nifty|gold|silver|xauusd|dxy|btc|bitcoin|eth|ethereum|us100|spx|reliance|tatamotors))\b'
+        r'|\b(?:nas100|nasdaq|gold|xauusd|dxy|nifty|btc|bitcoin|eurusd|gbpusd|us100|reliance|tatamotors)\s+(?:analysis|trend|chart|structure)\b'
+        r'|\b(?:analyze|chart)\s+(?:nas100|nasdaq|gold|xauusd|dxy|nifty|btc|bitcoin|eurusd|gbpusd|us100|reliance|tatamotors)\b',
+        lower_text
+    ))
+    is_career_query = bool(re.search(
+        r'\b(?:job|jobs|job\s+description|vacancy|vacancies|position|positions|role|roles|company|employer|recruiter|recruiters|resume|cv|application|applications|apply|career|careers|salary|compensation|skills?|skill\s+gap|ats|interview|interviews|internship|candidate|hiring)\b',
+        lower_text
+    ))
+
+    if has_financial_intent and not is_career_query:
         sym_match = re.search(r'\b(?:nas100|nasdaq|gold|xauusd|dxy|nifty|btc|bitcoin|eurusd|gbpusd|us100|reliance|tatamotors)\b', lower_text)
         symbol_name = sym_match.group(0).upper() if sym_match else "the active chart"
         reply_msg = (
