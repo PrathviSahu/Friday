@@ -11,6 +11,27 @@
 const PENDING_URL = '/api/presence/pending';
 const DECISION_URL = '/api/presence/decision';
 
+// In Docker / hosted deployments every request to the backend is
+// non-loopback and must carry X-FRIDAY-Token. The page passes the baked-in
+// token to this worker via postMessage (see services/presencePush.js).
+let apiToken = '';
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'FRIDAY_TOKEN') {
+        apiToken = event.data.token || '';
+    }
+});
+
+// fetch() wrapper that always attaches the API token (same as the page's
+// window.fetch wrapper in api/config.js).
+function authedFetch(url, options = {}) {
+    const headers = new Headers(options.headers || {});
+    if (apiToken && !headers.has('X-FRIDAY-Token')) {
+        headers.set('X-FRIDAY-Token', apiToken);
+    }
+    return fetch(url, { ...options, headers });
+}
+
 self.addEventListener('install', (event) => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
@@ -18,7 +39,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil((async () => {
         let pending = [];
         try {
-            const res = await fetch(PENDING_URL);
+            const res = await authedFetch(PENDING_URL);
             if (res.ok) pending = (await res.json()).pending || [];
         } catch (_) {}
 
@@ -47,7 +68,7 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil((async () => {
         if (token && (action === 'approve' || action === 'deny')) {
             try {
-                await fetch(DECISION_URL, {
+                await authedFetch(DECISION_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ approval_token: token, decision: action }),

@@ -22,6 +22,54 @@ def test_remote_caller_rejected_without_token(remote_client):
     assert r.status_code == 401
 
 
+def test_remote_caller_cannot_read_personal_data(remote_client):
+    """Every personal-data read endpoint must reject non-localhost callers.
+
+    Regression guard for the ~25 read endpoints that were previously
+    unauthenticated (todos, reminders, knowledge, timeline, goals, learning,
+    life-memory, notifications, briefing, watchlist, chart drawings, ...).
+    """
+    paths = [
+        "/api/todos",
+        "/api/reminders",
+        "/api/knowledge",
+        "/api/knowledge/search?q=test",
+        "/api/knowledge/projects",
+        "/api/timeline",
+        "/api/timeline/summary?query=last month",
+        "/api/goals",
+        "/api/learning",
+        "/api/learning/streak",
+        "/api/life-memory",
+        "/api/life-memory/search?q=test",
+        "/api/notifications",
+        "/api/briefing",
+        "/api/proactive",
+        "/api/watchlist",
+        "/api/spotify/current-track",
+        "/api/system/stats",
+        "/api/system/display",
+        "/api/trading/chart-db",
+        "/api/trading/ohlcv",
+        "/api/trading/live-prices",
+        "/api/trading/analysis",
+        "/api/trading/search?q=a",
+        "/api/gdrive/status",
+        "/api/agents",
+        "/api/agent/route?text=hi",
+        "/api/permissions",
+    ]
+    for path in paths:
+        r = remote_client.get(path)
+        assert r.status_code == 401, f"{path} should 401 for remote callers, got {r.status_code}"
+
+
+def test_remote_caller_rejected_for_tts_and_search(remote_client):
+    """Resource-costing endpoints (TTS, web search) must be owner-gated too."""
+    assert remote_client.post("/api/tts", json={"text": "hello"}).status_code == 401
+    assert remote_client.post("/api/search", json={"query": "test"}).status_code == 401
+
+
 def test_remote_caller_with_token_allowed(remote_client_with_token):
     r = remote_client_with_token.get("/api/career/preferences")
     assert r.status_code == 200

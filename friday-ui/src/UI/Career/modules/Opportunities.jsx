@@ -321,7 +321,7 @@ const SAMPLE_JOBS = [
           <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2 }} className="scrollbar-none">
             {SOURCES.map(s => (
               <button key={s} onClick={() => setSource(s)} style={{
-                padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap',
+                padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap',
                 background: source === s ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.02)',
                 color: source === s ? '#a5b4fc' : '#64748b', fontWeight: source === s ? 700 : 500,
                 border: source === s ? '1px solid rgba(99,102,241,0.4)' : '1px solid rgba(255,255,255,0.04)',

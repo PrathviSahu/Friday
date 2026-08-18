@@ -1,352 +1,83 @@
-# ⚡ F.R.I.D.A.Y. v5.0 — Voice-Controlled AI Operating System & Communication Center
+# ⚡ F.R.I.D.A.Y. — Voice-Controlled AI Operating System
 
-> **F.R.I.D.A.Y.** is a full-stack, voice-controlled AI desktop operating system inspired by Iron Man's J.A.R.V.I.S., built using **React 19**, **Vite 8**, **Python FastAPI**, **Groq (Llama 3.3 70B)**, and **Google Gemini 2.5**.
+> **F.R.I.D.A.Y.** is a full-stack, voice-controlled personal AI operating system inspired by Iron Man's J.A.R.V.I.S. — built with **React 19 + Vite 8** on the frontend and **Python FastAPI** on the backend, powered by **Groq (Llama 3.3 70B)** with **Google Gemini 2.5** failover.
 
-🌐 **Live Production App:** [https://friday-ui-blush.vercel.app](https://friday-ui-blush.vercel.app)  
-🚀 **Production API Server:** [https://friday-api-wy2b.onrender.com](https://friday-api-wy2b.onrender.com)
+**What it does in one line:** talk to it, and it manages your career, trading, tasks, notes, memory, documents, email, calendar, meetings, media and machine — through a holographic HUD that runs in any browser (desktop, mobile, PWA) or as a Tauri desktop shell.
 
----
-
-## 🆕 What's New in v5.0 (Latest Major Release)
-
-| Feature | Description |
+| | |
 |---|---|
-| **Single-Audio Mutex & Monotonic Speech Lock** | `ttsService.js` guarantees **zero overlapping AI voices**. Every utterance is assigned a monotonic sequence ID; new speech requests instantly cancel and purge in-flight audio pipelines with deterministic audio locks. |
-| **Instant Spacebar & Mobile Thumb Push-to-Talk (PTT)** | Hold **Space** on desktop or press & hold the **mic button** on mobile for continuous speech capture. Releasing immediately flushes the interim buffer with **0ms latency**, while preventing page scrolling and bypassing input forms. |
-| **Stark Industries 17-in-1 Sliding Dashboard** | Completely redesigned Stark HUD with **real-time capsule search**, category filter pills (`AI Tools`, `System`, `Productivity`, `Communication`, `Security`, `Utilities`), live armed state badges (`● ARMED`), holographic glassmorphic cards, and 1-tap workspace launching. |
-| **Complete Mobile & PWA Optimization** | Native PWA meta tags (`viewport-fit=cover`, `theme-color: #02030A`), auto-unlock audio on first touch gesture (no blocking modals), **horizontal scrollable subnav** in Career OS, and full-width TradingView candlestick charts on mobile screens. |
-| **Android Microphone Hardware Conflict Resolution** | Automatic `visibilitychange` listener tears down mic hardware streams when minimizing the browser or switching apps on Android, eliminating *"Speech recognition from Google cannot record"* system warnings. Mobile automatically defaults to Push-to-Talk. |
-| **Native Android Spotify App Deep-Linking** | Mobile search and track suggestions use direct URL navigation (`window.location.href`), allowing Android to instantly intercept the Spotify protocol and launch the **native Spotify Android app** without creating empty/blank tabs. |
-| **1-Click Recruiter Demo Access** | Direct instant bypass via `⚡ Instant Demo Access` button and quick command workspace launcher (`Career OS`, `Trading Station`, `17-in-1 Dashboard`). |
-| **Graphify Codebase Knowledge Graph** | Full AST extraction of the entire repository into 2,701 code nodes, 4,823 dependency relations, and 174 architectural communities rendered in interactive force-directed (`graph.html`) and D3 tree (`GRAPH_TREE.html`) visualizers. |
+| 🧪 Backend tests | **323 passing** (`pytest`) |
+| 🧪 Frontend tests | **16 passing** (`vitest`) |
+| 🔌 API surface | **195 REST operations across 168 `/api/*` paths** (from the running app's OpenAPI schema) |
+| 🛠️ Function-calling tools | **47 JSON-schema tools** with a 4-step agentic loop |
+| 🔐 Permission capabilities | **24** gated capabilities with audit log |
+| 🧩 HUD capsules | **17** in the sliding dashboard |
 
 ---
 
-## 🆕 What's New in v4.5
+## 🎬 90-Second Recruiter Demo
 
-| Feature | Description |
-|---|---|
-| **Modular Brain Package (`services/brain/`)** | Decomposed the 940-line monolithic brain into structured plugins (`constants.py`, `clients.py`, `prompt_builder.py`, `engine.py`) and fast-path handlers (`security`, `navigation`, `agents`, `hardware`, `utilities`, `media`) with `<15ms` execution and 100% backward compatibility |
-| **LinkedIn Job Scraper Freshness & Schedulers** | Added date filters (`Past 24h` / `Past Week` via `&f_TPR`), `&sortBy=DD` to force strictly fresh job postings, dynamic target role query input, configurable auto-refresh interval (`15m`, `1h`, `6h`, `24h`), sync countdown badge, and stale job purge (`purge_old_jobs`) |
-| **Deduplicated Job Storage (`upsert_scraped_job`)** | Smart in-place job record updating prevents stale duplicate listings while maintaining match scores and user application states |
-| **Silent Spotify Control & Zero Focus Stealing** | Voice commands for Spotify now execute silently (`silence_tts: True`) without speaking over music; AppleScript uses `open location` and restores the frontmost active application so Spotify never steals window focus |
-| **Voice STT Script & Language Pinning** | Speech-to-Text strictly pinned to English/Romanized Latin script (`language="en"` and `en-IN` dialect) with custom Groq Whisper vocabulary prompting to eliminate unwanted Devanagari Hindi text output |
-| **TradingView Widget Stabilization** | Fixed `TypeError: Cannot read properties of undefined (reading 'list')` in `ProfessionalChart.jsx` and eliminated duplicate keys in `Watchlist.jsx` |
+1. **Run it** (2 commands — Docker, no Python/Node setup):
+   ```bash
+   cp .env.example .env        # add GROQ_API_KEY + FRIDAY_API_TOKEN
+   docker compose up -d --build
+   # open http://localhost:8080
+   ```
+2. **Unlock** with any password (first password becomes the vault key).
+3. **Say (or type):**
+   - *"open career"* → AI Career OS (resumes, jobs, applications, interviews)
+   - *"open trading"* → live markets workstation with real technical analysis
+   - *"remember that I prefer cold brew"* → memory + life-memory graph
+   - *"review this code"* → paste code → AI review/bugs/tests/docs/refactor
+   - *"summarize my documents"* → upload PDF/DOCX → ask questions (RAG)
+
+> ⚠️ System control (brightness, volume, open/close apps, Spotify) controls the **machine the backend runs on** — macOS when run natively via `./start.sh`, and auto-disabled (graceful no-op) inside Linux Docker/Render containers.
 
 ---
 
-## 📖 Overview
+## 🗂️ What's Inside
 
-**F.R.I.D.A.Y.** is a comprehensive personal AI assistant designed to streamline career management, trading, daily productivity, media control, and macOS system automation.
+### 🧠 AI Core — dual-engine, tool-calling, self-learning
+- **Dual-LLM brain**: Groq `llama-3.3-70b-versatile` (low-latency primary) → Gemini 2.5 flash (failover pool) → deterministic fast-path handlers (<15 ms) → regex fallback. Model configurable via `GROQ_MODEL`.
+- **47-tool function-calling engine** (`function_engine.py`): the LLM receives tool schemas and can chain **up to 4 tool calls per request**, feeding each result back ("check my email, then draft a reply" works in one shot).
+- **Semantic memory (RAG)**: facts, notes and meetings are embedded with Gemini `text-embedding-004`; the top-3 relevant memories are injected per request — recall in your own words.
+- **Conversation context**: the last 6 turns are included in every LLM call, so follow-ups work.
+- **Self-learning**: voice correction detection ("No, I meant X") writes permanent corrections; action habits drive proactive suggestions (confidence ≥ 0.70); memory consolidation prunes + ranks facts.
+- **Voice**: browser Web Speech API (instant) → **Groq Whisper `whisper-large-v3-turbo`** fallback → Gemini audio; **Edge-TTS** neural voices (`en-IN-NeerjaNeural` / `hi-IN-SwaraNeural`, auto Devanagari detection); barge-in; push-to-talk (Spacebar / mobile hold-to-talk); single-audio mutex guarantees zero overlapping voices.
 
-Key architectural pillars:
-- **Smart Brain (v4)**: Groq Llama 3.3 70B receives 41 tool schemas, chains up to 4 tool calls per request with results fed back, and answers with conversation history + semantic memory context; Gemini failover; legacy regex brain retained as final fallback.
-- **Dual-Engine Hybrid AI Brain**: Low-latency voice interactions via Groq Llama 3.3 70B + complex reasoning & fallbacks via Google Gemini 2.5.
-- **Female Voice Engine**: Microsoft Edge-TTS neural voices (`en-IN-NeerjaNeural` for English, `hi-IN-SwaraNeural` for Hindi) with a browser fallback filter that prefers female voices.
-- **Career Intelligence Center (Career OS)**: A fully operational AI-powered career operating system — not a job portal. Analyzes opportunities, drafts cover letters, tracks interviews, manages resumes, and learns your preferences. Never submits without your final approval.
-- **Quantum Trading Workstation**: TradingView Lightweight Charts with live OHLCV candle streaming across 7 timeframes (`1m` to `1W`) for 5000+ symbols (NSE/BSE Indian Equities, Forex, Crypto, US Stocks), 30-second live auto-polling, a drag-and-drop watchlist backed by SQLite persistence, and **real technical analysis on demand**.
-- **Zero-Config Spotify Automation**: Control music playback, track search, volume, and progress seek bar via an anonymous web player token without manual OAuth setup.
-- **Free-Tier Whisper STT**: Speech-to-text runs on the browser Web Speech API for instant recognition and automatically fails over to **Groq Whisper `whisper-large-v3-turbo`** (free tier) with a Gemini audio fallback — Hinglish commands transcribe correctly, and **true barge-in** (start talking, she stops) + **push-to-talk** mode included.
-- **Communication Center**: **Email Agent** (Gmail/Outlook, approval-first send), **Calendar Agent** (Google Calendar, approval-first create), **Meeting Assistant** (audio/transcript → summary + action items → todos), **WhatsApp Agent** (experimental opt-in Playwright driver, QR pairing), all voice-driven and permission-gated.
-- **Document AI**: Upload PDF/DOCX/PPTX/XLSX/TXT → ask questions, summarize, compare (Groq RAG); voice: "ask my documents about X".
-- **Coding Workspace AI**: Paste code → review, find bugs, explain, generate tests & docs, refactor suggestions.
+### 💼 Career OS — an AI career operating system (12 modules)
+Resume manager (multi-version, AI parsing of PDF/DOCX, ATS scoring), job board with **real LinkedIn scraping** (date filters, auto-refresh, dedupe), AI job-match scoring with reasoning, cover-letter generation, interview prep, application kanban, recruiter CRM, company tracker + blacklist, analytics, learning center with skill-gap roadmaps, encrypted personal vault, and natural-language preference learning. **Nothing is ever submitted without explicit approval.**
+
+### 📈 Quantum Trading Workstation
+TradingView Lightweight Charts with live OHLCV across 7 resolutions, a 5,000+-instrument universe (NSE/BSE, Forex, Crypto, US equities), a drag-and-drop SQLite-persisted watchlist, live 24/5 market pollers (lifespan-managed background threads), a **real technical-analysis engine** (SMA/EMA/RSI-Wilder/MACD/Bollinger/ATR/Stochastic/VWAP + candlestick patterns + trend confidence + S/R), and paper trading gated behind the `trades.execute` permission.
+
+### 🧠 Knowledge OS & Memory
+- **Second Brain** — auto-categorized notes (idea/meeting/research/code/interview/...), token + prefix search, project intelligence per project.
+- **AI Memory Timeline** — chronological milestones ("what changed last month?") with auto-derived events.
+- **Life Memory** — `subject → relation → target` triples answering connected questions ("what do I love?").
+- **Goal Manager** — goals with progress %, deadlines, auto-suggested skill gaps.
+
+### 🤖 Communication Center (approval-first, always)
+Email agent (Gmail/Outlook IMAP+SMTP), Calendar agent (Google OAuth), Meeting assistant (Whisper → summary + action items → todos), WhatsApp agent (own Playwright driver, opt-in). Every agent only **creates a server-side draft**; the lock screen shows a preview and you confirm by voice or button — **nothing is ever sent without approval**.
+
+### 📄📝📊 Document & Coding AI
+- **Document AI**: upload PDF/DOCX/PPTX/XLSX/TXT → ask questions, summarize, compare (Groq RAG).
+- **Coding AI**: paste code → review (bugs/security/style), explain, generate tests, generate docs, refactor.
 - **Company Intelligence**: "Tell me about Goldman Sachs" → overview, hiring signals, your application history, interview-prep checklist.
-- **Smart Brain**: conversation context (last 6 turns), **semantic memory** (Gemini embeddings RAG over facts/notes/meetings), **multi-step agentic tool loop** (up to 4 tool calls per request), live **latency metrics** in the Dev Dashboard.
-- **macOS Automation & Hardware Telemetry**: Voice-driven application management, system volume control, and real-time CPU, RAM, Disk, and Power monitoring.
 
----
-
-## ✨ Full Feature Breakdown
-
-### 🧠 1. Adaptive Self-Learning AI Brain & Memory Core (`learning_engine.py`)
-- **Function Calling Brain v2** (`brain_v2.py` + `function_engine.py`): 18 registered tools (time, weather, Spotify, todos, reminders, apps, system control, web search, navigation, screenshots, guest permission, memory, technical analysis). The LLM picks the tool; no regex ordering.
-- **Low-latency Dual-Engine LLM**: Groq Llama 3.3 70B primary + Google Gemini 2.5 failover.
-- **Unified SQLite Brain Database (`friday_brain.db`)**:
-  - `memories`: Permanent facts & user preferences.
-  - `conversation_history`: Short-term context & RAG keyword-token semantic memory.
-  - `user_action_habits`: Habit tracking with proactive suggestions when confidence ≥ 0.70.
-  - `user_corrections`: Voice correction detection with -40.0 soft penalty weights.
-  - 10 Career OS tables — see §6 below.
-- **Dynamic Brevity Controller**: Auto-adjusts response length based on query complexity.
-- **Owner Authentication & Security**: loopback/`FRIDAY_API_TOKEN` gating (see Security Policy) + guest permission gating.
-
-### 🎵 2. Zero-Config Spotify Automation & Smart Audio Ducking
-- **Zero-OAuth Token Engine**: Anonymous token resolver for instant playback without credentials.
-- **Automatic Audio Ducking**: Spotify dips to 20% when F.R.I.D.A.Y. speaks, restores after.
-- **Voice Media Control**: "play Kesariya", "volume down", "next track", "pause", "mute".
-- **Now Playing Telemetry**: Live track title, artist, artwork, position timer, click-to-seek.
-
-### 📈 3. Quantum Trading Workstation
-- **TradingView Widget Engine**: Full drawing toolbar + technical indicators + all chart styles.
-- **Live 24/5 Global Data Feeds**: Forex, Gold, Bitcoin, Nasdaq, DXY default pairs.
-- **Multi-Chart Layouts**: 1x1 / 2x1 / 2x2 grid views.
-- **Custom Resizable Watchlist**: Drag-and-drop, SQLite-persisted, 5000+ instruments.
-- **Risk & Lot Size Calculator**: Position size calc for account balance, risk %, stop loss pips.
-- **SQLite Auto-Save**: Silent background sync every 5 seconds to `friday_trading_db.sqlite`.
-
-### 💻 4. macOS System Automation & Telemetry (`mac_controls.py`)
-- **Zero-Latency Display Brightness**: macOS `DisplayServices` + keycode hardware simulation.
-- **System Dark Mode Toggle**: Instant AppleScript switching between Dark / Light Mode.
-- **Master Audio & Mute Controls**: Voice and slider control for system output and mute.
-- **Lock Display**: Instant screen locking via voice or UI HUD.
-- **Voice Application Control**: Open/quit macOS apps via sanitized AppleScript wrappers.
-- **System Telemetry**: Real-time CPU %, RAM, SSD, and Battery monitoring via `psutil`.
-
-### 📋 5. HUD Dashboard & Widgets
-- **Spotify Card**: Floating player with album art, seek bar, and playback controls.
-- **Todo Card**: Task manager with priority tags, status filters, inline editing, voice creation.
-- **Weather Card**: Live weather via Open-Meteo API with auto IP geolocation.
-- **System Monitor Card**: Real-time hardware telemetry charts.
-- **Web Search Card**: Inline web search widget.
-- **Ambient Lock Screen**: Glassmorphism UI with GLSL shader orb animation.
-- **Career OS Button**: One-click access to Career Intelligence Center from the Dashboard HUD.
-
-### 💼 6. Career Intelligence Center (Career OS) — ✅ LIVE & FULLY OPERATIONAL
-
-> *"Never build a CRUD dashboard. Build an AI employee that manages my career."*
-
-F.R.I.D.A.Y.'s Career OS is a fully operational AI career operating system with 12 modules:
-
-| Module | Description |
-|---|---|
-| **Dashboard** | Daily AI briefing, pipeline stats, recommendations, activity feed |
-| **Opportunities** | Job board with source/status/score filters, AI match analysis |
-| **Applications** | Kanban board + table — drag-and-drop pipeline (`saved → offer`) |
-| **Resume Manager** | Multi-version editor with ATS scoring, section editing, duplication |
-| **Interview Center** | Schedule, track, generate AI prep questions, log outcomes |
-| **Analytics** | SVG charts — monthly apps, pipeline funnel, resume performance |
-| **Learning Center** | Skill gap analysis + AI-generated learning roadmap |
-| **Preferences** | Tag-based prefs + natural language learning ("Tell F.R.I.D.A.Y.") |
-| **Personal Vault** | Encrypted local storage for personal info & application auto-fill |
-| **Companies** | Company tracker with blacklist/block functionality |
-| **Recruiters** | Recruiter CRM with contact history, notes, last contact tracking |
-| **Account Manager** | Secure credential vault for LinkedIn, Naukri, Wellfound, Indeed |
-
-**Core AI capabilities (Groq Llama 3.3 70B)**:
-- Job match scoring with detailed reasoning & salary/growth assessment
-- Cover letter generation tailored per job + resume
-- Interview question generation per role
-- Natural language preference learning
-- Skill gap analysis & learning roadmap generation
-- Daily career briefing & proactive recommendations
-
-**Backend**: `career_db.py` (10 SQLite tables in `friday_brain.db`) + `career_intelligence.py` (AI engine) + `routers/career.py` (42 endpoints across 31 paths at `/api/career/*`).
-
-**Voice**: Say `"career"` → F.R.I.D.A.Y. navigates to Career OS.
-
----
-
-### 📈 7. Real Technical Analysis Engine (`technical_analysis.py`)
-
-No more hardcoded "RSI is at 64" — every value is computed from live OHLCV data:
-
-| Indicator | Period | | Indicator | Period |
-|---|---|---|---|---|
-| SMA | 200 | | ATR | 14 |
-| EMA | 9 / 20 / 50 | | Stochastic | %K(14) / %D(3) |
-| RSI (Wilder) | 14 | | VWAP | volume-weighted |
-| MACD | 12/26/9 + histogram | | Bollinger Bands | 20, 2σ |
-
-Plus candlestick patterns (Doji, Hammer, Shooting Star, Bullish/Bearish Engulfing), trend bias with confidence, golden/death cross detection, support & resistance from swing points, and 5-candle momentum.
-
-**Endpoint:** `GET /api/trading/analysis?symbol=FX:EURUSD&interval=15` returns structured indicators + a natural-language spoken summary. Also registered as the `technical_analysis` function tool, so you can just say *"what's the trend on gold?"*
-
-### 📱 8. Telegram Bot Interface (`telegram_bot.py`)
-
-FRIDAY is no longer Mac-only — reach it from your phone anywhere:
-
-| Command | Action |
-|---|---|
-| `/time` `/weather` `/tasks` | Time, live weather, pending tasks |
-| `/market` | Quick overview (EURUSD, Gold, NASDAQ, BTC, DXY) |
-| `/spotify` | What's currently playing |
-| `/analyze <SYMBOL>` | Real technical analysis |
-| *any text* | Free-form chat through the same brain_v2 engine |
-
-**Security:** `TELEGRAM_OWNER_ID` — only your Telegram user id may interact; everyone else gets "⛔ Access denied".
-
-**Setup:** create a bot via @BotFather → set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_OWNER_ID` in `backend/.env` → run `python -m services.telegram_bot` from `backend/`.
-
----
-
-### 🛡️ 9. Permission Center & Approval-First Design
-
-Every sensitive capability has a mode — `Enabled` / `Ask` / `Disabled` — persisted in SQLite and enforced server-side:
-
-| Capability | Default | | Capability | Default |
-|---|---|---|---|---|
-| system.control | enabled | | email.send | ask |
-| music.control | enabled | | whatsapp.send | ask |
-| tasks.write | enabled | | phone.call | ask |
-| web.search | enabled | | jobs.apply | ask |
-| screen.capture | ask | | trades.execute | ask |
-| vault.access | enabled | | files.delete | disabled |
-
-- `Ask` = one-time approval (default 5 min) via `POST /api/permissions/approve` — nothing sensitive runs without your explicit grant.
-- Every enforcement decision is audit-logged (`GET /api/permissions` returns the log; HUD Permission Center shows it).
-- Trade execution **never happens automatically**: `POST /api/trading/order` (paper/simulated) returns 403 `approval_required` until you approve — matching the roadmap constraint.
-
-### 🤖 10. Automation Engine & Smart Daily Briefing
-
-Persisted workflows run on a background scheduler (lifespan-managed):
-
-```
-POST /api/automations   {"name": "Morning Briefing", "trigger_type": "daily",
-                         "daily_time": "09:00", "action": "briefing"}
-```
-
-Actions: `briefing` (smart daily briefing), `job_scan` (notify on high-match /
-high-salary jobs), `market_summary`. Results land in the **Notification Center**
-(`GET /api/notifications`) instead of interrupting — the HUD Inbox panel shows
-them, and `GET /api/briefing` gives the full morning report (weather, tasks,
-reminders, career pipeline, markets, inbox).
-
-### 🧠 11. Multi-Agent Framework
-
-FRIDAY routes requests to specialized agents — Career, Coding, Research,
-Finance, Communication, Automation — each running the same function-calling
-brain but with a **filtered tool set** (an agent can only call its capabilities).
-`POST /api/agent/chat` handles routing + execution; `GET /api/agents` lists them.
-Agent autonomy is gated by the `agent.autonomy` permission (default `ask`).
-
-```
-"what's the trend on gold?"      → Finance Agent (technical_analysis tool)
-"debug this React error"         → Coding Agent
-"apply for Java jobs in Mumbai"  → Career Agent
-```
-
----
-
-### 🎓 12. Learning Coach (`services/learning.py`)
-
-Track practice across tracks (DSA, Java, System Design, AWS, Interview Prep):
-- **Streaks** — current + best consecutive-day streaks; daily/weekly minutes; problems solved.
-- **Weekly goals** — per-track targets with progress bars (defaults seeded).
-- **Gentle reminders** — a `learning_check` automation action notifies when you haven't practiced in ≥ 3 days ("Boss, you haven't solved a DSA problem in 3 days").
-- Voice: *"Friday, I solved two DSA problems today"* → `log_learning` function tool.
-
-### 🧠 13. Life Memory — Knowledge-Graph-Lite (`services/life_memory.py`)
-
-Memories are stored as **subject → relation → target** triples instead of isolated facts:
-
-```
-Boss  --loves-->             cold brew
-Boss  --won't apply below--> 7 LPA
-Mom   --birthday-->          15 September
-```
-
-- Token + prefix search (`GET /api/life-memory/search?q=...`) answers connected questions: *"what do I love?"* → cold brew.
-- `remember_fact` now writes both the facts table and a life-memory triple; the `search_memories` function tool lets FRIDAY recall things mid-conversation.
-
-### 🛠️ 14. Developer Mode (`routes/devtools.py` + HUD panel)
-
-Owner-only HUD panel with five tabs:
-- **Overview** — live counts (facts, life memories, automations, notifications, todos, applications) + uptime.
-- **Memory** — facts, life-memory triples, recent conversations.
-- **Logs** — tail of backend logs (file + ring-buffer fallback).
-- **API Tester** — run any request in-process against the app and see the JSON.
-- **Config** — which env keys are set (booleans only — values never exposed) + permission modes.
-
----
-
-### 🧠 15. Second Brain — Knowledge OS (`services/knowledge.py`)
-
-Automatically stores meeting notes, ideas, research, code snippets, interview
-experiences, project decisions, book notes and YouTube summaries — everything
-searchable:
-
-- **Idea capture** — "Friday, remember this idea…" auto-categorizes the note type from the text.
-- **Search** — token + prefix search over title/content/tags/project; *"where did I save that Kafka architecture idea?"* → answered.
-- **Project Intelligence** — every project gets its own memory (architecture, tasks, bugs, roadmap, ideas, completed, docs, GitHub, dependencies).
-
-### 🕰️ 16. AI Memory Timeline (`services/timeline.py`)
-
-A chronological timeline of meaningful events instead of isolated memories:
-
-```
-2026  ✓ Finished AI Attendance System    ✓ Got internship    ✓ AWS Certified
-```
-
-- "Friday, what changed last month?" → `GET /api/timeline/summary?query=last month`.
-- "Show me my progress this year." → year-period grouping by category.
-- `snapshot_from_existing()` auto-derives events from applications + learning sessions, so it's useful immediately.
-
-### 🎯 17. Goal Manager (`services/goals.py`)
-
-Set goals like *"Get 8 LPA job"* → tasks, progress %, deadlines, skill gaps
-(optionally auto-suggested from job-match data), and resources. Track by voice:
-*"Friday, I made 25% progress on my job goal"* → `update_goal` function tool.
-
-### 💡 18. Explainable AI
-
-Every Career OS recommendation now carries a `reasons` array — "why I
-suggested this": matched skills %, salary meets target, previously preferred
-roles, missing skills. Transparent instead of mysterious.
-
-### 🧠 19. Smart Brain v4 (context + memory + agentic loop)
-
-- **Conversation context** — the last 6 turns are injected into every LLM
-  call, so follow-ups like "what about the day after?" actually work.
-- **Semantic memory (RAG)** — facts, notes and meetings are embedded with
-  Gemini `text-embedding-004` (free tier) and the top-3 relevant items are
-  injected per request. Recall in your own words, not exact keywords.
-- **Agentic tool loop** — up to 4 tool calls per request with results fed
-  back ("check email, then draft a reply" works in one shot).
-- **Honesty rules** — the model is told to say "I don't know" and to never
-  claim a message was sent when it only previewed it.
-- Model configurable via `GROQ_MODEL` (default `llama-3.3-70b-versatile`).
-
-### ✉️📅🎙️💬 20. Communication Center
-
-All four modules follow the same **approval-first** pattern: the LLM only
-creates a **server-side draft** (15-min TTL), the lock screen shows a preview
-card, and you confirm by voice ("yes"/"no") or button — nothing is ever sent
-without your explicit approval.
-
-- **Email Agent** — Gmail/Outlook via IMAP+SMTP (app password): unread inbox,
-  search, priority detection, summary. Voice: *"check my email"*,
-  *"email rahul@x.com that I'll reach in 20"*.
-- **Calendar Agent** — Google Calendar (OAuth, own `calendar_token.json`):
-  today/upcoming/search + approval-first create. Voice: *"what's on my
-  calendar today?"*. Also feeds the Daily Briefing.
-- **Meeting Assistant** — upload a recording (Groq Whisper) or paste a
-  transcript → LLM extracts summary, decisions and **action items** → saved
-  + mirrored into the Second Brain → push to Todos in one click.
-- **WhatsApp Agent** *(experimental, opt-in)* — FRIDAY's own Playwright
-  driver for WhatsApp Web (no third-party libraries — the PyPI package is a
-  typosquat and the original is dead). QR pairing in the UI, unread chats,
-  approval-first send. Enable with `FRIDAY_WHATSAPP_ENABLED=1`.
-
-### 📄 21. Document AI
-
-Upload **PDF / DOCX / PPTX / XLSX / TXT** → text is extracted and stored
-(originals discarded for privacy) → ask questions, summarize or compare via
-Groq RAG. Voice: *"ask my documents about Java"*, *"summarize the pdf"*.
-
-### 🏢 22. Company Intelligence
-
-*"Tell me about Goldman Sachs"* → FRIDAY composes a brief with the company
-overview, hiring signals from the web, **your application history** at that
-company, and an interview-prep checklist for the roles you track.
-
-### 👨‍💻 23. Coding Workspace AI
-
-Paste any code → **Review** (bugs/security/style), **Find Bugs**,
-**Explain**, **Generate Tests**, **Generate Docs**, **Refactor** suggestions
-— via Groq, with honesty rules (never hallucinates issues).
-
-### 📊 24. Latency Dev Dashboard
-
-Every LLM / STT / TTS / tool call is timed (`services/metrics.py`). The
-DevTools **Latency tab** shows per-operation averages (color-coded), counts,
-the last agent/tool/action — also available at `GET /api/dev/metrics`.
-
-### 🐳 25. Docker Distribution
-
-`docker compose up -d --build` runs Friday on **Windows, macOS and Linux**
-with zero Python/Node setup — perfect for sharing with family and friends.
-macOS-only automation auto-disables inside containers; the frontend injects
-`X-FRIDAY-Token` so auth works over the bridge network. See the Quick Start.
+### 🎓 Learning Coach · 🛠️ Developer Mode · ⏰ Automation
+- **Learning Coach**: DSA/Java/System Design/AWS/Interview tracks — streaks, weekly goals, gentle reminders.
+- **Automation Engine**: persisted scheduled workflows (`briefing`, `job_scan`, `market_summary`, `learning_check`) → Notification Center.
+- **Smart Daily Briefing**: weather, tasks, calendar, career pipeline, markets, inbox → greeting + spoken summary.
+- **Developer Mode**: in-app API tester, metrics (per-operation LLM/STT/TTS latency), memory browser, log tail, config checker (values never exposed).
+- **Telegram bot**: reach FRIDAY from any phone (`/time`, `/weather`, `/market`, `/analyze`, free-form chat), gated by `TELEGRAM_OWNER_ID`.
+
+### 🛡️ Security & Permission Center
+- **Owner auth**: loopback is the owner; every other caller needs `FRIDAY_API_TOKEN` as `X-FRIDAY-Token` (constant-time compare). The API never trusts a client-supplied "I am the boss" flag, and uvicorn runs with `--no-proxy-headers` so `X-Forwarded-For` can't be spoofed.
+- **Permission Center**: 24 capabilities with `enabled / ask / disabled` modes, persisted + audit-logged. High-stakes actions (send email, execute trades, apply to jobs, WhatsApp) default to `ask`; one-time approvals expire after 5 minutes.
+- **Rate limiting**: per-IP sliding window on every LLM-costing endpoint.
+- **Encryption at rest**: career credentials Fernet-encrypted (key from `FRIDAY_VAULT_KEY` or auto-generated `.vault_key`); the browser vault uses PBKDF2-250k + AES-GCM-256.
+- **Honest status**: account verification returns `needs_login` until a real session exists — never fabricated "connected" responses.
 
 ---
 
@@ -354,13 +85,13 @@ macOS-only automation auto-disables inside containers; the frontend injects
 
 | Domain | Technologies |
 |---|---|
-| **Frontend UI** | React 19, Vite 8, Tailwind CSS, Framer Motion, Inter (Google Fonts), TradingView Lightweight Charts, Web Speech API, WebGL GLSL Shaders, lucide-react icons |
-| **Backend API** | Python 3.11+, FastAPI, Uvicorn, SQLite (WAL mode, thread-safe), yfinance, numpy, psutil, asyncio, Playwright (career scraping + WhatsApp driver) |
-| **AI Models** | Groq (Llama 3.3 70B Versatile — function calling), Google Gemini 2.5, Gemini `text-embedding-004` (semantic memory), Groq Whisper `whisper-large-v3-turbo` (STT, free tier) |
-| **Audio / Speech** | Web Speech API (STT, instant) + Groq Whisper `whisper-large-v3-turbo` free-tier fallback (Gemini `gemini-2.5-flash` audio last resort), Microsoft Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural` (Neural TTS), barge-in, push-to-talk |
-| **Integrations** | Spotify Web Player API, Open-Meteo, Google Drive API, Google Calendar API, Gmail/Outlook (IMAP+SMTP), AppleScript (`osascript`), Telegram Bot API (`python-telegram-bot`), WhatsApp Web (own Playwright driver, opt-in) |
-| **Documents** | pypdf, python-docx, python-pptx, openpyxl (PDF/DOCX/PPTX/XLSX/TXT) |
-| **Career OS** | Groq Llama 3.3 70B (scoring, letters, skill gap), SQLite WAL (10 career tables) |
+| **Frontend** | React 19, Vite 8, Tailwind CSS 4, Framer Motion, GSAP, React Three Fiber / Three.js (GLSL orb), TradingView Lightweight Charts, Web Speech API, WebAuthn (fingerprint), PWA |
+| **Backend** | Python 3.11+, FastAPI, Uvicorn, SQLite (WAL, thread-safe), yfinance, numpy, psutil, asyncio, Playwright (career scraping + WhatsApp driver) |
+| **AI** | Groq (Llama 3.3 70B Versatile), Google Gemini 2.5 flash, Gemini `text-embedding-004`, Groq Whisper `whisper-large-v3-turbo` (free-tier STT) |
+| **Speech** | Web Speech API → Groq Whisper → Gemini audio; Edge-TTS `en-IN-NeerjaNeural` / `hi-IN-SwaraNeural`; barge-in; push-to-talk; single-audio mutex |
+| **Integrations** | Spotify, Open-Meteo, Google Drive / Calendar APIs, Gmail/Outlook IMAP+SMTP, AppleScript, Telegram Bot API, WhatsApp Web (opt-in) |
+| **Documents** | pypdf, python-docx, python-pptx, openpyxl |
+| **Deployment** | Docker Compose (nginx frontend + FastAPI backend), Render, Vercel, Tauri 2 desktop shell |
 
 ---
 
@@ -368,229 +99,157 @@ macOS-only automation auto-disables inside containers; the frontend injects
 
 ```
 FRIDAY/
-├── README.md                          # Main documentation (this file)
-├── architecture.md                    # Technical architecture & system design
-├── next_phase_architecture.md         # Phase 1 AI learning engine specification
-├── start.sh                           # One-command launcher (backend + frontend)
-├── stop.sh                            # Graceful shutdown script
+├── README.md                       # This file
+├── architecture.md                 # Technical architecture & system design
+├── FRIDAY_CAPABILITIES.md          # Full capability reference (machine-accurate counts)
+├── docker-compose.yml              # Backend + frontend containers
+├── render.yaml                     # Render backend deployment blueprint
+├── start.sh / stop.sh              # One-command native launcher / shutdown
 │
-├── backend/                           # Python FastAPI Backend (:8000)
-│   ├── app.py                         # Thin wiring: app assembly + lifespan (~150 lines)
-│   ├── requirements.txt               # Python dependencies
-│   ├── data/                          # Persistent databases & JSON
-│   │   ├── friday_brain.db            # Unified SQLite DB (AI memory + Career OS tables)
-│   │   ├── friday_trading_db.sqlite   # Trading watchlist & chart state
-│   │   └── .vault_key                 # Auto-generated Fernet key for the career vault
-│   ├── routes/                        # v4 modular route split
-│   │   ├── chat.py                    # /api/chat/text, speech/correct, speech/transcribe
-│   │   ├── email.py                   # Email Agent (unread/summary/search, draft→confirm)
-│   │   ├── calendar.py                # Calendar Agent (today/upcoming, draft→confirm)
-│   │   ├── meetings.py                # Meeting Assistant (process/transcribe/todos)
-│   │   ├── whatsapp.py                # WhatsApp Agent (status/qr/chats, draft→confirm)
-│   │   ├── documents.py               # Document AI (upload/ask/summarize/compare)
-│   │   ├── company.py                 # Company Intelligence (/api/company/intel)
-│   │   ├── coding.py                  # Coding AI (review/bugs/explain/tests/docs/refactor)
-│   │   ├── system.py                  # /api/system/*, open/close-app
-│   │   ├── spotify.py                 # /api/spotify/* (current-track, seek, duck)
-│   │   ├── todos.py                   # /api/todos CRUD
-│   │   ├── utilities.py               # /api/tts, weather, search, reminders, gdrive
-│   │   ├── watchlist.py               # /api/watchlist CRUD + default seed
-│   │   ├── devtools.py                # /api/dev/* (overview, metrics, logs, config)
-│   │   └── trading.py                 # /api/trading/* (ohlcv, analysis, search…)
+├── backend/                        # Python FastAPI backend (:8000)
+│   ├── app.py                      # Thin wiring: app assembly + lifespan lifecycle
+│   ├── auth.py                     # Owner auth (loopback / FRIDAY_API_TOKEN)
+│   ├── ratelimit.py                # Per-IP sliding-window rate limiter
+│   ├── requirements.txt            # Python dependencies
+│   ├── Dockerfile                  # Backend container (optional Playwright)
+│   ├── data/                       # Persistent SQLite DBs + JSON (gitignored)
+│   ├── routes/                     # 25 modular route modules (195 operations)
+│   │   ├── chat.py  agents.py  automation.py  autonomy.py
+│   │   ├── calendar.py  coding.py  company.py  context.py
+│   │   ├── devtools.py  documents.py  email.py  knowledge.py
+│   │   ├── learning.py  life_memory.py  macros.py  meetings.py
+│   │   ├── presence.py  spotify.py  system.py  todos.py
+│   │   ├── trading.py  utilities.py  watchlist.py  whatsapp.py
+│   │   └── macros.py
 │   ├── routers/
-│   │   └── career.py                  # Career OS REST endpoints (/api/career/*)
-│   ├── Dockerfile                     # Backend container (optional Playwright)
-│   └── services/
-│       ├── brain.py                   # Legacy Groq/Gemini regex brain (fallback)
-│       ├── brain_v2.py                # v4 Smart Brain (context + agentic tool loop)
-│       ├── function_engine.py         # 41-tool function registry + dispatcher
-│       ├── embeddings.py              # Gemini semantic-memory RAG (facts/notes/meetings)
-│       ├── metrics.py                 # LLM/STT/TTS/tool latency ring buffer
-│       ├── stt.py                     # Groq Whisper large-v3-turbo + Gemini fallback
-│       ├── email_agent.py             # IMAP/SMTP + approval-first drafts
-│       ├── calendar_agent.py          # Google Calendar OAuth + approval-first drafts
-│       ├── meeting_agent.py           # Whisper→LLM→SQLite meetings + knowledge mirror
-│       ├── whatsapp_agent.py          # Playwright WhatsApp Web driver (opt-in)
-│       ├── document_agent.py          # PDF/DOCX/PPTX/XLSX/TXT + Groq RAG
-│       ├── company_intelligence.py    # Company briefs (web + career data)
-│       ├── coding_agent.py            # Code review/bugs/tests/docs/refactor
-│       ├── technical_analysis.py      # Real TA engine (RSI, MACD, BB, ATR, patterns)
-│       ├── telegram_bot.py            # Telegram interface for phone access
-│       ├── learning_engine.py         # Adaptive self-learning, habit tracking, RAG memory
-│       ├── career_db.py               # Career OS DB layer (10 SQLite tables, encrypted vault)
-│       ├── career_intelligence.py     # Career OS AI engine (Groq: scoring/letters/gaps)
-│       ├── system_control.py          # macOS AppleScript & Spotify automation (locked)
-│       ├── mac_controls.py            # Brightness, Dark Mode, volume hardware control
-│       ├── market_data.py             # Live prices + background pollers (lifespan-managed)
-│       ├── indian_market_data.py      # NSE/BSE market data adapter (lifespan-managed)
-│       ├── chart_data.py              # Shared OHLCV fetch + symbol search
-│       ├── todos.py / reminders.py    # Task & reminder services (thread-locked)
-│       ├── system_stats.py            # psutil system telemetry
-│       ├── weather.py / web_search.py # Open-Meteo / DuckDuckGo wrappers
-│       ├── memory.py                  # Long-term memory store
-│       ├── tts.py                     # Edge-TTS neural text-to-speech + audio cleanup
-│       ├── auth.py                    # Owner auth (loopback / FRIDAY_API_TOKEN)
-│       ├── ratelimit.py               # Per-IP sliding-window rate limiter
-│       ├── gdrive_api.py / gdrive_sync.py  # Google Drive integration
-│       └── voice_auth.py              # Guest permission gate
+│   │   └── career.py               # Career OS REST API (32 paths, 43 operations)
+│   ├── services/                   # Business logic layer
+│   │   ├── brain/                  # Modular brain package + fast-path handlers
+│   │   ├── brain_v2.py             # v4 agentic tool-loop brain (4 steps)
+│   │   ├── function_engine.py      # 47-tool registry + dispatcher
+│   │   ├── embeddings.py           # Gemini semantic-memory RAG
+│   │   ├── technical_analysis.py   # Real TA engine
+│   │   ├── career_db.py            # Career OS DB layer (encrypted vault)
+│   │   ├── career_intelligence.py  # Career AI engine
+│   │   ├── job_scraper.py          # LinkedIn scraper (Playwright)
+│   │   ├── market_data.py / indian_market_data.py  # Live price pollers
+│   │   ├── automation.py  briefing.py  notifications.py
+│   │   ├── permissions.py          # 24-capability permission center
+│   │   ├── autonomy_engine.py  presence.py  macros.py
+│   │   ├── knowledge.py  timeline.py  goals.py  learning.py  life_memory.py
+│   │   ├── memory.py  memory_consolidator.py  reminders.py  todos.py
+│   │   ├── email_agent.py  calendar_agent.py  meeting_agent.py
+│   │   ├── document_agent.py  coding_agent.py  company_intelligence.py
+│   │   ├── whatsapp_agent.py  telegram_bot.py
+│   │   ├── system_control.py  mac_controls.py  system_stats.py
+│   │   ├── stt.py  tts.py  weather.py  web_search.py
+│   │   ├── gdrive_api.py  gdrive_sync.py  platform_session.py
+│   │   ├── metrics.py  voice_auth.py  context_engine.py  agents.py
+│   │   └── learning_engine.py  chart_data.py  platform_session.py
+│   ├── database/                   # SQLite access layer (WAL, thread-safe)
+│   │   ├── connection.py  chart_db.py  watchlist_db.py
+│   │   └── repositories/song_memory_repo.py
+│   ├── speech/personal_vocabulary.py  # Permanent speech corrections
+│   └── tests/                      # 323 pytest tests
 │
-└── friday-ui/                         # React 19 Frontend (Vite 8, :5173)
-    ├── index.html                     # Inter font, SEO meta
-    ├── package.json
-    ├── Dockerfile / nginx.conf       # Frontend container (nginx → /api proxy)
-    └── src/
-        ├── api/
-        │   ├── config.js              # API endpoints + X-FRIDAY-Token injection
-        │   ├── careerApi.js           # Career OS typed API client (cache + invalidate)
-        │   ├── chatText.ts            # Brain chat client
-        │   ├── email.js / calendar.js # Email & Calendar agent clients
-        │   ├── meetings.js / whatsapp.js  # Meeting & WhatsApp clients
-        │   ├── documents.js / speech.js  # Document AI & STT clients
-        ├── components/
-        │   ├── Panels/                # SpotifyCard, EmailCard, CalendarCard,
-        │   │                          #   MeetingsCard, WhatsAppCard, DocumentsCard,
-        │   │                          #   CodingCard, DevToolsCard (+Latency tab)…
-        │   └── Common/                # PendingApprovalCard (shared confirm UI)
-        ├── hooks/
-        │   ├── useOrbState.jsx        # Global workspace state + voice command routing
-        │   ├── useSpeech.js           # STT: Web Speech + Whisper fallback, barge-in, PTT
-        │   └── useProactiveSuggestions.js
-        ├── services/
-        │   ├── ttsService.js          # Edge-TTS audio queue & female voice enforcement
-        │   └── passphraseStore.js
-        └── UI/
-            ├── Workspace.jsx          # Workspace router (dashboard / trading / career)
-            ├── Dashboard/
-            │   └── Dashboard.jsx      # HUD dashboard with Career OS launch button
-            ├── TradingWorkstation/    # Quantum Trading Workstation
-            ├── Settings/
-            ├── Buttons/
-            └── Career/                # Career Intelligence Center (Career OS)
-                ├── CareerOS.jsx       # Shell: sidebar nav + lazy-loaded module routing
-                ├── components/        # 10 shared Career UI components
-                └── modules/           # 12 fully functional Career OS modules
-                    ├── Dashboard.jsx
-                    ├── Opportunities.jsx
-                    ├── Applications.jsx
-                    ├── ResumeManager.jsx
-                    ├── InterviewCenter.jsx
-                    ├── Analytics.jsx
-                    ├── LearningCenter.jsx
-                    ├── Preferences.jsx
-                    ├── PersonalVault.jsx
-                    ├── Companies.jsx
-                    ├── Recruiters.jsx
-                    └── AccountManager.jsx
+└── friday-ui/                      # React 19 + Vite 8 frontend (:5173 / :8080)
+    ├── index.html  vite.config.js  nginx.conf  Dockerfile
+    ├── public/                     # favicon, sw.js (presence push), icons
+    ├── src/
+    │   ├── main.jsx  App.jsx  index.css
+    │   ├── api/                    # Typed API clients + token injection
+    │   ├── context/                # FridayContext, FridaySync
+    │   ├── hooks/                  # useOrbState, useSpeech, useAudioQueue,
+    │   │                           # useFingerprint (WebAuthn), useVault, ...
+    │   ├── services/               # ttsService (audio mutex), secureVault, ...
+    │   ├── components/             # LockScreen, HUD orb, Panels (17 capsules)
+    │   └── UI/
+    │       ├── Workspace.jsx       # Workspace router (dashboard / trading / career)
+    │       ├── Dashboard/
+    │       ├── TradingWorkstation/ # Quantum Trading Workstation
+    │       └── Career/             # Career OS (12 modules)
+    └── src-tauri/                  # Tauri 2 desktop shell
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Quick Start
 
-### Option A — Docker (recommended for Windows & sharing with family/friends)
-
-No Python/Node setup needed. Works identically on **Windows, macOS and Linux**.
+### Option A — Docker (recommended — Windows / macOS / Linux)
 
 ```bash
-# 1. Install Docker Desktop (Windows: use the WSL2 backend) and start it.
-
-# 2. Get Friday and configure it
-git clone https://github.com/PrathviSahu/Friday.git && cd Friday
-cp .env.example .env            # then fill in GROQ_API_KEY, GEMINI_API_KEY,
-                                # FRIDAY_API_TOKEN (generate a long random string)
-
-# 3. Build and launch
+git clone <your-fork-url> && cd Friday
+cp .env.example .env        # fill GROQ_API_KEY, GEMINI_API_KEY, FRIDAY_API_TOKEN
 docker compose up -d --build
-
-# 4. Open Friday
-#    → http://localhost:8080
+# open http://localhost:8080
 ```
 
-Notes for the Docker setup:
+Notes:
+- **Auth**: every request in Docker is non-loopback, so all API access is gated by `FRIDAY_API_TOKEN` — the same value is baked into the frontend build automatically.
+- **Data persists** in `./backend/data` (volume) — back it up.
+- **Enable job scraping / WhatsApp** with `INSTALL_BROWSERS=1` in `.env` (~400 MB larger image).
+- **macOS-only** automation (brightness, volume, open/close apps, Spotify) auto-disables inside containers (graceful no-op).
 
-- **Auth**: in Docker every request arrives from the bridge network, so all
-  API access is gated by `FRIDAY_API_TOKEN` (same value is baked into the
-  frontend automatically). Keep it secret if you expose the ports.
-- **What works everywhere**: AI brain (Groq/Gemini), voice — Web Speech API +
-  Groq Whisper STT fallback, Edge-TTS voice output, Spotify web-player
-  controls, todos/reminders, trading workstation, Career OS (enable job
-  scraping with `INSTALL_BROWSERS=1` in `.env`), memory, Telegram.
-- **What's Mac-only and auto-disabled in Docker**: opening/closing desktop
-  apps, system volume, display lock/brightness (`IS_MAC` guards return
-  gracefully). The System Monitor shows the *container's* stats on Windows.
-- **Data persists** in `./backend/data` (DB + memories) — back it up.
-- **Updates**: `git pull && docker compose up -d --build`.
-- **Stop**: `docker compose down` (add `-v` to also wipe volumes).
+### Option B — Native macOS (full system automation)
 
-### Option B — Native (macOS with full system automation)
-
-### Prerequisites
-- Node.js (v18+)
-- Python (v3.11+)
-- macOS (for AppleScript automation & system telemetry)
-
-### One-Command Launch (Recommended)
 ```bash
-cd FRIDAY
-bash start.sh
-```
+# One command:
+bash start.sh          # launches backend (:8000) + frontend (:5173)
 
-Open `http://localhost:5173` in your browser.
-
-### Manual Launch
-
-**Backend:**
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
+# Or manually:
+cd backend && python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 8000 --no-proxy-headers
+
+cd ../friday-ui && npm install && npm run dev
 ```
 
-> `--no-proxy-headers` is important: it stops uvicorn from trusting
-> client-supplied `X-Forwarded-For`, which would otherwise let anyone spoof
-> `127.0.0.1` and bypass owner authentication.
-
-**Frontend:**
-```bash
-cd friday-ui
-npm install
-npm run dev
-```
+> `--no-proxy-headers` is mandatory: it stops uvicorn from trusting client-supplied `X-Forwarded-For`, which would otherwise let anyone spoof `127.0.0.1` and bypass owner authentication.
 
 ### Accessing Career OS
-1. Unlock F.R.I.D.A.Y. → go to Dashboard → click **"Career OS"** button in the HUD header, or
-2. Say **"career"** via voice command.
+1. Unlock FRIDAY → Dashboard → **Career OS** button, **or**
+2. Say **"open career"**.
 
-### Telegram Bot (phone access)
+### Telegram (phone access)
 ```bash
-cd backend
-# set TELEGRAM_BOT_TOKEN + TELEGRAM_OWNER_ID in backend/.env
+cd backend   # set TELEGRAM_BOT_TOKEN + TELEGRAM_OWNER_ID in backend/.env
 python -m services.telegram_bot
 ```
-Message your bot from your phone: `/time`, `/weather`, `/market`, `/analyze OANDA:XAUUSD`, or just chat.
 
-### Running Tests
+### Running the tests
 ```bash
-cd backend
-python -m pytest tests/ -q
+cd backend && python -m pytest tests/ -q      # 323 passing
+cd friday-ui && npm test                       # 16 passing
+cd friday-ui && npm run lint                   # oxlint, 0 errors
 ```
 
 ---
 
-## 🔒 Security Policy
-- **Owner Authentication**: Requests from localhost are treated as the owner. Requests from any other machine are rejected with HTTP 401 unless they present the `FRIDAY_API_TOKEN` (from `backend/.env`) as the `X-FRIDAY-Token` header. The API never trusts a client-supplied "I am the boss" flag.
-- **Machine-control gating**: chat, app open/close, display controls, memory, permission changes, and write endpoints all require owner authentication; the entire `/api/career/*` router is owner-only.
-- **Rate limiting**: LLM-backed endpoints (chat + career AI) are rate-limited per IP to protect API credits.
-- **Encrypted at rest**: sensitive Career OS profile fields (passwords, tokens, API keys) are encrypted with Fernet (AES + HMAC) before being written to SQLite. The key lives in `FRIDAY_VAULT_KEY` or an auto-generated `backend/data/.vault_key` (chmod 600).
-- **Honest status reporting**: platform account verification returns `needs_login` until a real session exists — no fabricated "connected" responses.
-- **CORS Isolation**: API restricted to `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, `http://127.0.0.1:3000`.
-- **Input Sanitization**: AppleScript triggers use strict regex sanitization to prevent injection.
-- **No Blind Submissions**: Career OS never submits an application without explicit user confirmation.
-- **Defensive Data Handling**: All DB & dictionary operations use safe fallback getters (`dict.get()`).
+## 🌐 Deployment
+
+| Target | How |
+|---|---|
+| **Docker Compose** | `docker compose up -d --build` (nginx frontend → FastAPI backend, same-origin) |
+| **Render (backend)** | `render.yaml` blueprint; set `GROQ_API_KEY`, `GEMINI_API_KEY`, `FRIDAY_API_TOKEN`. **Do not** set `FRIDAY_MODE=demo` unless you want a public unauthenticated demo. Data is ephemeral on Render free — attach a persistent disk at `/app/data` or run the backend on your own machine for persistent storage. |
+| **Vercel / static (frontend)** | build with `VITE_API_BASE_URL=https://<backend-url>` and `VITE_FRIDAY_TOKEN=<same token>`; SPA rewrite is included in `vercel.json`. |
+| **Desktop** | `npm run tauri dev` / `npm run tauri build` (Tauri 2 shell with scoped CSP) |
+
+---
+
+## 🔒 Security Policy (implemented, not aspirational)
+
+- **Owner authentication** — loopback = owner; all other callers require `FRIDAY_API_TOKEN` via `X-FRIDAY-Token` (constant-time comparison). No client-supplied identity is trusted.
+- **Proxy-header spoofing is blocked** — uvicorn runs with `--no-proxy-headers` (Dockerfile, start.sh, app.py), so `X-Forwarded-For: 127.0.0.1` cannot impersonate the owner. Verified with a live remote-client test.
+- **Every personal-data endpoint is gated** — todos, reminders, notes, timeline, goals, learning, life-memory, notifications, briefing, watchlist, saved chart drawings, system telemetry, TTS and web search all require auth (regression-tested).
+- **Permission Center** — 24 capabilities, `enabled / ask / disabled`, audit-logged; high-stakes capabilities default to `ask`.
+- **Rate limiting** — per-IP sliding window on all LLM-costing endpoints (chat, STT, career AI).
+- **Encryption at rest** — Fernet for career credentials; PBKDF2-250k + AES-GCM-256 for the browser vault.
+- **Honest status reporting** — no fabricated "connected"/"verified" responses.
+- **Input sanitization** — AppleScript/system commands are whitelist-routed with strict regex sanitization.
+- **Upload limits** — resume 5 MB, STT clips 10 MB; oversized uploads rejected with 413.
+- **CORS** — explicit origin allowlist via `ALLOWED_ORIGINS`, explicit methods/headers, no wildcard credentials.
 
 ---
 
 *Author / Lead Architect:* **Prem (Prathvi Sahu)** & **F.R.I.D.A.Y.**
-*Last Updated:* August 2026
+*Last updated:* August 2026

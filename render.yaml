@@ -8,8 +8,15 @@ services:
     region: frankfurt
     healthCheckPath: /
     envVars:
-      - key: FRIDAY_MODE
-        value: demo
+      # ⚠️  Do NOT set FRIDAY_MODE=demo unless you explicitly want a fully
+      # public, UNAUTHENTICATED instance: in demo mode every request is treated
+      # as the owner, so anyone who finds the URL can read your todos, memories,
+      # notes and career profile, and burn your Groq/Gemini API credits.
+      # With FRIDAY_MODE unset, the API requires FRIDAY_API_TOKEN sent as the
+      # X-FRIDAY-Token header (token generated below).
+      # If you truly want a public demo, uncomment these two lines:
+      # - key: FRIDAY_MODE
+      #   value: demo
       - key: ALLOWED_ORIGINS
         value: "https://friday-ui-blush.vercel.app,https://friday-oryyaypj7-prathvisahus-projects.vercel.app,http://localhost:5173,http://localhost:8080"
       - key: GROQ_API_KEY
@@ -22,3 +29,7 @@ services:
         sync: false
       - key: FRIDAY_API_TOKEN
         generateValue: true
+        # NOTE: if the frontend is hosted separately (e.g. Vercel), build it with
+        # VITE_FRIDAY_TOKEN set to this same value so every request carries
+        # X-FRIDAY-Token (the browser can never read Render dashboard secrets).
+        # In Docker the token is baked into the frontend automatically.

@@ -16,13 +16,13 @@ class LearningLogRequest(BaseModel):
     solved: int = 0
 
 
-@router.get("/learning")
+@router.get("/learning", dependencies=[Depends(require_boss)])
 def learning_dashboard():
     """Coach dashboard: streak, today, weekly goals, last-7-days activity."""
     return get_dashboard()
 
 
-@router.get("/learning/streak")
+@router.get("/learning/streak", dependencies=[Depends(require_boss)])
 def learning_streak():
     from services.learning import _streak_data
     current, best, last = _streak_data()

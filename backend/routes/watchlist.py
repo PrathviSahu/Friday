@@ -70,7 +70,7 @@ def _row_to_frontend(row: dict) -> dict:
     }
 
 
-@router.get("/watchlist")
+@router.get("/watchlist", dependencies=[Depends(require_boss)])
 def get_watchlist_endpoint():
     """Return all watchlist symbols ordered by position."""
     rows = get_watchlist()

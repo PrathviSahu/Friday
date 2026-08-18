@@ -1,8 +1,14 @@
 # Code Review — F.R.I.D.A.Y. (PrathviSahu/Friday)
 
-> **Status (2026-08-04):** All Critical/High items below have been fixed on the
-> `arena/019fcdd6-friday` branch — see the changelog-style summary in the final
-> section of this file. This document keeps the original findings for reference.
+> **Status (2026-08-18):** All Critical/High items below were fixed on the
+> `arena/019fcdd6-friday` branch, and a follow-up hardening pass on
+> `arena/01a013d7-friday` closed the remaining deployment/security gaps
+> (uvicorn `--no-proxy-headers` in the Dockerfile, `FRIDAY_MODE=demo` removed
+> from render.yaml defaults, ~28 personal-data read endpoints now owner-gated,
+> stale frontend API URL removed, service-worker presence auth, graceful
+> account-connect errors). **Backend: 323 tests passing; frontend: 0 lint
+> errors, 16 tests passing.** This document keeps the original findings for
+> reference — the "Fixes applied" changelog below covers both passes.
 
 **Branch reviewed:** `main` @ `580bcf8` (also the only commit in this clone — history is shallow/squashed)
 **Scope:** `backend/` (FastAPI, ~7,900 LOC Python), `friday-ui/` (React 19 + Vite + Tauri), docs, scripts
@@ -448,3 +454,34 @@ Permission pipeline; every send/create is approval-first)
 
 **Verified:** 168 backend tests (was 69), 16 frontend tests, oxlint 0
 errors, production build clean, live smoke tests on every new module.
+
+---
+
+## ✅ 2026-08-18 hardening pass (arena/01a013d7-friday)
+
+Follow-up security & deployment fixes after the original review:
+
+1. **Auth bypass closed in containers** — `backend/Dockerfile` CMD now runs
+   uvicorn with `--no-proxy-headers`. Uvicorn's default proxy-headers mode
+   trusted client-supplied `X-Forwarded-For`, letting a remote caller spoof
+   `127.0.0.1` and bypass owner auth through the nginx proxy. Verified live
+   (remote caller + spoofed header → 401).
+2. **render.yaml no longer ships `FRIDAY_MODE=demo`** — demo mode disables
+   owner auth for every request on a public URL. It is now an explicitly
+   commented opt-in.
+3. **~28 personal-data read endpoints gated** — todos, reminders, knowledge,
+   timeline, goals, learning, life-memory, notifications, briefing, proactive,
+   watchlist, chart-db, spotify state, system stats/display, gdrive status,
+   permissions, agents, TTS, web search, trading GETs and weather all require
+   owner auth (regression-tested).
+4. **Stale hardcoded Render URL removed from `config.js`** — API base now
+   resolves from `VITE_API_BASE_URL` / `VITE_API_URL` / relative (proxied).
+5. **Service-worker presence auth** — `FRIDAY_API_TOKEN` is forwarded to the
+   SW via postMessage so `/api/presence/*` fetches authenticate in Docker.
+6. **`launch_real_browser_login` no longer 500s** on headless/missing-browser
+   hosts — returns honest, actionable errors.
+7. **SW notification icon added** (`public/icon-192.png`); duplicate style key
+   removed in `Opportunities.jsx`.
+
+**Verified:** 323 backend tests (was 168), 16 frontend tests, oxlint 0
+errors, production build clean, full remote-caller auth sweep green.

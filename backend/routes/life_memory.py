@@ -20,7 +20,7 @@ class MemoryCreate(BaseModel):
     note: str = ""
 
 
-@router.get("/life-memory")
+@router.get("/life-memory", dependencies=[Depends(require_boss)])
 def get_life_memories(category: str = None, limit: int = 100):
     """List stored memory triples (optionally filtered by category)."""
     return {"memories": list_memories(category=category, limit=limit)}
@@ -37,7 +37,7 @@ def add_life_memory(req: MemoryCreate):
     return {"status": "ok", "memory_id": mid}
 
 
-@router.get("/life-memory/search")
+@router.get("/life-memory/search", dependencies=[Depends(require_boss)])
 def search_life_memories(q: str = ""):
     """Search memories by query; returns matches + a natural-language answer."""
     matches = search_memories(q, limit=8)

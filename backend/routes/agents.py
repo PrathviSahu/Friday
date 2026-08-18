@@ -13,7 +13,7 @@ class AgentChatRequest(BaseModel):
     text: str
 
 
-@router.get("/agents")
+@router.get("/agents", dependencies=[Depends(require_boss)])
 def get_agents():
     """List all registered FRIDAY agents and their tool counts."""
     return {"agents": list_agents()}
@@ -26,7 +26,7 @@ def agent_chat(req: AgentChatRequest):
     return result
 
 
-@router.get("/agent/route")
+@router.get("/agent/route", dependencies=[Depends(require_boss)])
 def agent_route(text: str = ""):
     """Show which agent would handle a given text (debug helper)."""
     return {"text": text, "agent": route_to_agent(text)}
