@@ -21,9 +21,14 @@ class PendingApproval:
     tool_name: str
     arguments: Dict[str, Any]
     preview_text: str
+    draft_id: Optional[str] = None
+    content_hash: Optional[str] = None
+    recipient: Optional[str] = None
+    subject: Optional[str] = None
     created_at: float = field(default_factory=time.time)
     expires_at: float = field(default_factory=lambda: time.time() + 300)  # 5 minute TTL
     consumed: bool = False
+    status: str = "pending"  # "pending", "consumed", "invalidated", "expired"
 
 
 _pending_approvals: Dict[str, PendingApproval] = {}
@@ -34,7 +39,11 @@ def create_pending_approval(
     action_id: str,
     tool_name: str,
     arguments: Dict[str, Any],
-    preview_text: str
+    preview_text: str,
+    draft_id: Optional[str] = None,
+    content_hash: Optional[str] = None,
+    recipient: Optional[str] = None,
+    subject: Optional[str] = None,
 ) -> PendingApproval:
     """Register a pending high-risk action requiring user approval."""
     with _perm_lock:
@@ -42,7 +51,11 @@ def create_pending_approval(
             action_id=action_id,
             tool_name=tool_name,
             arguments=arguments,
-            preview_text=preview_text
+            preview_text=preview_text,
+            draft_id=draft_id,
+            content_hash=content_hash,
+            recipient=recipient,
+            subject=subject,
         )
         _pending_approvals[action_id] = approval
         return approval
@@ -54,18 +67,57 @@ def get_pending_approval(action_id: str) -> Optional[PendingApproval]:
         approval = _pending_approvals.get(action_id)
         if not approval:
             return None
-        if time.time() > approval.expires_at or approval.consumed:
+        if time.time() > approval.expires_at or approval.consumed or approval.status != "pending":
             return None
         return approval
+
+
+def validate_approval_token(
+    action_id: str,
+    draft_id: Optional[str] = None,
+    content_hash: Optional[str] = None,
+    recipient: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Validates that a pending approval token is active, unexpired, unconsumed, and matches the draft version."""
+    with _perm_lock:
+        approval = _pending_approvals.get(action_id)
+        if not approval:
+            return False, "Approval token not found."
+        if approval.status == "invalidated":
+            return False, "Approval token was invalidated due to subsequent draft modifications."
+        if approval.consumed or approval.status == "consumed":
+            return False, "Approval token has already been consumed."
+        if time.time() > approval.expires_at or approval.status == "expired":
+            approval.status = "expired"
+            return False, "Approval token has expired (5-minute TTL exceeded)."
+        if draft_id and approval.draft_id and approval.draft_id != draft_id:
+            return False, f"Draft ID mismatch: expected {approval.draft_id}, got {draft_id}."
+        if content_hash and approval.content_hash and approval.content_hash != content_hash:
+            return False, "Draft content was modified after this approval was generated."
+        if recipient and approval.recipient and approval.recipient.lower() != recipient.lower():
+            return False, f"Recipient mismatch: expected {approval.recipient}, got {recipient}."
+        return True, "Approval token is valid."
+
+
+def invalidate_pending_approval(action_id: str) -> bool:
+    """Explicitly invalidates an approval token when draft content changes."""
+    with _perm_lock:
+        approval = _pending_approvals.get(action_id)
+        if approval:
+            approval.status = "invalidated"
+            approval.consumed = True
+            return True
+        return False
 
 
 def consume_pending_approval(action_id: str) -> bool:
     """Consume a single-use approval token upon successful execution."""
     with _perm_lock:
         approval = _pending_approvals.get(action_id)
-        if not approval or approval.consumed or time.time() > approval.expires_at:
+        if not approval or approval.consumed or approval.status != "pending" or time.time() > approval.expires_at:
             return False
         approval.consumed = True
+        approval.status = "consumed"
         return True
 
 

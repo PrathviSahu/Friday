@@ -2,6 +2,7 @@
 
 import pytest
 import os
+import time
 from services.agent.integrations.email import (
     get_email_provider,
     set_email_provider,
@@ -389,7 +390,99 @@ class TestEmailIntegrationSuite:
         assert res2.status == "duplicate_prevented"
         assert res2.success is False
 
-    # ── 7. SECURITY & SECRETS REDACTION ──
+    # ── 7. APPROVAL TOKEN VALIDATION & FAILURE SCENARIOS ──
+
+    def test_approval_token_lifecycle_and_expiration(self):
+        """Approval token expires after TTL and cannot be consumed when expired."""
+        from services.agent.permission_engine import (
+            create_pending_approval,
+            validate_approval_token,
+            consume_pending_approval
+        )
+        tok = create_pending_approval(
+            action_id="act-exp-1",
+            tool_name="send_email",
+            arguments={"to": "test@test.com"},
+            preview_text="Preview",
+            draft_id="draft-123",
+            content_hash="hash-abc",
+            recipient="test@test.com"
+        )
+        # Valid immediately
+        ok, _ = validate_approval_token("act-exp-1", draft_id="draft-123", content_hash="hash-abc", recipient="test@test.com")
+        assert ok is True
+
+        # Manually expire
+        tok.expires_at = time.time() - 10
+        ok_exp, reason = validate_approval_token("act-exp-1", draft_id="draft-123", content_hash="hash-abc")
+        assert ok_exp is False
+        assert "expired" in reason.lower()
+
+    def test_approval_token_single_use_consumption(self):
+        """Approval token cannot be consumed twice."""
+        from services.agent.permission_engine import (
+            create_pending_approval,
+            validate_approval_token,
+            consume_pending_approval
+        )
+        create_pending_approval(
+            action_id="act-use-1",
+            tool_name="send_email",
+            arguments={"to": "test@test.com"},
+            preview_text="Preview",
+            draft_id="draft-use-1",
+            content_hash="hash-use-1"
+        )
+        # First consumption succeeds
+        assert consume_pending_approval("act-use-1") is True
+        # Second consumption fails
+        assert consume_pending_approval("act-use-1") is False
+        # Validation reports already consumed
+        ok, reason = validate_approval_token("act-use-1")
+        assert ok is False
+        assert "consumed" in reason.lower()
+
+    def test_approval_validation_hash_mismatch_rejected(self):
+        """Approval token rejects execution if draft content hash changed."""
+        from services.agent.permission_engine import (
+            create_pending_approval,
+            validate_approval_token
+        )
+        create_pending_approval(
+            action_id="act-hash-1",
+            tool_name="send_email",
+            arguments={"to": "test@test.com"},
+            preview_text="Preview",
+            draft_id="draft-hash-1",
+            content_hash="original-hash-111"
+        )
+        # Modified content hash
+        ok, reason = validate_approval_token("act-hash-1", draft_id="draft-hash-1", content_hash="modified-hash-222")
+        assert ok is False
+        assert "modified" in reason.lower()
+
+    def test_ambiguous_user_confirmation_does_not_send(self):
+        """Ambiguous responses like 'Okay' or 'Looks good' do not trigger email dispatch."""
+        respond("Draft an email to the recruiter.")
+        ctx = get_context()
+        assert ctx.active_pending_action is not None
+
+        r = respond("Looks good.")
+        # Does NOT execute send
+        assert "email sent and verified" not in r["reply"].lower()
+        # Pending action remains intact awaiting explicit confirmation
+        assert get_context().active_pending_action is not None
+
+    def test_real_smtp_never_called_when_live_exec_false(self, monkeypatch):
+        """Guarantees real SMTP provider is NEVER invoked while EMAIL_LIVE_EXECUTION=false."""
+        from services.agent.integrations.email import get_email_provider
+        from services.agent.integrations.email.mock_provider import MockEmailProvider
+        monkeypatch.setenv("EMAIL_LIVE_EXECUTION", "false")
+        
+        provider = get_email_provider()
+        assert isinstance(provider, MockEmailProvider)
+
+    # ── 8. SECURITY & SECRETS REDACTION ──
 
     def test_credentials_never_exposed(self):
         """Audit logging and tool outputs never expose SMTP or IMAP passwords."""

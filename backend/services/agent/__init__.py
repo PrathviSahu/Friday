@@ -17,6 +17,8 @@ from services.agent.permission_engine import (
     check_tool_permission,
     create_pending_approval,
     get_pending_approval,
+    validate_approval_token,
+    invalidate_pending_approval,
     consume_pending_approval,
     clear_pending_approvals,
     PendingApproval
