@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://friday-api-wy2b.onrender.com/api/:path*"
+    },
+    {
+      "source": "/temp_audio/:path*",
+      "destination": "https://friday-api-wy2b.onrender.com/temp_audio/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
