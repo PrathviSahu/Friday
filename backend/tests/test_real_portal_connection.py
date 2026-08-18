@@ -36,15 +36,16 @@ def test_step1_real_portal_registration_and_guards():
     assert "linkedin.com" in allowed
     assert "www.linkedin.com" in allowed
 
-    # R: Real submission is permanently disabled in Step 1
-    with pytest.raises(NotImplementedError) as exc_sub:
-        portal.submit_form("sess_123", "appr_123")
-    assert "STRICTLY DISABLED" in str(exc_sub.value)
+    # R: Real submission validates session existence
+    with pytest.raises(KeyError) as exc_sub:
+        portal.submit_form("invalid_sess_123", "appr_123")
+    assert "not found" in str(exc_sub.value).lower()
 
     # S: Recruiter messaging is disabled
     with pytest.raises(NotImplementedError) as exc_msg:
         portal.send_recruiter_message("rec_1", "Hello")
     assert "STRICTLY DISABLED" in str(exc_msg.value).upper()
+
 
 
 # ==============================================================================
