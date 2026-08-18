@@ -283,67 +283,121 @@ class MockJobProvider(BaseJobProvider):
 
 
 # ==============================================================================
-# EXISTING SCRAPER ADAPTER
+# LINKEDIN JOB PROVIDER (READ/SEARCH ONLY)
 # ==============================================================================
 
-class ExistingJobScraperAdapter(BaseJobProvider):
-    """Adapter wrapping backend/services/job_scraper.py without modifying it."""
+class LinkedInJobProvider(BaseJobProvider):
+    """LinkedIn Job Provider (Read/Search Only).
+
+    Wraps existing backend/services/job_scraper.py.
+    STRICT READ-ONLY BOUNDARY: No auto-apply, form-filling, or recruiter messaging.
+    """
 
     def provider_name(self) -> str:
         return "linkedin_scraper"
 
     def check_connection(self) -> Dict[str, Any]:
-        return {
-            "status": "AVAILABLE",
-            "connected": True,
-            "provider": self.provider_name(),
-            "mode": "PLAYWRIGHT_LINKEDIN_ADAPTER",
-        }
-
-    def search_jobs(self, query: str, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Truthfully report LinkedIn connection status without leaking credentials."""
         try:
             try:
-                from backend.services import job_scraper
+                from backend.services import career_db
             except ImportError:
-                from services import job_scraper
+                from services import career_db
 
+            # Check if LinkedIn session cookies exist in platform_sessions table
+            with career_db._db() as conn:
+                row = conn.execute("SELECT cookies_json FROM platform_sessions WHERE platform_key = 'linkedin'").fetchone()
+                has_cookies = bool(row and row[0])
+
+            if not has_cookies:
+                return {
+                    "status": "AUTH_REQUIRED",
+                    "connected": False,
+                    "provider": self.provider_name(),
+                    "mode": "READ/SEARCH_ONLY",
+                    "reason": "LinkedIn session cookies not found in platform_sessions.",
+                }
+
+            return {
+                "status": "CONNECTED",
+                "connected": True,
+                "provider": self.provider_name(),
+                "mode": "READ/SEARCH_ONLY",
+                "search_ready": True,
+            }
+        except Exception as err:
+            return {
+                "status": "TEMPORARILY_UNAVAILABLE",
+                "connected": False,
+                "provider": self.provider_name(),
+                "mode": "READ/SEARCH_ONLY",
+                "reason": str(err),
+            }
+
+    def search_jobs(self, query: str, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Perform conservative, read-only LinkedIn search. Maximum 10 results per query."""
+        try:
+            from backend.services import job_scraper
             filters = filters or {}
+
             location = filters.get("location", "India")
             exp_level = filters.get("exp_level", "fresher")
             time_filter = filters.get("time_filter", "week")
 
             import asyncio
+            import inspect
+
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    raw_jobs = asyncio.run_coroutine_threadsafe(
-                        job_scraper.fetch_live_linkedin_jobs(
-                            query=query,
-                            location=location,
-                            exp_level=exp_level,
-                            time_filter=time_filter,
-                        ),
-                        loop
-                    ).result(timeout=15)
+                res = job_scraper.fetch_live_linkedin_jobs(
+                    query=query,
+                    location=location,
+                    exp_level=exp_level,
+                    time_filter=time_filter,
+                )
+                if inspect.isawaitable(res):
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            raw_jobs = asyncio.run_coroutine_threadsafe(res, loop).result(timeout=20)
+                        else:
+                            raw_jobs = loop.run_until_complete(res)
+                    except RuntimeError:
+                        raw_jobs = asyncio.run(res)
                 else:
-                    raw_jobs = loop.run_until_complete(
-                        job_scraper.fetch_live_linkedin_jobs(
-                            query=query,
-                            location=location,
-                            exp_level=exp_level,
-                            time_filter=time_filter,
-                        )
-                    )
-            except Exception:
+                    raw_jobs = res
+            except Exception as exc:
+                exc_str = str(exc).lower()
+                if "challenge" in exc_str or "captcha" in exc_str or "checkpoint" in exc_str:
+                    raise RuntimeError("CHALLENGE_REQUIRED: Anti-bot check detected on LinkedIn.") from exc
+                elif "timeout" in exc_str:
+                    raise RuntimeError("TEMPORARILY_UNAVAILABLE: LinkedIn request timed out.") from exc
                 raw_jobs = []
 
             results = []
-            for raw in raw_jobs:
+            for raw in (raw_jobs or [])[:10]:  # Strict cap of max 10 results
                 if isinstance(raw, dict):
                     results.append(self.normalize_job(raw))
             return results
-        except Exception:
+        except Exception as err:
+            if "CHALLENGE_REQUIRED" in str(err) or "TEMPORARILY_UNAVAILABLE" in str(err):
+                raise
             return []
+
 
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
         return None
+
+    # Strict Read-Only Boundary Guard Methods
+    def apply_to_job(self, *args, **kwargs):
+        raise NotImplementedError("READ/SEARCH ONLY: Automatic applications are strictly disabled in Step 2.")
+
+    def submit_application_form(self, *args, **kwargs):
+        raise NotImplementedError("READ/SEARCH ONLY: Form submission is strictly disabled in Step 2.")
+
+    def send_recruiter_message(self, *args, **kwargs):
+        raise NotImplementedError("READ/SEARCH ONLY: Recruiter messaging is strictly disabled in Step 2.")
+
+
+# ExistingJobScraperAdapter is an alias for LinkedInJobProvider
+ExistingJobScraperAdapter = LinkedInJobProvider
+
