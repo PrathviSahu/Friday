@@ -63,6 +63,19 @@ def build_system_prompt(text: str, is_boss: bool, guest_active: bool, brevity_mo
         else:
             time_label = "night"
 
+        try:
+            from services.brain.context_manager import get_context
+            ctx = get_context()
+            active_context_lines = [
+                f"- Active Domain: {ctx.current_domain}",
+                f"- Active Job Opportunity: {ctx.active_job_title or 'None'} ({ctx.active_company or ''})",
+                f"- Active Trading Chart/Symbol: {ctx.active_trading_symbol or 'None'}",
+                f"- Active Song Selection: {ctx.active_song_name or 'None'}",
+            ]
+            active_context_str = "\n".join(active_context_lines)
+        except Exception:
+            active_context_str = "- Active Domain: GENERAL"
+
         return (
             f"{_BOSS_BASE_PROMPT}\n\n"
             f"[LIVE SYSTEM CONTEXT]\n"
@@ -70,6 +83,7 @@ def build_system_prompt(text: str, is_boss: bool, guest_active: bool, brevity_mo
             f"- Spotify: {track_context}\n"
             f"- Pending Tasks: {todo_context}\n"
             f"- App State: FRIDAY Dashboard Console Level 4 Active\n"
+            f"[ACTIVE WORKING CONTEXT & SHORT-TERM MEMORY]\n{active_context_str}\n"
             f"PROACTIVE RULE: If Prem greets you (hello/hi/hey/kya haal hai) and it is {time_label}, "
             f"be context-aware: mention the time of day, current track if playing, or suggest something relevant. "
             f"At night/evening, optionally suggest a chill or devotional playlist.\n\n"

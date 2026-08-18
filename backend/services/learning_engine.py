@@ -16,6 +16,7 @@ import sqlite3
 import json
 import re
 import threading
+from typing import Optional
 from pathlib import Path
 from datetime import datetime
 
@@ -153,6 +154,30 @@ def save_fact(key: str, value: str, category: str = "preference"):
         on_fact_saved(key.strip().lower(), value.strip())
     except Exception:
         pass
+
+
+def delete_fact(key: str) -> bool:
+    """Delete a persistent fact by key or substring match."""
+    key_clean = key.strip().lower()
+    with _db_lock:
+        with _db() as conn:
+            cur = conn.execute(
+                "DELETE FROM memories WHERE key_fact = ? OR key_fact LIKE ?",
+                (key_clean, f"%{key_clean}%")
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+
+def get_fact(key: str) -> Optional[str]:
+    """Retrieve a persistent fact value by exact or substring key."""
+    key_clean = key.strip().lower()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT value_fact FROM memories WHERE key_fact = ? OR key_fact LIKE ? ORDER BY confidence DESC LIMIT 1",
+            (key_clean, f"%{key_clean}%")
+        ).fetchone()
+        return row["value_fact"] if row else None
 
 
 def get_all_memories() -> list:

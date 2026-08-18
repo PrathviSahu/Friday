@@ -98,6 +98,25 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     if sec_res:
         return sec_res
 
+    # 🧠 Phase 4 — Contextual Brain & Memory Engine
+    try:
+        from services.brain.context_manager import (
+            handle_explicit_context_switch,
+            handle_memory_commands,
+            handle_contextual_reasoning,
+        )
+        handle_explicit_context_switch(lower_text)
+
+        mem_res = handle_memory_commands(lower_text, is_boss)
+        if mem_res:
+            return mem_res
+
+        ctx_res = handle_contextual_reasoning(lower_text, is_boss)
+        if ctx_res:
+            return ctx_res
+    except Exception as e:
+        print(f"[Brain/Context Engine Error] {e}")
+
     # ⚡ Deterministic Fast-Path Handlers (<15ms)
     if authorized:
         fast_res = dispatch_fast_path_handlers(

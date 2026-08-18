@@ -5,6 +5,8 @@ This file is kept so existing brain.py imports continue to work unchanged.
 """
 from services.learning_engine import (
     save_fact,
+    delete_fact,
+    get_fact,
     get_all_memories,
     get_memory_context_string,
     log_conversation,
@@ -13,6 +15,8 @@ from services.learning_engine import (
 
 __all__ = [
     "save_fact",
+    "delete_fact",
+    "get_fact",
     "get_all_memories",
     "get_memory_context_string",
     "log_conversation",
