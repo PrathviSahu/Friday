@@ -286,38 +286,77 @@ class GoogleCalendarProvider(BaseCalendarProvider):
     """
 
     def check_connection(self) -> Dict[str, Any]:
-        """Perform read-only connection check against Google Calendar API."""
-        try:
-            try:
-                from services import calendar_agent
-            except ImportError:
-                from backend.services import calendar_agent
+        """Perform read-only connection check against Google Calendar API.
 
-            if not calendar_agent.is_configured():
+        Never mutates calendar state. Never logs tokens or secrets.
+        """
+        try:
+            from backend.services import calendar_agent
+
+
+            has_token = calendar_agent.has_token_file() if hasattr(calendar_agent, "has_token_file") else calendar_agent.TOKEN_FILE.exists()
+            has_sa = calendar_agent.has_service_account_file() if hasattr(calendar_agent, "has_service_account_file") else calendar_agent.SERVICE_ACCOUNT_FILE.exists()
+            has_creds = calendar_agent.has_credentials_file() if hasattr(calendar_agent, "has_credentials_file") else calendar_agent.CREDENTIALS_FILE.exists()
+
+            if not has_token and not has_sa:
+                if has_creds:
+                    return {
+                        "status": CalendarConnectionStatus.AUTH_REQUIRED.value,
+                        "connected": False,
+                        "provider": "google_calendar",
+                        "reason": "OAuth client secrets present; user authentication required.",
+                        "granted_scopes": ["https://www.googleapis.com/auth/calendar.readonly"],
+                    }
                 return {
                     "status": CalendarConnectionStatus.NOT_CONFIGURED.value,
                     "connected": False,
                     "provider": "google_calendar",
                     "reason": "Credentials or tokens not configured.",
+                    "granted_scopes": [],
                 }
 
-            status_info = calendar_agent.get_status() if hasattr(calendar_agent, "get_status") else {}
-            is_connected = status_info.get("connected", False)
 
-            if is_connected:
-                conn_enum = CalendarConnectionStatus.CONNECTED
-            elif status_info.get("configured"):
-                conn_enum = CalendarConnectionStatus.AUTH_REQUIRED
-            else:
-                conn_enum = CalendarConnectionStatus.NOT_CONFIGURED
+            # Perform live read-only API check
+            try:
+                service = calendar_agent._build_service()
+                cal_res = service.calendarList().list(maxResults=1).execute()
+                items = cal_res.get("items", [])
+                primary_cal = items[0].get("summary", "Primary Calendar") if items else "Primary Calendar"
+                cal_tz = items[0].get("timeZone", "Asia/Kolkata") if items else "Asia/Kolkata"
 
-            return {
-                "status": conn_enum.value,
-                "connected": is_connected,
-                "provider": "google_calendar",
-                "account": status_info.get("account", ""),
-                "scopes": ["https://www.googleapis.com/auth/calendar.readonly"],
-            }
+                now_iso = datetime.now(timezone.utc).isoformat()
+                return {
+                    "status": CalendarConnectionStatus.CONNECTED.value,
+                    "connected": True,
+                    "provider": "google_calendar",
+                    "primary_calendar": primary_cal,
+                    "timezone": cal_tz,
+                    "granted_scopes": ["https://www.googleapis.com/auth/calendar.readonly"],
+                    "connected_at": now_iso,
+                }
+            except Exception as api_err:
+                err_msg = str(api_err)
+                if "refresh" in err_msg.lower() or "invalid_grant" in err_msg.lower():
+                    return {
+                        "status": CalendarConnectionStatus.AUTHENTICATION_FAILED.value,
+                        "connected": False,
+                        "provider": "google_calendar",
+                        "reason": err_msg,
+                    }
+                elif "403" in err_msg or "permission" in err_msg.lower() or "forbidden" in err_msg.lower():
+                    return {
+                        "status": CalendarConnectionStatus.PERMISSION_DENIED.value,
+                        "connected": False,
+                        "provider": "google_calendar",
+                        "reason": "403 Forbidden or scope denial from Google Calendar API.",
+                    }
+                return {
+                    "status": CalendarConnectionStatus.TEMPORARILY_UNAVAILABLE.value,
+                    "connected": False,
+                    "provider": "google_calendar",
+                    "reason": f"Network or provider error: {err_msg}",
+                }
+
         except Exception as err:
             return {
                 "status": CalendarConnectionStatus.TEMPORARILY_UNAVAILABLE.value,
@@ -325,6 +364,7 @@ class GoogleCalendarProvider(BaseCalendarProvider):
                 "provider": "google_calendar",
                 "reason": str(err),
             }
+
 
     def list_calendars(self) -> List[Dict[str, Any]]:
         """List user's Google Calendars using read-only API."""

@@ -50,9 +50,25 @@ class CalendarUnavailableError(RuntimeError):
 
 # ── Config / auth ─────────────────────────────────────────────────────────
 
+def has_token_file() -> bool:
+    """True when user OAuth token file exists."""
+    return TOKEN_FILE.exists()
+
+
+def has_credentials_file() -> bool:
+    """True when client secrets file exists."""
+    return CREDENTIALS_FILE.exists()
+
+
+def has_service_account_file() -> bool:
+    """True when service account file exists."""
+    return SERVICE_ACCOUNT_FILE.exists()
+
+
 def is_configured() -> bool:
     """True when a token, service account or client secrets file exists."""
-    return TOKEN_FILE.exists() or SERVICE_ACCOUNT_FILE.exists() or CREDENTIALS_FILE.exists()
+    return has_token_file() or has_service_account_file() or has_credentials_file()
+
 
 
 def _build_service():
