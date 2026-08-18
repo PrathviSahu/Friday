@@ -37,6 +37,13 @@ from backend.services.career.packet import (
     check_missing_fields,
     format_packet_preview,
 )
+from backend.services.career.portal import (
+    BaseApplicationPortal,
+    MockApplicationPortal,
+    PortalAutomationEngine,
+    PortalSecurityError,
+    FieldSensitivity,
+)
 
 __all__ = [
     "JOB_SEARCH_ENABLED",
@@ -67,7 +74,13 @@ __all__ = [
     "analyze_salary_fit",
     "check_missing_fields",
     "format_packet_preview",
+    "BaseApplicationPortal",
+    "MockApplicationPortal",
+    "PortalAutomationEngine",
+    "PortalSecurityError",
+    "FieldSensitivity",
 ]
+
 
 
 
