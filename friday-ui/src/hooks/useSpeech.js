@@ -192,12 +192,13 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         // fall through → the user's command is processed below
       }
 
-      // ── Wake-word stripping ─────────────────────────────────────────────
+      // ── Wake-word & Phonetic Acoustic Stripping ────────────────────────
       let query = rawTranscript.trim()
-        .replace(/^ready\s*(?:film|feel|fill)/i, 'play')
+        .replace(/^(?:ready|are\s*ready|already|reading|re-day|fry\s*day)\s+(?:play|open|launch|start|show|send|what|tell|who|how|can|please|music|whatsapp|spotify)\b/i, (m) => m.replace(/^(?:ready|are\s*ready|already|reading|re-day|fry\s*day)\s+/i, ''))
+        .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno|aye|yo|dear)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday|fri\s*day|fraiday|traiday)\b\s*[,:]?\s*/gi, '')
+        .replace(/^ready\s+(.*)/i, '$1')
         .replace(/^if\s+friday\s+please/i, 'play')
         .replace(/^suno\s+friday/i, '')
-        .replace(/^(?:if|he|hey|hi|hello|ok|okay|sun|suno|aye)?\s*(?:friday|fraide|frida|freddy|frieda|freddie|freya|phiday|fri\s*day)\b\s*/gi, '')
         .trim();
 
       if (!query) {
