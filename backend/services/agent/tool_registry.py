@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field
 
 class RiskLevel(str, Enum):
     READ_ONLY = "read_only"             # Level 0: Safe reads, no approval needed
-    PREPARATION = "preparation"         # Level 1: Drafts & previews, no side effects
+    LOW_RISK_SYSTEM_ACTION = "low_risk_system"  # Low-risk system side effect (e.g. launching desktop apps)
+    PREPARATION = "preparation"         # Level 1: Drafts & previews, no external side effects
     USER_APPROVAL = "user_approval"     # Level 2: Real external side effects, requires explicit user confirmation
     AUTOMATED = "automated"             # Level 3: User-configured background routines
     BLOCKED = "blocked"                 # Disabled or dangerous operations
@@ -377,7 +378,7 @@ def init_tool_registry():
         name="open_app",
         domain="SYSTEM",
         description="Launch an authorized desktop application.",
-        risk_level=RiskLevel.READ_ONLY,
+        risk_level=RiskLevel.LOW_RISK_SYSTEM_ACTION,
         parameters_schema={"type": "object", "properties": {"app_name": {"type": "string"}}},
         handler=_handle_open_app,
     )

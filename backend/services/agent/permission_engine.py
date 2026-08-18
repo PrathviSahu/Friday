@@ -92,7 +92,7 @@ def check_tool_permission(
         if tool.risk_level in [RiskLevel.USER_APPROVAL, RiskLevel.BLOCKED]:
             return False, "Public guest mode cannot execute external side effects. Boss authentication required."
 
-    if tool.risk_level in [RiskLevel.READ_ONLY, RiskLevel.PREPARATION, RiskLevel.AUTOMATED]:
+    if tool.risk_level in [RiskLevel.READ_ONLY, RiskLevel.LOW_RISK_SYSTEM_ACTION, RiskLevel.PREPARATION, RiskLevel.AUTOMATED]:
         return True, "Execution permitted under standard tier."
 
     if tool.risk_level == RiskLevel.USER_APPROVAL:
