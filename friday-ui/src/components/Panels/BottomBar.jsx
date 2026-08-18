@@ -102,7 +102,7 @@ export default function BottomBar() {
                     initial={{ opacity: 0, y: -4, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.2 }}
-                    className="relative z-10 px-4 py-2.5 my-2 rounded-lg bg-[#00101d]/85 border border-[#00B7FF]/35 shadow-[0_0_14px_rgba(0,183,255,0.18)] font-grotesk text-[11.5px] sm:text-[12.5px] leading-relaxed text-[#DFFAFF] tracking-[0.03em] max-w-[620px] mx-auto text-center"
+                    className="relative z-10 px-4 py-2.5 my-2 rounded-lg bg-[#00101d]/85 border border-[#00B7FF]/35 shadow-[0_0_14px_rgba(0,183,255,0.18)] font-grotesk text-[11.5px] sm:text-[12.5px] leading-relaxed text-[#DFFAFF] tracking-[0.03em] max-w-[480px] mx-auto text-center"
                 >
                     {responseMessage}
                 </motion.div>
