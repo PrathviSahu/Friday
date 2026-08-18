@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Zap, ExternalLink, X, RotateCw, Trash2, Clock } from 'lucide-react';
 import { getJobs, addJob, updateJobStatus, analyzeJob, createApplication, fetchLinkedinJobs, purgeOldJobs } from '../../../api/careerApi.js';
+import { getLocalItem, setLocalItem } from '../../../utils/safeStorage.js';
 import JobCard from '../components/JobCard.jsx';
 import MatchScoreRing from '../components/MatchScoreRing.jsx';
 import SkillTag from '../components/SkillTag.jsx';
@@ -50,12 +51,15 @@ export default function Opportunities() {
   const [selected, setSelected]     = useState(null);
   const [source, setSource]         = useState('All');
   const [statusFilter, setStatus]   = useState('All');
-  const [expLevel, setExpLevel]     = useState(() => localStorage.getItem('friday_career_exp') || 'fresher');
-  const [locationPref, setLocationPref] = useState(() => localStorage.getItem('friday_career_loc') || 'India');
-  const [timeFilter, setTimeFilter] = useState(() => localStorage.getItem('friday_career_time') || 'week');
-  const [roleQuery, setRoleQuery]   = useState(() => localStorage.getItem('friday_career_role') || 'Java Software Engineer');
-  const [refreshInterval, setRefreshInterval] = useState(() => localStorage.getItem('friday_career_refresh_int') || '1h');
-  const [lastSynced, setLastSynced] = useState(() => localStorage.getItem('friday_career_last_sync') ? Number(localStorage.getItem('friday_career_last_sync')) : Date.now());
+  const [expLevel, setExpLevel]     = useState(() => getLocalItem('friday_career_exp', 'fresher'));
+  const [locationPref, setLocationPref] = useState(() => getLocalItem('friday_career_loc', 'India'));
+  const [timeFilter, setTimeFilter] = useState(() => getLocalItem('friday_career_time', 'week'));
+  const [roleQuery, setRoleQuery]   = useState(() => getLocalItem('friday_career_role', 'Java Software Engineer'));
+  const [refreshInterval, setRefreshInterval] = useState(() => getLocalItem('friday_career_refresh_int', '1h'));
+  const [lastSynced, setLastSynced] = useState(() => {
+    const s = getLocalItem('friday_career_last_sync');
+    return s ? Number(s) : Date.now();
+  });
   const [search, setSearch]         = useState('');
   const [minScore, setMinScore]     = useState(0);
   const [analyzing, setAnalyzing]   = useState(false);

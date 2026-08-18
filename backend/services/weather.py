@@ -8,8 +8,11 @@ import urllib.parse
 import json
 
 
+import os
+
 def _get_ip_location() -> tuple[float, float, str]:
-    """Fetch current location via ip-api.com."""
+    """Fetch current location via ip-api.com, falling back to WEATHER_CITY or Thane."""
+    default_city = os.getenv("WEATHER_CITY", "Thane").strip()
     try:
         req = urllib.request.Request(
             "http://ip-api.com/json/",
@@ -21,11 +24,11 @@ def _get_ip_location() -> tuple[float, float, str]:
                 return (
                     float(data.get("lat")),
                     float(data.get("lon")),
-                    str(data.get("city", "Nashik"))
+                    str(data.get("city", default_city))
                 )
     except Exception as e:
         print(f"[Weather] IP location lookup failed: {e}")
-    return 20.0024, 73.7945, "Nashik"
+    return 19.2183, 72.9781, default_city
 
 
 def _geocode_city(city_name: str) -> tuple[float, float, str] | None:
