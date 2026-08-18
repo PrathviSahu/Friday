@@ -40,6 +40,7 @@ from backend.services.career.packet import (
 from backend.services.career.portal import (
     BaseApplicationPortal,
     MockApplicationPortal,
+    LinkedInApplicationPortal,
     PortalAutomationEngine,
     PortalSecurityError,
     FieldSensitivity,
@@ -76,10 +77,12 @@ __all__ = [
     "format_packet_preview",
     "BaseApplicationPortal",
     "MockApplicationPortal",
+    "LinkedInApplicationPortal",
     "PortalAutomationEngine",
     "PortalSecurityError",
     "FieldSensitivity",
 ]
+
 
 
 

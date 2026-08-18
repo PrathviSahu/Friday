@@ -398,8 +398,9 @@ def generate_application_packet(
         "provider": job.get("provider", "unknown"),
         "company": job.get("company", "Unknown"),
         "role": job.get("title", "Software Engineer"),
-        "source_url": job.get("url", ""),
+        "source_url": job.get("url") or job.get("source_url") or job.get("application_url") or "",
         "canonical_signature": job.get("signature", ""),
+
         "selected_resume_id": selected_resume.get("id", 0),
         "selected_resume_title": selected_resume.get("title", "Primary Resume"),
         "resume_version": "v1.0",

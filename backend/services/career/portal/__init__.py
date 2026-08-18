@@ -7,6 +7,7 @@ from backend.services.career.portal.base import (
     classify_field_sensitivity,
 )
 from backend.services.career.portal.mock_portal import MockApplicationPortal
+from backend.services.career.portal.linkedin_portal import LinkedInApplicationPortal
 from backend.services.career.portal.engine import (
     PortalAutomationEngine,
     PortalSecurityError,
@@ -18,7 +19,9 @@ __all__ = [
     "FieldSensitivity",
     "classify_field_sensitivity",
     "MockApplicationPortal",
+    "LinkedInApplicationPortal",
     "PortalAutomationEngine",
     "PortalSecurityError",
     "PortalSession",
 ]
+
