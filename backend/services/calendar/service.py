@@ -130,21 +130,35 @@ def read_calendar_events(
     return events
 
 
-
 def prepare_calendar_event(
     title: str,
     start_time: str,
     end_time: str,
+    timezone_name: str = "Asia/Kolkata",
     location: str = "",
     description: str = "",
     attendees: Optional[List[str]] = None,
+    reminders: Optional[List[Dict[str, Any]]] = None,
+    recurrence: Optional[Dict[str, Any]] = None,
+    is_all_day: bool = False,
     ttl_seconds: int = 300,
 ) -> Dict[str, Any]:
     """Level 1 PREPARATION: Prepare calendar event draft and issue single-use approval token.
 
     Draft != Create Invariant: This function CANNOT create real calendar events.
     """
-    draft = draft_calendar_event(title, start_time, end_time, location, description, attendees)
+    draft = draft_calendar_event(
+        title=title,
+        start_time=start_time,
+        end_time=end_time,
+        timezone_name=timezone_name,
+        location=location,
+        description=description,
+        attendees=attendees,
+        reminders=reminders,
+        recurrence=recurrence,
+        is_all_day=is_all_day,
+    )
     approval = create_calendar_approval_token(draft, ttl_seconds=ttl_seconds)
 
     calendar_audit_logger.log_event(
@@ -158,20 +172,12 @@ def prepare_calendar_event(
 
     return {
         "status": "EVENT_DRAFT_PREPARED",
+        "message": "Calendar event draft prepared. Requires explicit user approval to create event.",
         "event_draft": draft.to_dict(),
         "approval_token": approval.to_dict(),
-        "preview": {
-            "title": draft.title,
-            "start_time": draft.start_time,
-            "end_time": draft.end_time,
-            "location": draft.location,
-            "description": draft.description,
-            "attendees": draft.attendees,
-            "version": draft.version,
-            "event_hash": draft.event_hash,
-        },
         "mode": "DRY-RUN / MOCK CALENDAR PROVIDER" if not is_live_calendar_execution_enabled() else "LIVE",
     }
+
 
 
 def edit_calendar_event_draft(
@@ -179,9 +185,13 @@ def edit_calendar_event_draft(
     new_title: Optional[str] = None,
     new_start_time: Optional[str] = None,
     new_end_time: Optional[str] = None,
+    new_timezone: Optional[str] = None,
     new_location: Optional[str] = None,
     new_description: Optional[str] = None,
     new_attendees: Optional[List[str]] = None,
+    new_reminders: Optional[List[Dict[str, Any]]] = None,
+    new_recurrence: Optional[Dict[str, Any]] = None,
+    new_is_all_day: Optional[bool] = None,
     ttl_seconds: int = 300,
 ) -> Dict[str, Any]:
     """Modify an existing calendar event draft, increment version, update hash, and invalidate old approvals."""
@@ -194,10 +204,15 @@ def edit_calendar_event_draft(
         new_title=new_title,
         new_start_time=new_start_time,
         new_end_time=new_end_time,
+        new_timezone=new_timezone,
         new_location=new_location,
         new_description=new_description,
         new_attendees=new_attendees,
+        new_reminders=new_reminders,
+        new_recurrence=new_recurrence,
+        new_is_all_day=new_is_all_day,
     )
+
 
     # 3. Create fresh approval token for revised version
     fresh_approval = create_calendar_approval_token(updated_draft, ttl_seconds=ttl_seconds)
