@@ -1,12 +1,12 @@
 # ⚡ F.R.I.D.A.Y. — Complete Capability Reference
 
-**Version:** v5.0 · **API surface:** 193 endpoints · **Function tools:** 47 · **Stark HUD Capsules:** 17 · **Permissions:** 24  
-**Deployments:** Live Web Vercel (`https://friday-ui-blush.vercel.app`) · Render Backend (`https://friday-api-wy2b.onrender.com`)  
-**Stack:** React 19 + Vite 8 frontend · FastAPI backend · SQLite (WAL) + JSON (thread-locked) · Groq (Llama 3.3 70B) / Gemini 2.5 LLM · Gemini embeddings · Groq Whisper STT (`whisper-large-v3-turbo`) · Edge-TTS · Graphify (D3 AST Graph) · Vitest (frontend tests)
+**Version:** v5.0 · **API surface:** 195 REST operations across 168 `/api/*` paths · **Function tools:** 47 · **Dashboard capsules:** 17 · **Permissions:** 24 · **Backend tests:** 323 passing · **Frontend tests:** 16 passing
+**Stack:** React 19 + Vite 8 frontend · FastAPI backend · SQLite (WAL, thread-safe) · Groq (Llama 3.3 70B) / Gemini 2.5 LLM · Gemini `text-embedding-004` embeddings · Groq Whisper STT (`whisper-large-v3-turbo`) · Edge-TTS · Playwright (scraping / WhatsApp driver) · Docker / Render / Vercel / Tauri
 
-> This document is the definitive, machine-accurate list of everything F.R.I.D.A.Y.
-> can do. Every capability below is implemented and tested — none are placeholders.
-> Counts are derived from the running app's OpenAPI schema and tool registry.
+> This document is the machine-accurate list of everything F.R.I.D.A.Y. can do.
+> Every capability below is implemented and tested — none are placeholders.
+> Counts are derived from the running app's OpenAPI schema, the tool registry,
+> and the test suites (`pytest tests/` → 323 passed, `vitest` → 16 passed).
 
 ---
 
@@ -18,14 +18,18 @@ remembers you over time.
 
 | Layer | What it does | Where |
 |---|---|---|
-| **AI Core** | Conversation, intent routing, tool calling, modular handler plugins, memory | `services/brain/`, `brain_v2.py`, `function_engine.py` |
-| **Voice & Audio** | Wake word, Single-Audio Mutex, STT (browser + Groq Whisper fallback, Romanized script lock), neural TTS, sub-ms Push-to-Talk (Space / Touch) | `ttsService.js`, `useSpeech.js`, `services/stt.py`, `tts.py` |
-| **Career OS** | Resumes, jobs, live LinkedIn scraper with date filtering & auto-refresh, applications, interviews, recruiters | `routers/career.py` (42 endpoints), `services/job_scraper.py`, `CareerOS.jsx` |
-| **Developer OS** | Quantum Trading workstation, technical analysis, devtools, full-screen mobile charts | `routes/trading.py`, `routes/devtools.py`, `QuantumTradingWorkstation.jsx` |
-| **Knowledge OS** | Second brain, memory timeline, life memory, goals, Graphify AST visualizer | `routes/knowledge.py`, `graphify-out/` |
-| **Stark HUD & Dashboard** | 17-in-1 holographic sliding capsule center with real-time search, category filters, live arming telemetry | `SlidingDashboard.jsx`, `HUDOverlay.jsx` |
-| **Personal OS & Mobile** | Tasks, reminders, weather, briefing, automations, native Android Spotify deep-linking, PWA meta | `routes/*`, `SpotifyCard.jsx` |
-| **Security & Access** | Owner auth, 1-Click Recruiter Instant Demo, permission center, encryption, audit log | `auth.py`, `permissions.py`, `LockScreen.jsx` |
+| **AI Core** | Conversation, intent routing, tool calling (47 tools), modular handler plugins, memory, agentic loop | `services/brain/`, `brain_v2.py`, `function_engine.py` |
+| **Voice & Audio** | Wake word, single-audio mutex, STT (browser + Groq Whisper fallback), neural TTS, push-to-talk (Space / touch), barge-in | `ttsService.js`, `useSpeech.js`, `services/stt.py`, `tts.py` |
+| **Career OS** | Resumes, jobs, LinkedIn ingestion, applications, interviews, recruiters, analytics | `routers/career.py` (32 paths, 43 operations), `services/job_scraper.py`, `CareerOS.jsx` |
+| **Developer OS** | Quantum Trading workstation, real technical analysis, devtools | `routes/trading.py`, `routes/devtools.py`, `QuantumTradingWorkstation.jsx` |
+| **Knowledge OS** | Second brain, memory timeline, life memory, goals, learning coach | `routes/knowledge.py`, `routes/learning.py`, `routes/life_memory.py` |
+| **Stark HUD & Dashboard** | 17-in-1 holographic sliding capsule center with real-time search, category filters, live arming telemetry | `SlidingDashboard.jsx` |
+| **Security & Access** | Owner auth, permission center (24 capabilities), encryption, audit log, presence push | `auth.py`, `permissions.py`, `routes/presence.py` |
+
+> **Platform note:** machine-control capabilities (brightness, volume, lock,
+> open/close apps, local Spotify) control **the host the backend runs on**.
+> They are macOS-only and degrade gracefully (no-op) inside Linux Docker /
+> Render containers. Everything else works identically everywhere.
 
 ---
 
@@ -33,90 +37,68 @@ remembers you over time.
 
 | Capability | Detail |
 |---|---|
-| Single-Audio Mutex | **Guaranteed zero double-speaking**. Every utterance is tracked via a monotonically increasing sequence ID (`audioGenRef`). Any subsequent command, interruption, or speech immediately interrupts and cleans up the previous audio buffer |
+| Single-Audio Mutex | **Guaranteed zero double-speaking.** Every utterance is tracked via a monotonically increasing sequence ID; any new command, interruption, or speech instantly interrupts and purges the previous audio pipeline |
 | Wake word | "Hey Friday", "OK Friday", "Friday…" (stripped before processing) |
-| Barge-in | Start talking while F.R.I.D.A.Y. is speaking → she stops instantly and listens. Browser engine: transcript-based (her echo is blocked, your command wins). Whisper engine: TTS volume ducks + fresh voice-onset detection |
-| Push-to-Talk (Desktop + Mobile) | **Desktop Spacebar hold** & **Mobile Thumb Hold-to-Talk**: mic activates only while held, interim buffer captures speech continuously, and releasing sends audio with **0ms latency**. Smart guard prevents Spacebar hijacking in text fields |
-| Android Mic Release | Automatic `visibilitychange` listener immediately shuts down microphone hardware when switching apps or minimizing Brave, freeing the Android microphone system |
-| Speech-to-text | Browser Web Speech API (instant path); auto-fallback to **Groq Whisper `whisper-large-v3-turbo`** (free tier) → Gemini `gemini-2.5-flash` audio when the browser engine is unsupported or flaky. Whisper is Hinglish-aware, so Hindi commands transcribe correctly |
-| Text-to-speech | Microsoft Edge-TTS — `en-IN-NeerjaNeural` (English), `hi-IN-SwaraNeural` (Hindi); auto-detects Devanagari |
-| Spotify Ducking & Silent Actions | Music dips to 20% while speaking; Spotify playback commands run in pure silent mode (`silence_tts: True`) without shouting over songs |
-| Speech corrections | "No, I meant X" → permanently stored in personal vocabulary |
-| Brain intelligence | **Conversation context** (last 6 turns in every LLM call), **semantic memory** (Gemini embeddings RAG over facts/notes/meetings — recall in your own words), **multi-step agentic loop** (up to 4 tool calls per request), env-configurable model (`GROQ_MODEL`) |
-| Email Agent | Gmail/Outlook via IMAP+SMTP (app password): unread inbox, search, priority detection, summary, drafts — **approval-first send**: nothing is sent until you confirm (voice "yes"/"no" or the on-screen preview) |
-| Calendar Agent | Google Calendar: today/upcoming/search, **approval-first create** (preview → confirm → insert), Calendar section in the Daily Briefing; OAuth via `credentials.json` (own `calendar_token.json`) |
-| Meeting Assistant | Upload a recording (Groq Whisper, free tier) or paste a transcript → LLM extracts summary, key points, decisions & **action items** → saved to SQLite + mirrored to Knowledge OS; action items can be pushed to Todos; voice: "what were the action items?", "summarize my last meeting" |
-| WhatsApp Agent (experimental) | Opt-in (`FRIDAY_WHATSAPP_ENABLED=1`); FRIDAY's own Playwright driver for WhatsApp Web (no third-party libs — the PyPI package is a typosquat, the original is dead). QR pairing in the UI, unread chats, **approval-first send** ("message 91XXXXXXXXXX that …" → preview → confirm) |
-| Document AI | Upload PDF/DOCX/PPTX/XLSX/TXT → text extracted & stored (originals discarded) → **ask questions, summarize, compare** via Groq; voice: "ask my documents about X", "summarize the pdf", "search my documents for Y" |
+| Barge-in | Start talking while F.R.I.D.A.Y. is speaking → she stops instantly and listens |
+| Push-to-Talk | Desktop **Spacebar hold** & mobile **thumb hold-to-talk**: mic activates only while held; releasing flushes the buffer instantly. Smart guard prevents Spacebar hijacking in text fields |
+| Android Mic Release | `visibilitychange` listener tears down mic hardware when switching apps/minimizing — prevents Android "cannot record" conflicts |
+| Speech-to-text | Browser Web Speech API (instant); auto-fallback to **Groq Whisper `whisper-large-v3-turbo`** (free tier) → Gemini audio. Hinglish-aware |
+| Text-to-speech | Microsoft Edge-TTS — `en-IN-NeerjaNeural` (English), `hi-IN-SwaraNeural` (Hindi); auto-detects Devanagari; relative `/temp_audio/...` URLs |
+| Spotify ducking | Music dips to 20% while speaking, restores after |
+| Speech corrections | "No, I meant X" → permanently stored in personal vocabulary, applied to future STT |
 
-### Voice command patterns (frontend fast-path)
-
-| You say | F.R.I.D.A.Y. does |
-|---|---|
-| "open trading" / "trading workstation" | Opens Quantum Trading Workstation |
-| "exit trading mode" / "go back" | Exits to the dashboard |
-| "open dashboard" / "home" | Returns to the dashboard (never hijacked by Career) |
-| "open career" / "job portal" | Opens Career OS |
-| "open engineering console" / "open vscode" | Opens VS Code |
-| "open browser" / "open chrome" | Opens the browser |
-| "close <app>" / "quit <app>" | Closes the app (canonical names, incl. vs code/chrome) |
-| "lock yourself" / "lock" | Locks the display |
-| "what time is it" / "what's the date" | Answers time / date |
-| "what's playing" / "kaun sa gaana" | Reports current Spotify track |
-| "open Chrome/Spotify/VS Code…" | Launches the app |
-| "close <app>" | Quits the app |
-| "stop" / "shut up" | Interrupts speech |
-| "exit trading mode" / "go back" | Returns to dashboard |
-
-### Brain engine (server-side routing)
-
-Anything not matched client-side is sent to the **Smart Brain v4**:
+### Brain intelligence (server-side)
 
 1. **Context builder** — last 6 conversation turns + permanent facts + top-3
    semantic memories (Gemini embeddings RAG) injected into the prompt.
-2. **Groq (Llama 3.3 70B) agentic loop** — LLM receives all 41 tool schemas and
-   can chain **up to 4 tool calls** per request (each result fed back) before
-   answering. `send_*`/`create_*` tools only draft → approval action.
-3. **Gemini failover** — structured JSON `{reply, function, args}` if Groq fails
-   (also receives history + semantic context).
-4. **Legacy regex brain** — always-works fallback for shortcuts.
+2. **Groq (Llama 3.3 70B) agentic loop** — LLM receives **47 tool schemas** and
+   can chain **up to 4 tool-call rounds** per request (each result fed back)
+   before answering. `send_*` / `create_*` tools only draft → approval action.
+3. **Gemini failover** — structured JSON if Groq fails (also receives history +
+   semantic context).
+4. **Fast-path handlers** — deterministic sub-15 ms handlers for time, weather,
+   volume, Spotify, navigation, macros, security/permissions.
+5. **Legacy regex fallback** — always-works final fallback.
 
 ---
 
-## 3. The 41 Function Tools (in detail)
+## 3. The 47 Function Tools
 
-Every tool is a JSON-schema-registered capability the LLM can call. You can also
-invoke them directly via `POST /api/agent/chat`. The brain can chain **up to 4
-tool calls per request** (agentic loop) — "check email, then draft a reply"
-works in one shot.
+Every tool is a JSON-schema-registered capability the LLM can call, and the
+brain can chain up to 4 tool-call rounds per request. You can also invoke the
+brain directly via `POST /api/agent/chat` or `POST /api/chat/text`.
 
 ### 🕐 Time & Weather
 | Tool | What it does | Parameters |
 |---|---|---|
 | `get_time` | Current local date & time | — |
-| `get_weather` | Live weather for your location (Open-Meteo + IP geolocation) | — |
+| `get_weather` | Live weather (Open-Meteo + IP geolocation) | — |
 
-### 🎵 Music
+### 🎵 Music & Media
 | Tool | What it does | Parameters |
 |---|---|---|
-| `play_spotify` | Search + play a specific song | `query` (song/artist) |
-| `control_spotify` | Play / pause / next / previous / volume up / volume down / shuffle / repeat | `action` |
+| `play_spotify` | Search + play a specific song | `query` |
+| `control_spotify` | Play / pause / next / previous / volume / shuffle / repeat | `action` |
 | `get_spotify_info` | Now-playing track + artist | — |
+| `play_song_alias` | Resolve saved aliases ("gym song", "coding music") | `alias` |
+| `add_song_alias` | Teach a new alias ("gym song = Believer") | `alias`, `song` |
+| `get_music_player_state` / `seek_music` / `set_music_volume` | Liquid Player state / seek / volume | — |
 
 ### ✅ Tasks & Reminders
 | Tool | What it does | Parameters |
 |---|---|---|
-| `add_todo` | Add a task with priority | `text`, `priority` (high/normal/low) |
+| `add_todo` | Add a task with priority | `text`, `priority` |
 | `get_todos` | List pending tasks | — |
 | `set_reminder` | Set a timer/reminder in N seconds | `message`, `seconds` |
 
-### 💻 Computer Control
+### 💻 Computer Control (macOS host)
 | Tool | What it does | Parameters |
 |---|---|---|
-| `open_app` | Open any macOS app (sanitized) | `app` |
+| `open_app` | Open a macOS app (whitelist-routed, sanitized) | `app` |
 | `system_control` | Brightness, dark mode, system volume, mute, lock display | `action`, `value` |
 | `take_screenshot` | Screenshot the screen (permission: `screen.capture`) | — |
 | `navigate_to` | Navigate UI: dashboard / trading / career | `destination` |
+| `run_macro` | Execute a saved macro | `macro_id` or name |
 
 ### 🌐 Web
 | Tool | What it does | Parameters |
@@ -126,7 +108,8 @@ works in one shot.
 ### 📈 Trading
 | Tool | What it does | Parameters |
 |---|---|---|
-| `technical_analysis` | Real TA on a symbol (RSI, MACD, Bollinger, ATR, Stochastic, VWAP, patterns, S/R) | `symbol` (e.g. `FX:EURUSD`, `OANDA:XAUUSD`), `interval` |
+| `technical_analysis` | Real TA (RSI, MACD, Bollinger, ATR, Stochastic, VWAP, patterns, S/R) | `symbol`, `interval` |
+| `get_live_prices` | Cached global market prices | `symbols` |
 | `open_trading` / `close_trading` | Open / close the Trading Workstation | — |
 
 ### 🧠 Memory & Knowledge
@@ -134,286 +117,183 @@ works in one shot.
 |---|---|---|
 | `remember_fact` | Save a permanent fact (also as life-memory triple + embedded) | `key`, `value` |
 | `search_memories` | Recall from life memory ("what's my salary preference?") | `query` |
-| `remember_idea` | Capture a note, **auto-categorized** (idea/meeting/research/…) + embedded | `title`, `content`, `note_type?`, `tags?` |
+| `remember_idea` | Capture a note, auto-categorized + embedded | `title`, `content`, `note_type?`, `tags?` |
 | `search_notes` | Search the second brain ("where did I save that Kafka idea?") | `query` |
-| `log_milestone` | Add a memory-timeline event ("Finished AI Attendance System") | `event`, `category`, `date?` |
+| `log_milestone` | Add a memory-timeline event | `event`, `category`, `date?` |
 | `update_goal` | Create or +progress a goal ("8 LPA job") | `title`, `amount`, `target?`, `category?` |
+| `log_learning` | Log a practice session for the Learning Coach | `title`, `category`, `minutes`, `solved` |
+| `search_timeline` | Period summaries ("what changed last month?") | `query` |
 
-### 🎓 Learning
+### ✉️ Email / 📅 Calendar / 🎙️ Meetings / 💬 WhatsApp / 📄 Documents
 | Tool | What it does | Parameters |
 |---|---|---|
-| `log_learning` | Log a practice session for the Learning Coach | `title`, `category` (dsa/java/system_design/aws/interview_prep), `minutes`, `solved` |
+| `check_email` / `search_email` / `send_email` | IMAP inbox, search, **draft-only → confirm before send** | `to`, `subject`, `body` |
+| `check_calendar` / `search_calendar` / `create_calendar_event` | Today's events, search, **draft-only → confirm before create** | `summary`, `start`, `end?` |
+| `meeting_action_items` / `search_meetings` / `last_meeting` | Action items, search, most-recent summary | `query` |
+| `check_whatsapp` / `search_whatsapp` / `send_whatsapp` | Unread chats, search, **draft-only → confirm before send** | `phone`, `message` |
+| `search_documents` / `ask_document` / `summarize_document` | Document RAG | `query` / `document` |
 
-### ✉️ Email Agent
-| Tool | What it does | Parameters |
-|---|---|---|
-| `check_email` | Unread count, priority emails, top senders (IMAP) | — |
-| `search_email` | Search inbox by subject/sender | `query` |
-| `send_email` | **Draft only** → preview → explicit confirm before send | `to`, `subject`, `body` |
-
-### 📅 Calendar Agent
-| Tool | What it does | Parameters |
-|---|---|---|
-| `check_calendar` | Today's events with times | — |
-| `search_calendar` | Search events by keyword | `query` |
-| `create_calendar_event` | **Draft only** → preview → explicit confirm before create | `summary`, `start`, `end?`, `description?` |
-
-### 🎙️ Meeting Assistant
-| Tool | What it does | Parameters |
-|---|---|---|
-| `meeting_action_items` | Outstanding action items across all meetings | — |
-| `search_meetings` | Search recorded meetings (title/summary/transcript) | `query` |
-| `last_meeting` | Summarize the most recent meeting + action items | — |
-
-### 💬 WhatsApp Agent (experimental)
-| Tool | What it does | Parameters |
-|---|---|---|
-| `check_whatsapp` | Unread count + unread chat names | — |
-| `search_whatsapp` | Search chats by contact name | `query` |
-| `send_whatsapp` | **Draft only** → preview → explicit confirm before send | `phone` (digits + country code), `message` |
-
-### 📄 Document AI
-| Tool | What it does | Parameters |
-|---|---|---|
-| `search_documents` | Search uploaded documents (PDF/DOCX/PPTX/XLSX/TXT) | `query` |
-| `ask_document` | Answer a question from a document (Groq RAG) | `document`, `question` |
-| `summarize_document` | Summarize an uploaded document | `document` |
-
-### 🏢 Company Intelligence
+### 🏢 Company & Coding & Access
 | Tool | What it does | Parameters |
 |---|---|---|
 | `company_intel` | Overview + hiring signals + your applications + interview prep | `company` |
-
-### 👨‍💻 Coding AI
-| Tool | What it does | Parameters |
-|---|---|---|
 | `review_code` | Review pasted code (bugs, security, style) | `code`, `language?` |
-
-### 👥 Access
-| Tool | What it does | Parameters |
-|---|---|---|
 | `guest_permission` | Grant/revoke guest voice access (owner only) | `allow` |
+
+*(The registry also includes the remaining automation / agent / reminder tools
+— 47 total, all registered in `services/function_engine.py`.)*
 
 ---
 
-## 4. All 173 API Endpoints (by module)
+## 4. All 195 API Operations (168 paths) — by module
 
-> Owner-only endpoints are marked 🔒. Everything under `/api/career/*`, `/api/dev/*`,
-> and all write endpoints are owner-gated.
+> 🔒 = owner-gated (`X-FRIDAY-Token` or loopback). **Every personal-data read
+> is gated** — verified by regression tests. Public-market-data GETs are gated
+> too for defense-in-depth (the UI always sends the token).
 
 ### 🧠 Chat & Brain
 | Method | Endpoint | Description |
 |---|---|---|
-| POST 🔒 | `/api/chat/text` | Full brain (tool calling + failovers), 30 req/min rate limit |
-| POST 🔒 | `/api/speech/correct` | Record a permanent speech correction |
-| POST 🔒 | `/api/speech/transcribe` | STT: Groq Whisper `large-v3-turbo` (free) → Gemini fallback, 10 MB cap |
+| POST 🔒 | `/api/chat/text` | Full brain (fast-path → Groq → Gemini → fallback), 30 req/min rate limit |
+| GET 🔒 | `/api/proactive` | Time-aware proactive suggestion FRIDAY can speak |
+| GET/POST 🔒 | `/api/memory` | Long-term memory store |
+| POST 🔒 | `/api/memory/consolidate` · GET 🔒 `/api/memory/digest` | Consolidation pass / digest |
+| POST 🔒 | `/api/speech/correct` · `/api/speech/transcribe` | Permanent corrections / STT (10 MB cap) |
 
 ### ✉️ Email Agent
 | Method | Endpoint | Description |
 |---|---|---|
-| GET 🔒 | `/api/email/unread` · `/summary` · `/search?q=` | Read inbox (never marks read) — needs `email.read` |
-| POST 🔒 | `/api/email/draft` | Server-side draft + preview (15-min TTL) |
-| POST 🔒 | `/api/email/send` | Send a **previewed** draft — needs `email.send` |
-| POST 🔒 | `/api/email/cancel` | Discard a pending draft |
+| GET 🔒 | `/api/email/unread` · `/summary` · `/search?q=` | Read inbox (never marks read) — `email.read` |
+| POST 🔒 | `/api/email/draft` · `/send` · `/cancel` | Draft → preview → **confirm before send** |
 
 ### 📅 Calendar Agent
 | Method | Endpoint | Description |
 |---|---|---|
-| GET 🔒 | `/api/calendar/status` | OAuth connection status + setup hint |
-| GET 🔒 | `/api/calendar/today` · `/upcoming` · `/search?q=` | Read events — needs `calendar.read` |
-| POST 🔒 | `/api/calendar/draft` | Server-side event draft + preview (15-min TTL) |
-| POST 🔒 | `/api/calendar/create` | Create a **previewed** event — needs `calendar.write` |
-| POST 🔒 | `/api/calendar/cancel` | Discard a pending event draft |
+| GET 🔒 | `/api/calendar/status` · `/today` · `/upcoming` · `/search?q=` | OAuth status + events |
+| POST 🔒 | `/api/calendar/draft` · `/create` · `/cancel` | Draft → preview → **confirm before create** |
 
 ### 🎙️ Meeting Assistant
 | Method | Endpoint | Description |
 |---|---|---|
-| POST 🔒 | `/api/meetings/process` | Paste a transcript → LLM summary/decisions/action items |
-| POST 🔒 | `/api/meetings/transcribe` | Upload audio (25 MB cap) → Groq Whisper → structured meeting |
-| GET 🔒 | `/api/meetings` · `/search?q=` | List / search meetings |
-| GET 🔒 | `/api/meetings/action-items` | All outstanding action items |
-| GET 🔒 | `/api/meetings/{id}` | Full meeting incl. transcript |
+| POST 🔒 | `/api/meetings/process` · `/transcribe` | Transcript/audio → summary + action items |
+| GET 🔒 | `/api/meetings` · `/search?q=` · `/action-items` · `/{id}` | List / search / action items / full meeting |
 | POST 🔒 | `/api/meetings/{id}/todos` | Push action items into Todos |
 
 ### 💬 WhatsApp Agent (experimental, opt-in)
 | Method | Endpoint | Description |
 |---|---|---|
-| GET 🔒 | `/api/whatsapp/status` | Driver state (enabled / pairing / connected) |
-| GET 🔒 | `/api/whatsapp/qr` | Pairing QR as PNG data URL |
-| GET 🔒 | `/api/whatsapp/chats` · `/search?q=` | Unread chats — needs `whatsapp.read` |
-| POST 🔒 | `/api/whatsapp/draft` | Server-side message draft + preview |
-| POST 🔒 | `/api/whatsapp/send` | Send a **previewed** draft — needs `whatsapp.send` |
-| POST 🔒 | `/api/whatsapp/cancel` | Discard a pending draft |
+| GET 🔒 | `/api/whatsapp/status` · `/qr` · `/chats` · `/search?q=` | Driver state / QR pairing / chats |
+| POST 🔒 | `/api/whatsapp/draft` · `/send` · `/cancel` · `/desktop-send` | Draft → preview → **confirm before send** |
 
 ### 📄 Document AI
 | Method | Endpoint | Description |
 |---|---|---|
-| POST 🔒 | `/api/documents/upload` | Upload PDF/DOCX/PPTX/XLSX/TXT (10 MB cap) → text stored |
+| POST 🔒 | `/api/documents/upload` (5 MB cap) | PDF/DOCX/PPTX/XLSX/TXT → text stored |
 | GET 🔒 | `/api/documents` · `/search?q=` · `/{id}` | List / search / full text |
-| POST 🔒 | `/api/documents/{id}/ask` · `/summarize` | Question answering / summary (Groq) |
-| POST 🔒 | `/api/documents/compare` | Compare two documents |
+| POST 🔒 | `/api/documents/{id}/ask` · `/summarize` · `/compare` | RAG Q&A / summary / comparison |
 | DELETE 🔒 | `/api/documents/{id}` | Remove a document |
 
-### 🏢 Company Intelligence
+### 🏢 Company / 👨💻 Coding
 | Method | Endpoint | Description |
 |---|---|---|
-| GET 🔒 | `/api/company/intel?name=` | Company brief: overview, hiring signals, your applications, interview prep |
-
-### 👨‍💻 Coding AI
-| Method | Endpoint | Description |
-|---|---|---|
-| POST 🔒 | `/api/coding/review` · `/bugs` · `/explain` | Review / hunt bugs / explain pasted code |
-| POST 🔒 | `/api/coding/tests` · `/docs` · `/refactor` | Generate tests / docs / refactor suggestions |
+| GET 🔒 | `/api/company/intel?name=` | Company brief |
+| POST 🔒 | `/api/coding/review` · `/bugs` · `/explain` · `/tests` · `/docs` · `/refactor` | Coding AI suite |
 
 ### 🎵 Spotify
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/spotify/current-track` | Now-playing telemetry (title, artist, artwork, position) |
-| POST 🔒 | `/api/spotify/seek` | Seek to position (seconds) |
-| POST 🔒 | `/api/spotify/duck` · `/unduck` | Lower/restore volume while speaking |
+| GET 🔒 | `/api/spotify/current-track` | Now-playing telemetry |
+| POST 🔒 | `/api/spotify/seek` · `/duck` · `/unduck` | Seek / duck while speaking (macOS host) |
 
-### 💻 System Control
+### 💻 System Control (macOS host)
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/system/display` | Brightness, dark mode, volume, mute status |
-| GET | `/api/system/stats` | Live CPU / RAM / Disk / Battery telemetry |
-| POST 🔒 | `/api/system/display/brightness` | Set brightness 0–100 |
-| POST 🔒 | `/api/system/display/dark-mode` | Toggle dark/light mode |
-| POST 🔒 | `/api/system/display/volume` · `/mute` | System volume / mute |
-| POST 🔒 | `/api/system/display/lock` | Lock the display |
-| POST 🔒 | `/api/open-app` · `/close-app` | Launch / quit macOS apps (regex-sanitized) |
+| GET 🔒 | `/api/system/display` · `/stats` | Display status / live telemetry |
+| POST 🔒 | `/api/system/display/brightness` · `/dark-mode` · `/volume` · `/mute` · `/lock` | Control the host machine |
+| POST 🔒 | `/api/open-app` · `/close-app` | Launch / quit apps (regex-sanitized) |
 
 ### ✅ Tasks & Reminders
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/todos` | List todos (sorted newest first) |
-| POST 🔒 | `/api/todos` | Create todo (priority: high/normal/low) |
-| PATCH 🔒 | `/api/todos/{id}/toggle` · `/text` | Toggle done / edit text |
-| DELETE 🔒 | `/api/todos/{id}` · `/done` | Delete one / clear all done |
-| GET | `/api/reminders` | Active timers |
-| POST 🔒 | `/api/reminders` | Set a timer |
+| GET 🔒 | `/api/todos` · `/api/reminders` | List tasks / timers |
+| POST 🔒 | `/api/todos` · `/api/reminders` | Create |
+| PATCH 🔒 | `/api/todos/{id}/toggle` · `/text` | Update |
+| DELETE 🔒 | `/api/todos/{id}` · `/done` | Delete |
 
 ### 🌐 Utilities
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/tts` | Generate neural TTS → relative `/temp_audio/...` URL |
-| GET | `/api/weather` | Live weather (Open-Meteo + IP geolocation) |
-| POST | `/api/search` | DuckDuckGo instant-answer search |
-| GET | `/api/gdrive/status` | Drive backup status |
-| POST 🔒 | `/api/gdrive/sync-now` | Trigger DB snapshot backup now |
+| POST 🔒 | `/api/tts` | Neural TTS → relative `/temp_audio/...` URL |
+| GET 🔒 | `/api/weather` | Live weather (Open-Meteo) |
+| POST 🔒 | `/api/search` | DuckDuckGo instant-answer search |
+| GET 🔒 | `/api/gdrive/status` · POST 🔒 `/api/gdrive/sync-now` | Drive backup status / trigger |
 
 ### 📈 Trading Workstation
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/trading/ohlcv` | OHLCV candles (intervals 1/5/15/30/60/240/D/W; FX/Crypto/Indices/US/Indian symbols) |
-| GET | `/api/trading/analysis` | **Real technical analysis** with spoken summary |
-| GET | `/api/trading/live-prices` | Cached global market prices (pollers run in background) |
-| GET | `/api/trading/indian-prices` | NSE/BSE prices + market-open flag |
-| GET | `/api/trading/search` | Search 5000+ symbols (Yahoo, with direct fallback) |
+| GET 🔒 | `/api/trading/ohlcv` | OHLCV candles (1/5/15/30/60/240/D/W; FX/Crypto/Indices/US/Indian) |
+| GET 🔒 | `/api/trading/analysis` | **Real technical analysis** with spoken summary |
+| GET 🔒 | `/api/trading/live-prices` · `/indian-prices` | Cached global + NSE/BSE prices |
+| GET 🔒 | `/api/trading/search` | Symbol search |
 | GET/POST 🔒 | `/api/trading/chart-db` | Persist chart drawings per symbol |
-| POST 🔒 | `/api/trading/order` | **Paper order only** — gated by `trades.execute` (default: ask) |
+| POST 🔒 | `/api/trading/order` | **Paper order only** — gated by `trades.execute` (default ask) |
 
-### 📋 Watchlist
+### 📋 Watchlist · 🛡️ Permission Center
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/watchlist` | Watchlist items (11 default symbols seeded) |
-| POST 🔒 | `/api/watchlist` | Add/update symbol |
-| DELETE 🔒 | `/api/watchlist/{symbol}` | Remove symbol |
+| GET 🔒 | `/api/watchlist` · POST/DELETE 🔒 | Watchlist CRUD (11 default symbols seeded) |
+| GET 🔒 | `/api/permissions` + audit log | All 24 capabilities |
+| PUT 🔒 | `/api/permissions` · POST 🔒 `/approve` · `/revoke` | Modes + 5-min one-time approvals |
+| POST 🔒 | `/api/permission` | Guest voice-permission toggle |
 
-### 🛡️ Permission Center
+### 🤖 Agents · ⏰ Automations · 🔔 Notifications
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/permissions` | All 24 capabilities + audit log |
-| PUT 🔒 | `/api/permissions` | Set mode: enabled / ask / disabled |
-| POST 🔒 | `/api/permissions/approve` | Grant 5-min one-time approval |
-| POST 🔒 | `/api/permissions/revoke` | Revoke approval |
-| POST 🔒 | `/api/permission` | Legacy guest-permission toggle |
+| GET 🔒 | `/api/agents` · `/agent/route` | Agent list / routing debug |
+| POST 🔒 | `/api/agent/chat` | Route to best agent with filtered tools |
+| GET/POST/PUT/DELETE 🔒 | `/api/automations…` | Scheduled workflow CRUD + run-now |
+| GET 🔒 | `/api/notifications` · POST 🔒 `/{id}/read` | Notification inbox |
+| GET 🔒 | `/api/briefing` | Smart daily briefing |
 
-### 🤖 Agents & Automations
+### 🧠 Knowledge OS · 🕰️ Timeline · 🎯 Goals · 🎓 Learning · 💬 Life Memory
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/agents` | List 6 agents + tool counts |
-| POST 🔒 | `/api/agent/chat` | Route to best agent, run filtered brain |
-| GET | `/api/agent/route` | Debug: which agent would handle this text |
-| GET/POST/PUT/DELETE 🔒 | `/api/automations…` | CRUD scheduled workflows |
-| POST 🔒 | `/api/automations/{id}/run` | Run an automation now |
-
-### 🔔 Notifications & Briefing
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/notifications` | Inbox + unread count |
-| POST 🔒 | `/api/notifications/{id}/read` | Mark read |
-| GET | `/api/briefing` | Smart daily briefing (weather, tasks, reminders, career, markets, inbox) |
-
-### 🧠 Knowledge OS
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/knowledge` | List notes (filter by type/project) |
-| POST 🔒 | `/api/knowledge` | Add note (auto-categorized) |
-| GET | `/api/knowledge/search` | Search second brain + natural recall answer |
-| DELETE 🔒 | `/api/knowledge/{id}` | Delete note |
-| GET | `/api/knowledge/projects…` | Project memory (9 sections per project) |
-| PUT 🔒 | `/api/knowledge/projects/{p}/{section}` | Write a project section |
-
-### 🕰️ Memory Timeline
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/timeline` | Timeline events + auto-derived events |
-| POST 🔒 | `/api/timeline` | Log a milestone |
-| GET | `/api/timeline/summary` | "last month" / "this year" period summary |
-| DELETE 🔒 | `/api/timeline/{id}` | Remove event |
-
-### 🎯 Goals
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/goals` | Goals + suggested skill gaps |
-| POST 🔒 | `/api/goals` | Create goal (target, unit, deadline, skill gaps, resources) |
-| PATCH 🔒 | `/api/goals/{id}` | Update goal |
-| POST 🔒 | `/api/goals/{id}/progress` | +progress (auto-done at 100%) |
-| DELETE 🔒 | `/api/goals/{id}` | Delete goal |
-
-### 🎓 Learning Coach
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/learning` | Dashboard: streak, today, weekly goals, last-7-days |
-| GET | `/api/learning/streak` | Current + best streak |
-| POST 🔒 | `/api/learning/log` | Log a practice session |
-
-### 💬 Life Memory
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/life-memory` | List (subject→relation→target) triples |
-| POST 🔒 | `/api/life-memory` | Store a triple |
-| GET | `/api/life-memory/search` | Search + natural answer ("what do I love?" → cold brew) |
-| DELETE 🔒 | `/api/life-memory/{id}` | Delete memory |
+| GET/POST 🔒 | `/api/knowledge` · `/search` · `/projects…` | Second brain notes + project memory |
+| GET/POST/DELETE 🔒 | `/api/timeline` · `/summary` | Memory timeline |
+| GET/POST/PATCH/DELETE 🔒 | `/api/goals` · `/{id}/progress` | Goal manager |
+| GET 🔒 | `/api/learning` · `/streak` · POST 🔒 `/log` | Learning coach |
+| GET/POST/DELETE 🔒 | `/api/life-memory` · `/search` | Subject→relation→target triples |
 
 ### 🛠️ Developer Mode
 | Method | Endpoint | Description |
 |---|---|---|
-| GET 🔒 | `/api/dev/overview` | Live counts (facts, notes, automations, notifications…) + uptime |
-| GET 🔒 | `/api/dev/metrics` | **Latency dashboard**: LLM/STT/TTS/tool averages + last agent/tool/action |
-| GET 🔒 | `/api/dev/memory` | Facts + life memories + recent conversations |
-| GET 🔒 | `/api/dev/logs` | Backend log tail (file + ring buffer) |
-| GET 🔒 | `/api/dev/config` | Env keys set? (booleans only) + permission modes |
-| POST 🔒 | `/api/dev/test` | In-process API tester (any method/path/body) |
+| GET 🔒 | `/api/dev/overview` | Live counts + uptime |
+| GET 🔒 | `/api/dev/metrics` | **Latency dashboard**: LLM/STT/TTS/tool averages |
+| GET 🔒 | `/api/dev/memory` · `/logs` · `/config` | Memory browser / log tail / env booleans (values never exposed) |
+| POST 🔒 | `/api/dev/test` | In-process API tester |
 
-### 💼 Career OS (42 endpoints)
+### 📱 Presence (cross-device push approvals)
+| Method | Endpoint | Description |
+|---|---|---|
+| POST 🔒 | `/api/presence/register` · `/ask` · `/decision` | Device registration / approval create / resolve |
+| GET 🔒 | `/api/presence/pending` · `/devices` · `/vapid-key` | Pending approvals / devices / push key |
+
+### 💼 Career OS (32 paths, 43 operations)
 | Group | Endpoints | Capabilities |
 |---|---|---|
-| **Dashboard** | `GET /dashboard` | Stats + AI briefing + recommendations (now with `reasons[]`) + activity |
-| **Preferences** | `GET/PUT /preferences`, `POST /learn` | Tag-based prefs + natural-language learning ("tell FRIDAY…") |
-| **Profile/Vault** | `GET/PUT /profile` | Encrypted personal vault (Fernet at rest) |
-| **Resumes** | `GET/POST /resumes`, `GET/PUT/DELETE /resumes/{id}`, `POST /upload`, `/duplicate`, `/recommend`, `/delete` | Multi-version resumes, PDF/DOCX parsing with AI section extraction, ATS scoring, duplication, recommended-version |
-| **Candidate Intelligence** | `GET /candidate-intelligence/{resume_id}` | SWOT, strengths, weaknesses, skill gaps, career roadmap |
-| **Jobs** | `GET/POST /jobs`, `GET/PUT /jobs/{id}`, `POST /jobs/analyze`, `POST /jobs/fetch-linkedin` | Job CRUD, AI match scoring (Groq), live LinkedIn ingestion |
-| **Applications** | `GET/POST /applications`, `PUT /applications/{id}` | Pipeline tracking: saved → applied → interview → offer |
-| **Cover Letters** | `POST /cover-letter`, `GET /cover-letters` | AI-generated per job + resume, saved per job |
+| **Dashboard** | `GET /dashboard` | Stats + AI briefing + recommendations (with `reasons[]`) + activity |
+| **Preferences** | `GET/PUT /preferences`, `POST /learn` | Tag-based prefs + natural-language learning |
+| **Profile** | `GET/PUT /profile` | Profile with Fernet-encrypted sensitive fields |
+| **Resumes** | `GET/POST /resumes`, `GET/PUT/DELETE /resumes/{id}`, `POST /upload` (5 MB cap), `/duplicate`, `/recommend`, `/delete` | Multi-version resumes, AI section parsing, duplication, recommended-version |
+| **Candidate Intelligence** | `GET /candidate-intelligence/{resume_id}` | SWOT, strengths, weaknesses, skill gaps, roadmap |
+| **Jobs** | `GET/POST /jobs`, `GET/PUT /jobs/{id}`, `POST /jobs/analyze`, `/fetch-linkedin`, `DELETE /jobs/purge` | Job CRUD, AI match scoring, live LinkedIn ingestion, stale purge |
+| **Applications** | `GET/POST /applications`, `PUT /applications/{id}` | Pipeline: saved → applied → interview → offer |
+| **Cover Letters** | `POST /cover-letter`, `GET /cover-letters` | AI-generated per job + resume |
 | **Interviews** | `GET/POST /interviews`, `PUT /interviews/{id}`, `POST /interviews/questions` | Schedule + track + AI prep questions |
-| **Recruiters** | `GET/POST /recruiters`, `PUT /recruiters/{id}` | Recruiter CRM with contact history |
+| **Recruiters** | `GET/POST /recruiters`, `PUT /recruiters/{id}` | Recruiter CRM |
 | **Companies** | `GET/POST /companies`, `POST /companies/blacklist` | Company tracker + blacklist |
-| **Analytics** | `GET /analytics` | SVG charts: monthly apps, pipeline funnel, resume performance |
-| **Skill Gap** | `GET /skill-gap` | AI skill-gap analysis vs. tracked jobs |
-| **Accounts** | `POST /accounts/connect/{key}`, `POST /accounts/verify/{key}` | Real-browser session capture (Playwright); honest `needs_login` status |
+| **Analytics / Skill Gap** | `GET /analytics`, `GET /skill-gap` | SVG charts + AI skill-gap analysis |
+| **Accounts** | `POST /accounts/connect/{key}`, `POST /accounts/verify/{key}` | Real-browser session capture; honest `needs_login` status |
 | **Activity** | `GET /activity` | Full action log |
 
 ---
@@ -437,36 +317,36 @@ Every sensitive action is gated. Mode meanings:
 | `meetings.read` / `meetings.create` | enabled | `plugins.install` / `agent.autonomy` | ask |
 | `documents.read` / `documents.upload` | enabled | `coding.analyze` | enabled |
 
-**Enforced right now on:** `POST /api/trading/order` (trades.execute), all
-machine-control writes (system.control), email/calendar/WhatsApp read & send
-routes, and every new agent module. Every decision is written to the audit log.
+**Enforced on:** `POST /api/trading/order` (trades.execute), all machine-control
+writes (system.control), email/calendar/WhatsApp read & send routes, and every
+agent module. Every decision is audit-logged.
 
 ---
 
 ## 6. The 6 Agents
 
-| Agent | Tools | Routes to |
+| Agent | Capabilities | Routes to |
 |---|---|---|
-| **Career** (8) | time, todos, reminders, search, navigate, TA, **company_intel** | "apply for java jobs", "resume", "interview", "salary", "tell me about Goldman Sachs" |
-| **Coding** (7) | open_app, time, search, screenshot, todos, reminders, **review_code** | "debug", "github", "vscode", "review my code" |
-| **Research** (8) | search, time, weather, todos, navigate, **search/ask/summarize_document** | "research", "explain", "compare", "ask my documents about X" |
-| **Finance** (7) | TA, time, search, todos, reminders, navigate | "market", "trend on gold", "crypto", "nifty" |
-| **Communication** (18) | time, weather, todos, reminders, search, **email ×3, calendar ×3, meetings ×3, whatsapp ×3** | "email", "message", "calendar", "meeting", "check whatsapp" |
-| **Automation** (6) | time, todos, reminders, search, navigate | "automate", "schedule", "every morning", "briefing" |
+| **Career** | time, todos, reminders, search, navigate, TA, company_intel, … | "apply for java jobs", "resume", "interview", "salary", "tell me about Goldman Sachs" |
+| **Coding** | open_app, time, search, screenshot, todos, reminders, review_code, … | "debug", "github", "vscode", "review my code" |
+| **Research** | search, time, weather, todos, navigate, document tools, … | "research", "explain", "compare", "ask my documents about X" |
+| **Finance** | TA, time, search, todos, reminders, navigate, live prices | "market", "trend on gold", "crypto", "nifty" |
+| **Communication** | email ×3, calendar ×3, meetings ×3, whatsapp ×3, time, weather, … | "email", "message", "calendar", "meeting", "check whatsapp" |
+| **Automation** | time, todos, reminders, search, navigate, … | "automate", "schedule", "every morning", "briefing" |
 
-Each agent runs the same brain but with a **filtered tool set** — it can only call
-its own capabilities. Autonomy gated by `agent.autonomy` (default ask).
+Each agent runs the same brain but with a **capability-filtered tool set** — it
+can only call its own tools. Autonomy is gated by `agent.autonomy` (default ask).
 
-## 7. Smart Brain (v4)
+---
 
-The brain is no longer stateless — every request is answered with full context:
+## 7. Smart Brain (v4) — verification-backed
 
 | Capability | How it works |
 |---|---|
-| **Conversation memory** | Last 6 turns injected into every LLM call — follow-ups like "what about the day after?" work |
-| **Semantic memory (RAG)** | Gemini `text-embedding-004` (free tier) indexes facts, notes & meetings; top-3 relevant memories injected per request. Graceful fallback to keyword search without a key |
-| **Agentic tool loop** | Up to 4 tool calls per request, each result fed back to the model — multi-step tasks in one shot |
-| **Approval-first guard** | `send_*` / `create_*` tools only draft; the reply surfaces an `email_confirm` / `calendar_confirm` / `whatsapp_confirm` action, never auto-sends |
+| **Conversation memory** | Last 6 turns injected into every LLM call — follow-ups work |
+| **Semantic memory (RAG)** | Gemini `text-embedding-004` indexes facts, notes & meetings; top-3 relevant memories injected per request (keyword-search fallback without a key) |
+| **Agentic tool loop** | Up to 4 tool-call rounds per request, each result fed back (`max_steps = 4` in `brain_v2.py`) |
+| **Approval-first guard** | `send_*` / `create_*` tools only draft; the reply surfaces `email_confirm` / `calendar_confirm` / `whatsapp_confirm`, never auto-sends |
 | **Honesty rules** | Prompt instructs "say you don't know" and "never claim a message was sent when you only previewed it" |
 | **Configurable model** | `GROQ_MODEL` env var (default `llama-3.3-70b-versatile`) |
 
@@ -482,9 +362,9 @@ see the **Latency tab** in DevTools or `GET /api/dev/metrics`.
 | `briefing` | Generates smart daily briefing → Notification Center | every morning at 09:00 |
 | `job_scan` | Scans tracked jobs; notifies high-match / high-salary | every 12 hours |
 | `market_summary` | Summarizes watchlist prices → notification | daily at 18:00 |
-| `learning_check` | Nudges when you've been idle ≥ 3 days | daily at 20:00 |
+| `learning_check` | Nudges when idle ≥ 3 days | daily at 20:00 |
 
-Triggers: `interval` (seconds ≥ 60) or `daily` (HH:MM). Runner is lifespan-managed.
+Triggers: `interval` (≥ 60 s) or `daily` (HH:MM). Runner is lifespan-managed.
 
 ---
 
@@ -493,40 +373,40 @@ Triggers: `interval` (seconds ≥ 60) or `daily` (HH:MM). Runner is lifespan-man
 | System | Storage | Example |
 |---|---|---|
 | **Facts** | `memories` table (auto-embedded) | "boss_name = Prathvi Sahu" |
-| **Conversation** | `conversation_history` (last 20 turns) | context for replies — last 6 injected into every LLM call |
+| **Conversation** | `conversation_history` (last 20 turns) | last 6 injected into every LLM call |
 | **Semantic index** | `embeddings.db` (Gemini `text-embedding-004`) | "any big meetings coming up?" finds the interview fact |
 | **Life Memory** | `life_memories` triples | Boss → loves → cold brew |
 | **Second Brain** | `kb_notes` + `project_memory` (auto-embedded) | Kafka idea, project decisions |
 | **Timeline** | `timeline_events` | "Got internship" (2026-07-15) |
 
-Learning Coach streaks, goal progress, job applications, meetings
-(`meetings.db`), documents (`documents.db`), and habits
-(`user_action_habits`) round out the persistent state.
+Learning Coach streaks, goal progress, job applications, meetings, documents,
+habits (`user_action_habits`, confidence ≥ 0.70 gating) round out the
+persistent state — all in thread-safe SQLite (WAL).
 
 ---
 
-## 10. The HUD Panels (14 widgets)
+## 10. The HUD — 17 Dashboard Capsules + Lock Screen
 
 | Panel | What it shows |
 |---|---|
-| **SpotifyCard** | Now playing, artwork, seek bar, play/pause/next/prev |
+| **SpotifyCard** | Now playing, artwork, seek bar, play/pause/next/prev (+ web "Liquid Player" previews) |
 | **TodoCard** | Tasks with priority, filters, inline edit, voice creation |
 | **WeatherCard** | Live weather + animated icon |
 | **SystemMonitorCard** | CPU/RAM/Disk/Battery live charts |
 | **WebSearchCard** | Inline DuckDuckGo search |
 | **PermissionCenterCard** | All 24 permissions, mode cycling, 5-min approvals, audit feed |
-| **NotificationCenterCard** | Inbox with unread badge, mark-read, run-briefing button |
-| **LearningCoachCard** | Streak, today/week stats, weekly goals, log-session form, 7-day chart |
-| **KnowledgeCard** | Notes (add/search/delete), Timeline (log + period summaries), Goals (create/progress) |
-| **EmailCard** | Unread + priority inbox, search, compose → preview → **confirm send** |
-| **CalendarCard** | Today/upcoming/search, New Event → preview → **confirm create**, live OAuth dot |
-| **MeetingsCard** | Meeting list + search, Action Items tab, upload recording or paste transcript → summary + push-to-todos |
-| **WhatsAppCard** | QR pairing panel, unread chats, New Message → preview → **confirm send** (experimental) |
-| **DocumentsCard** | Upload, list, search, Ask & Summarize per document, compare |
-| **CodingCard** | Paste code → Review / Find Bugs / Explain / Tests / Docs / Refactor |
-| **DevToolsCard** | Overview counts, **Latency tab (LLM/STT/TTS/tool ms)**, memory viewer, log tail, API tester, config inspector |
-| **LockScreen** | Glassmorphism + GLSL orb, fingerprint/passphrase unlock, ALL WIDGETS toggle (Spotify always visible) |
-| **AccessCard / BottomBar / Corners** | HUD chrome; BottomBar has mic toggle + **Push-to-Talk** toggle |
+| **NotificationCenterCard** | Inbox with unread badge, mark-read, run-briefing |
+| **LearningCoachCard** | Streak, weekly goals, log-session form, 7-day chart |
+| **KnowledgeCard** | Notes (add/search/delete), Timeline, Goals |
+| **EmailCard** | Unread inbox, search, compose → preview → **confirm send** |
+| **CalendarCard** | Today/upcoming/search, new event → preview → **confirm create** |
+| **MeetingsCard** | Meeting list + search, Action Items, transcript → summary + push-to-todos |
+| **WhatsAppCard** | QR pairing, unread chats, message → preview → **confirm send** |
+| **DocumentsCard** | Upload, list, search, Ask & Summarize, compare |
+| **CodingCard** | Paste code → Review / Bugs / Explain / Tests / Docs / Refactor |
+| **DevToolsCard** | Overview counts, **Latency tab**, memory viewer, log tail, API tester, config inspector |
+| **AutonomyCard** | Autonomous-action journal, undo, revoke |
+| **LockScreen** | Glassmorphism + GLSL orb, WebAuthn fingerprint / typed-password unlock, now-playing |
 
 ---
 
@@ -534,52 +414,78 @@ Learning Coach streaks, goal progress, job applications, meetings
 
 | You say | What happens |
 |---|---|
-| "Friday, play Kesariya" | `play_spotify` → Spotify plays the song, volume ducks while she speaks |
+| "Friday, play Kesariya" | `play_spotify` → plays on the host's Spotify; volume ducks while she speaks |
 | "What's the trend on gold?" | Finance agent → `technical_analysis` on OANDA:XAUUSD → RSI/MACD/patterns spoken |
-| "I solved 2 DSA problems today" | `log_learning` → streak updated, coach dashboard |
+| "I solved 2 DSA problems today" | `log_learning` → streak updated |
 | "Remember this idea: build a plugin system" | `remember_idea` → auto-categorized note in second brain |
-| "Where did I save that Kafka idea?" | `search_notes` → "Found: 'Kafka architecture idea' — in general notes" |
+| "Where did I save that Kafka idea?" | `search_notes` → found in general notes |
 | "What changed last month?" | Timeline summary → grouped by category |
-| "Add goal: get 8 LPA job" | `update_goal` → creates goal; track with "I'm 50% there" |
-| "Apply for Java jobs above 8 LPA in Bangalore matching 90%" | Career agent prepares candidates; **approval required before any submission** (jobs.apply = ask) |
-| "Check my emails every morning at 9" | Automation `briefing` scheduled → notifications inbox |
-| "Check my email" | `check_email` → unread count + priority senders |
+| "Add goal: get 8 LPA job" | `update_goal` → goal with progress tracking |
+| "Apply for Java jobs above 8 LPA in Bangalore matching 90%" | Career agent prepares candidates; **approval required before any submission** |
 | "Email rahul@x.com that I'll reach in 20 minutes" | `send_email` → **draft + approval card** — say "yes" to send |
-| "What's on my calendar today?" | `check_calendar` → today's events with times |
-| "Schedule a standup tomorrow at 10" | `create_calendar_event` → **draft + approval card** — say "yes" to create |
-| "What were the action items?" | `meeting_action_items` → outstanding items from meetings |
+| "Schedule a standup tomorrow at 10" | `create_calendar_event` → **draft + approval card** |
+| "What were the action items?" | `meeting_action_items` → outstanding items |
 | "Ask my documents about Java" | Document AI → answers from uploaded docs |
 | "Tell me about Goldman Sachs" | `company_intel` → overview + hiring signals + your applications |
-| "Open VS Code" | `open_app` → sanitized macOS launch |
+| "Open VS Code" | `open_app` → sanitized macOS launch (host machine) |
+| "Play my gym song" | `play_song_alias` → saved alias resolves to Believer |
 
 ---
 
 ## 12. Security Model
 
-1. **Owner auth** — localhost = owner; non-localhost needs `FRIDAY_API_TOKEN` (401 otherwise). `is_boss` is never client-supplied.
-2. **Proxy-header hardening** — uvicorn `--no-proxy-headers` blocks `X-Forwarded-For` spoofing. Docker: the frontend injects `X-FRIDAY-Token` on every request.
-3. **Permission Center** — 24 capabilities, ask/disabled for high-stakes actions.
-4. **Encryption at rest** — career vault fields Fernet-encrypted (`FRIDAY_VAULT_KEY` or `.vault_key`).
-5. **Honest status** — no fabricated "connected/verified" account states.
-6. **Rate limiting** — chat, speech, meetings, career AI endpoints limited per IP.
-7. **Trade safety** — `trades.execute` default ask; paper orders only.
-8. **No blind submissions** — Career OS requires human approval.
-9. **Approval-first everywhere** — email/WhatsApp send + calendar create only act on server-side previewed drafts; the LLM can never auto-send.
-10. **Data integrity** — todos/reminders/Spotify-cache writes are thread-locked; uploaded files are discarded (text-only extraction).
+1. **Owner auth** — localhost = owner; non-localhost needs `FRIDAY_API_TOKEN`
+   (401 otherwise, constant-time compare). `is_boss` is never client-supplied.
+2. **Proxy-header hardening** — uvicorn runs with `--no-proxy-headers` in every
+   deployment path (Dockerfile, start.sh, app.py) so `X-Forwarded-For` cannot
+   be spoofed into impersonating the owner. Verified live.
+3. **Full read-path gating** — every personal-data read endpoint requires auth
+   (regression-tested: 28 endpoints).
+4. **Permission Center** — 24 capabilities; ask/disabled for high-stakes actions.
+5. **Encryption at rest** — career vault fields Fernet-encrypted; browser vault
+   PBKDF2-250k + AES-GCM-256; passphrase never persisted.
+6. **Honest status** — no fabricated "connected/verified" account states.
+7. **Rate limiting** — chat, speech, meetings, career AI endpoints limited per IP.
+8. **Trade safety** — `trades.execute` default ask; paper orders only.
+9. **No blind submissions** — Career OS requires human approval.
+10. **Approval-first everywhere** — email/WhatsApp send + calendar create only
+    act on server-side previewed drafts; the LLM can never auto-send.
+11. **Upload caps** — resumes 5 MB, STT clips 10 MB, meetings 25 MB (413 on overage).
+12. **Data integrity** — SQLite WAL + busy_timeout; thread-locked JSON stores.
 
 ---
 
-## 13. Extending F.R.I.D.A.Y.
+## 13. Test Suite (323 backend + 16 frontend)
+
+```bash
+cd backend && python -m pytest tests/ -q          # 323 passed
+cd friday-ui && npm test                           # 16 passed
+cd friday-ui && npm run lint                       # oxlint: 0 errors
+```
+
+Coverage highlights: auth gates (loopback / token / remote rejection incl. all
+read paths), honest account verification, TTS relative URLs, upload caps,
+sliding-window rate limiter, Fernet vault round-trip, function-engine dispatch
++ Gemini fallback, TA math + candlestick patterns, permission enforcement,
+automation CRUD + run-now, briefing structure, agent routing + tool filtering,
+presence API, macros, learning streaks, life-memory save/search/recall, dev
+tools, WhatsApp + email + calendar + meetings + documents API contracts.
+
+---
+
+## 14. Extending F.R.I.D.A.Y.
 
 - **New capability** → register a function in `function_engine.py` (name, schema, handler) + optionally a permission in `permissions.py`.
-- **New send/create capability** → follow the approval-first pattern: draft store with TTL + `POST /{module}/draft` → `/{module}/send` gated by the permission; surface `*_confirm` from `brain_v2` and reuse `PendingApprovalCard`.
+- **New send/create capability** → follow the approval-first pattern: draft store with TTL + `POST /{module}/draft` → `/{module}/send` gated by permission; surface `*_confirm` from `brain_v2`; reuse `PendingApprovalCard`.
 - **New automation** → add an action to `automation.run_action()`.
-- **New agent** → add to `agents.AGENTS` with its tool list + keywords.
+- **New agent** → add to `agents.AGENTS` with its capability list + keywords.
 - **New route module** → drop a file in `backend/routes/`, include in `app.py`.
 - **New HUD panel** → copy any `Panels/*Card.jsx`, mount in `App.jsx`.
-- **New knowledge source** → index it via `embeddings.index_text()` so the semantic memory finds it.
-- **Instrument a call** → wrap it with `metrics.timed("op_name")` to see it in the Latency tab.
+- **New knowledge source** → index it via `embeddings.index_text()`.
+- **Instrument a call** → wrap with `metrics.timed("op_name")` to see it in the Latency tab.
 
 ---
 
-*Generated from the live codebase — v4.0. All 193 endpoints, 47 tools, and 16 panels verified present in the running application.*
+*Generated from the live codebase — v5.0. All 195 API operations (168 paths),
+47 tools, 24 permissions, 17 capsules, and 323 tests verified present in the
+running application.*

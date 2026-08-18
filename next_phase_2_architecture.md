@@ -6,6 +6,13 @@
 > **Primary Technology Stack**: Python 3.14, FastAPI, SQLite (`friday_brain.db`), Groq (Llama 3.3 70B), Gemini 2.5 + `text-embedding-004`, React 19, Telegram Bot API, Web Push (PWA).
 
 > [!NOTE]
+> **Status: SHIPPED (August 2026).** This is the historical Phase-2 specification —
+> all modules (Autonomy & Trust, Memory Consolidation, Context Engine, Voice
+> Macros, Cross-Device Presence) are implemented and tested. For the current
+> accurate architecture see [`README.md`](./README.md) and [`architecture.md`](./architecture.md).
+
+
+> [!NOTE]
 > **Design thesis** — Phase 1 → v4 taught FRIDAY to *respond* and *suggest*: 43 tools, an agentic loop, semantic memory, and scheduled automations. Phase 2 teaches her to **anticipate and act safely**: graduate proven habits from "Shall I…?" to silent execution under an explicit trust model, consolidate raw memory into durable knowledge, sense the user's situation before speaking, chain tools into user-defined voice macros, and keep every autonomous action approval-first on any device.
 
 > [!IMPORTANT]

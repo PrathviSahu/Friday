@@ -5,6 +5,12 @@
 > **Primary Technology Stack**: Python 3.14, FastAPI, SQLite (`friday_brain.db`), macOS AppleScript (`osascript`), Quartz Display Services, Web Speech API, React 19.
 
 > [!NOTE]
+> **Status: SHIPPED (August 2026).** This is the historical Phase-1 specification.
+> Everything in it has been implemented and shipped. For the current, accurate
+> architecture see [`README.md`](./README.md) and [`architecture.md`](./architecture.md).
+> (Note: the stack has settled on Python 3.11+, FastAPI, React 19 + Vite 8 — see architecture.md.)
+
+> [!NOTE]
 > **Career OS (Career Intelligence Center)** was added as a separate module and is fully operational as of August 2026.
 > See `architecture.md` and `README.md` for Career OS documentation.
 
@@ -15,7 +21,7 @@
 > - ✅ **Phase 1.4 — Calendar**: implemented as the **Calendar Agent** (`services/calendar_agent.py`, `routes/calendar.py`) using the Google Calendar API (OAuth) instead of Apple Calendar — cross-platform and approval-first.
 > - ✅ **Phase 1.5 — WhatsApp & Email**: implemented as the **Communication Center** — Email Agent (Gmail/Outlook IMAP+SMTP), WhatsApp Agent (FRIDAY's own Playwright driver, opt-in experimental), Meeting Assistant, Document AI, Company Intelligence, Coding AI.
 > - ⏳ **Phase 1.3 — Brave YouTube controller** (`brave_youtube.py`): not shipped as a module; browser control is covered by `open_app`/`navigate_to` tools + the Browser Agent.
-> - **Newer superseding docs**: see `FRIDAY_CAPABILITIES.md` (complete capability reference, 41 tools / 173 endpoints) and `architecture.md` (v4 brain + Communication Center architecture).
+> - **Newer superseding docs**: see `FRIDAY_CAPABILITIES.md` (complete capability reference — 47 tools, 195 API operations) and `architecture.md` (v4 brain + Communication Center architecture).
 
 ---
 
