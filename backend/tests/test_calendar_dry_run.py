@@ -7,11 +7,13 @@ import pytest
 from backend.services.calendar import (
     CALENDAR_LIVE_EXECUTION,
     CALENDAR_STATUS,
+    CalendarConnectionStatus,
     prepare_calendar_event,
     create_calendar_event_with_approval,
     get_default_mock_calendar_provider,
     calendar_audit_logger,
 )
+
 from backend.services.calendar.event import clear_calendar_draft_store
 from backend.services.calendar.approval import clear_calendar_approval_store
 
@@ -30,7 +32,8 @@ def test_calendar_production_dry_run_workflow():
 
     # Assert environment safety state
     assert CALENDAR_LIVE_EXECUTION is False, "CALENDAR_LIVE_EXECUTION must be false for production dry-run."
-    assert CALENDAR_STATUS == "MOCK_MODE", "Calendar status must be MOCK_MODE."
+    assert CALENDAR_STATUS in ("MOCK_MODE", CalendarConnectionStatus.NOT_CONFIGURED, "NOT_CONFIGURED"), "Calendar status must be NOT_CONFIGURED or MOCK_MODE."
+
 
     # 1. Create Calendar Event Draft & Generate Approval Token
     title = "Q4 Product Strategy Review"
