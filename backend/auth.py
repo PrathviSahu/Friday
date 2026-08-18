@@ -50,9 +50,7 @@ def is_loopback_host(host: str | None) -> bool:
 
 
 def is_boss_request(request: Request) -> bool:
-    """Owner check: loopback client, FRIDAY_MODE=demo, or a valid FRIDAY_API_TOKEN bearer."""
-    if os.getenv("FRIDAY_MODE", "").strip().lower() == "demo":
-        return True
+    """Owner check: loopback client or a valid FRIDAY_API_TOKEN bearer."""
     host = request.client.host if request.client else ""
     if is_loopback_host(host):
         return True
@@ -62,6 +60,7 @@ def is_boss_request(request: Request) -> bool:
         if provided and secrets.compare_digest(provided, token):
             return True
     return False
+
 
 
 def require_boss(request: Request) -> None:

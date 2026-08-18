@@ -275,16 +275,28 @@ def _is_sensitive_field(field: str) -> bool:
     return any(hint in f for hint in SENSITIVE_HINTS)
 
 
-def get_profile() -> dict:
+def get_profile(mask_sensitive: bool = False) -> dict:
     with _db() as conn:
         rows = conn.execute("SELECT field, value, is_sensitive FROM career_profile").fetchall()
-    return {
-        r["field"]: {
-            "value": _decrypt_value(r["value"]),
-            "sensitive": bool(r["is_sensitive"]),
-        }
-        for r in rows
-    }
+    result = {}
+    for r in rows:
+        field_name = r["field"]
+        is_sensitive = bool(r["is_sensitive"]) or _is_sensitive_field(field_name)
+        raw_decrypted = _decrypt_value(r["value"])
+        if mask_sensitive and is_sensitive:
+            result[field_name] = {
+                "value": "••••••••" if raw_decrypted else "",
+                "is_set": bool(raw_decrypted),
+                "sensitive": True,
+            }
+        else:
+            result[field_name] = {
+                "value": raw_decrypted,
+                "is_set": bool(raw_decrypted),
+                "sensitive": is_sensitive,
+            }
+    return result
+
 
 
 def upsert_profile_field(field: str, value: str, is_sensitive: bool = False):

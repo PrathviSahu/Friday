@@ -230,13 +230,14 @@ def learn_preference(req: LearnRequest):
 
 @router.get("/profile")
 def get_career_profile():
-    return {"profile": get_profile()}
+    return {"profile": get_profile(mask_sensitive=True)}
 
 
 @router.put("/profile")
 def update_career_profile(req: ProfileUpdate):
     update_profile_bulk(req.fields)
-    return {"status": "ok", "profile": get_profile()}
+    return {"status": "ok", "profile": get_profile(mask_sensitive=True)}
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════

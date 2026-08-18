@@ -17,10 +17,13 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import secrets
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+
 
 from routes.chat import router as chat_router
 from routes.email import router as email_router
@@ -157,6 +160,34 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def cross_origin_protection_middleware(request: Request, call_next):
+    """SEC-004: Harden state-changing operations against unauthorized cross-origin browser execution."""
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return await call_next(request)
+
+    origin = request.headers.get("origin")
+    sec_fetch_site = request.headers.get("sec-fetch-site")
+
+    if origin or sec_fetch_site == "cross-site":
+        is_trusted_origin = origin and any(
+            origin.rstrip("/") == allowed.rstrip("/") for allowed in allowed_origins
+        )
+        
+        token = (os.getenv("FRIDAY_API_TOKEN") or "").strip()
+        provided_token = request.headers.get("X-FRIDAY-Token") or ""
+        has_valid_token = bool(token and provided_token and secrets.compare_digest(provided_token, token))
+
+        if not is_trusted_origin and not has_valid_token:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Forbidden: Cross-origin state-changing request blocked."}
+            )
+
+    return await call_next(request)
+
 
 # Generated TTS audio (ensure the dir exists before mounting)
 Path(__file__).parent.joinpath("temp_audio").mkdir(parents=True, exist_ok=True)

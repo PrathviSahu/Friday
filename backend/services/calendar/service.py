@@ -6,6 +6,7 @@ IDEMPOTENCY CHECK -> MOCK PROVIDER DISPATCH -> EVENT ID -> INDEPENDENT VERIFICAT
 AUDIT LOG -> SUCCESS.
 """
 
+import threading
 from typing import Dict, Any, Optional, List
 
 from .config import CALENDAR_LIVE_EXECUTION, is_live_calendar_execution_enabled, RealCalendarBlockedError
@@ -38,6 +39,7 @@ from .audit import calendar_audit_logger
 
 
 _default_mock_calendar_provider = MockCalendarProvider()
+_calendar_execution_lock = threading.Lock()
 
 
 def get_default_mock_calendar_provider() -> MockCalendarProvider:
@@ -288,98 +290,104 @@ def create_calendar_event_with_approval(
             "real_event_created": False,
         }
 
-    # 2. Validate Approval Token
-    is_valid, validation_reason, approval_obj = validate_calendar_approval(
-        approval_id=approval_id,
-        event_id=event_id,
-        session_user=session_user,
-        now=now,
-    )
-
-    if not is_valid:
-        status_code = "VALIDATION_FAILED"
-        if approval_obj and approval_obj.status == "INVALIDATED":
-            status_code = "EDIT_INVALIDATION"
-        elif approval_obj and approval_obj.status == "EXPIRED":
-            status_code = "TOKEN_EXPIRED"
-        elif approval_obj and approval_obj.status == "CONSUMED":
-            status_code = "ALREADY_CREATED"
-            validation_reason = "The calendar event was already created."
-
-        calendar_audit_logger.log_event(
-            action="CREATE_BLOCKED_VALIDATION",
+    with _calendar_execution_lock:
+        # 2. Validate Approval Token
+        is_valid, validation_reason, approval_obj = validate_calendar_approval(
+            approval_id=approval_id,
             event_id=event_id,
-            approval_id=approval_id,
-            result=f"BLOCKED: {validation_reason}",
+            session_user=session_user,
+            now=now,
         )
 
-        return {
-            "success": False,
-            "status": status_code,
-            "message": validation_reason,
-            "real_event_created": False,
-        }
+        if not is_valid:
+            status_code = "VALIDATION_FAILED"
+            if approval_obj and approval_obj.status == "INVALIDATED":
+                status_code = "EDIT_INVALIDATION"
+            elif approval_obj and approval_obj.status == "EXPIRED":
+                status_code = "TOKEN_EXPIRED"
+            elif approval_obj and approval_obj.status == "CONSUMED":
+                status_code = "ALREADY_CREATED"
+                validation_reason = "The calendar event was already created."
+            elif "already been CREATED" in validation_reason or "already created" in validation_reason.lower():
+                # Event-is-CREATED guard fires even when a fresh approval token is presented.
+                # Map this to ALREADY_CREATED so callers can distinguish from generic validation failure.
+                status_code = "ALREADY_CREATED"
 
-    draft = get_calendar_event_draft(event_id)
-    if not draft:
-        return {
-            "success": False,
-            "status": "DRAFT_NOT_FOUND",
-            "message": f"Calendar event draft '{event_id}' not found.",
-            "real_event_created": False,
-        }
+            calendar_audit_logger.log_event(
+                action="CREATE_BLOCKED_VALIDATION",
+                event_id=event_id,
+                approval_id=approval_id,
+                result=f"BLOCKED: {validation_reason}",
+            )
 
-    # 3. Idempotency Check
-    if draft.status == "CREATED":
-        calendar_audit_logger.log_event(
-            action="CREATE_BLOCKED_IDEMPOTENCY",
-            event_id=event_id,
-            approval_id=approval_id,
-            event_hash=draft.event_hash,
-            title=draft.title,
-            result="BLOCKED: The calendar event was already created.",
-        )
-        return {
-            "success": False,
-            "status": "ALREADY_CREATED",
-            "message": "The calendar event was already created.",
-            "real_event_created": False,
-        }
+            return {
+                "success": False,
+                "status": status_code,
+                "message": validation_reason,
+                "real_event_created": False,
+            }
 
-    # 4. Dispatch via Mock Provider
-    try:
-        creation_result: MockCalendarResult = effective_provider.create_event(
-            title=draft.title,
-            start_time=draft.start_time,
-            end_time=draft.end_time,
-            location=draft.location,
-            description=draft.description,
-            attendees=draft.attendees,
-            event_id=draft.event_id,
-            approval_id=approval_id,
-            event_hash=draft.event_hash,
-        )
-    except Exception as exc:
-        calendar_audit_logger.log_event(
-            action="CREATE_FAILED_PROVIDER",
-            event_id=draft.event_id,
-            approval_id=approval_id,
-            event_hash=draft.event_hash,
-            title=draft.title,
-            result=f"PROVIDER_ERROR: {str(exc)}",
-        )
-        return {
-            "success": False,
-            "status": "PROVIDER_FAILURE",
-            "message": f"Calendar provider event creation failed: {str(exc)}",
-            "real_event_created": False,
-        }
+        draft = get_calendar_event_draft(event_id)
+        if not draft:
+            return {
+                "success": False,
+                "status": "DRAFT_NOT_FOUND",
+                "message": f"Calendar event draft '{event_id}' not found.",
+                "real_event_created": False,
+            }
 
-    provider_evt_id = creation_result.provider_event_id if hasattr(creation_result, "provider_event_id") else creation_result.get("provider_event_id", "")
+        # 3. Idempotency Check
+        if draft.status == "CREATED":
+            calendar_audit_logger.log_event(
+                action="CREATE_BLOCKED_IDEMPOTENCY",
+                event_id=event_id,
+                approval_id=approval_id,
+                event_hash=draft.event_hash,
+                title=draft.title,
+                result="BLOCKED: The calendar event was already created.",
+            )
+            return {
+                "success": False,
+                "status": "ALREADY_CREATED",
+                "message": "The calendar event was already created.",
+                "real_event_created": False,
+            }
 
-    # 5. Consume Approval Token & Update Draft Status
-    consume_calendar_approval_token(approval_id)
-    draft.status = "CREATED"
+        # 4. Dispatch via Mock Provider
+        try:
+            creation_result: MockCalendarResult = effective_provider.create_event(
+                title=draft.title,
+                start_time=draft.start_time,
+                end_time=draft.end_time,
+                location=draft.location,
+                description=draft.description,
+                attendees=draft.attendees,
+                event_id=draft.event_id,
+                approval_id=approval_id,
+                event_hash=draft.event_hash,
+            )
+        except Exception as exc:
+            calendar_audit_logger.log_event(
+                action="CREATE_FAILED_PROVIDER",
+                event_id=draft.event_id,
+                approval_id=approval_id,
+                event_hash=draft.event_hash,
+                title=draft.title,
+                result=f"PROVIDER_ERROR: {str(exc)}",
+            )
+            return {
+                "success": False,
+                "status": "PROVIDER_FAILURE",
+                "message": f"Calendar provider event creation failed: {str(exc)}",
+                "real_event_created": False,
+            }
+
+        provider_evt_id = creation_result.provider_event_id if hasattr(creation_result, "provider_event_id") else creation_result.get("provider_event_id", "")
+
+        # 5. Consume Approval Token & Update Draft Status
+        consume_calendar_approval_token(approval_id)
+        draft.status = "CREATED"
+
 
     # 6. Perform Independent Verification
     try:

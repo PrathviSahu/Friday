@@ -6,6 +6,7 @@ IDEMPOTENCY CHECK -> MOCK PROVIDER SEND -> MESSAGE ID -> INDEPENDENT VERIFICATIO
 AUDIT LOG -> SUCCESS.
 """
 
+import threading
 from typing import Dict, Any, Optional, List
 
 from .config import EMAIL_LIVE_EXECUTION, is_live_execution_enabled, RealSMTPBlockedError
@@ -33,6 +34,7 @@ from .audit import audit_logger
 
 # Default mock provider instance for email service
 _default_mock_provider = MockEmailProvider()
+_email_execution_lock = threading.Lock()
 
 
 def get_default_mock_provider() -> MockEmailProvider:
@@ -175,94 +177,101 @@ def send_email_with_approval(
             "real_email_sent": False,
         }
 
-    # 2. Validate Approval Token (Checks 1-10)
-    is_valid, validation_reason, approval_obj = validate_approval(
-        approval_id=approval_id,
-        draft_id=draft_id,
-        session_user=session_user,
-        now=now,
-    )
-
-    if not is_valid:
-        status_code = "VALIDATION_FAILED"
-        if approval_obj and approval_obj.status == "INVALIDATED":
-            status_code = "EDIT_INVALIDATION"
-        elif approval_obj and approval_obj.status == "EXPIRED":
-            status_code = "TOKEN_EXPIRED"
-        elif approval_obj and approval_obj.status == "CONSUMED":
-            status_code = "ALREADY_SENT"
-            validation_reason = "The email was already sent."
-
-        audit_logger.log_event(
-            action="SEND_BLOCKED_VALIDATION",
+    with _email_execution_lock:
+        # 2. Validate Approval Token (Checks 1-10)
+        is_valid, validation_reason, approval_obj = validate_approval(
+            approval_id=approval_id,
             draft_id=draft_id,
-            approval_id=approval_id,
-            result=f"BLOCKED: {validation_reason}",
+            session_user=session_user,
+            now=now,
         )
 
-        return {
-            "success": False,
-            "status": status_code,
-            "message": validation_reason,
-            "real_email_sent": False,
-        }
+        if not is_valid:
+            status_code = "VALIDATION_FAILED"
+            if approval_obj and approval_obj.status == "INVALIDATED":
+                status_code = "EDIT_INVALIDATION"
+            elif approval_obj and approval_obj.status == "EXPIRED":
+                status_code = "TOKEN_EXPIRED"
+            elif approval_obj and approval_obj.status == "CONSUMED":
+                status_code = "ALREADY_SENT"
+                validation_reason = "The email was already sent."
+            elif "already been SENT" in validation_reason or "already sent" in validation_reason.lower():
+                # Draft-is-SENT guard (Check 6 in validate_approval) fires even when a fresh
+                # approval token is presented — map this to ALREADY_SENT so callers can distinguish
+                # it from a generic validation failure.
+                status_code = "ALREADY_SENT"
 
-    draft = get_draft(draft_id)
-    if not draft:
-        return {
-            "success": False,
-            "status": "DRAFT_NOT_FOUND",
-            "message": f"Draft '{draft_id}' not found.",
-            "real_email_sent": False,
-        }
+            audit_logger.log_event(
+                action="SEND_BLOCKED_VALIDATION",
+                draft_id=draft_id,
+                approval_id=approval_id,
+                result=f"BLOCKED: {validation_reason}",
+            )
 
-    # 3. Idempotency Check (If draft is already SENT)
-    if draft.status == "SENT":
-        audit_logger.log_event(
-            action="SEND_BLOCKED_IDEMPOTENCY",
-            draft_id=draft_id,
-            approval_id=approval_id,
-            content_hash=draft.content_hash,
-            recipient=draft.recipient,
-            result="BLOCKED: The email was already sent.",
-        )
-        return {
-            "success": False,
-            "status": "ALREADY_SENT",
-            "message": "The email was already sent.",
-            "real_email_sent": False,
-        }
+            return {
+                "success": False,
+                "status": status_code,
+                "message": validation_reason,
+                "real_email_sent": False,
+            }
 
-    # 4. Dispatch via Mock Provider (or passed provider)
-    try:
-        send_result: MockSendResult = effective_provider.send(
-            recipient=draft.recipient,
-            subject=draft.subject,
-            body=draft.body,
-            attachments=draft.attachments,
-            draft_id=draft.draft_id,
-            approval_id=approval_id,
-            content_hash=draft.content_hash,
-        )
-    except Exception as exc:
-        audit_logger.log_event(
-            action="SEND_FAILED_PROVIDER",
-            draft_id=draft.draft_id,
-            approval_id=approval_id,
-            content_hash=draft.content_hash,
-            recipient=draft.recipient,
-            result=f"PROVIDER_ERROR: {str(exc)}",
-        )
-        return {
-            "success": False,
-            "status": "PROVIDER_FAILURE",
-            "message": f"Email provider send failed: {str(exc)}",
-            "real_email_sent": False,
-        }
+        draft = get_draft(draft_id)
+        if not draft:
+            return {
+                "success": False,
+                "status": "DRAFT_NOT_FOUND",
+                "message": f"Draft '{draft_id}' not found.",
+                "real_email_sent": False,
+            }
 
-    # 5. Immediately Consume Approval Token & Update Draft Status
-    consume_approval_token(approval_id)
-    draft.status = "SENT"
+        # 3. Idempotency Check (If draft is already SENT)
+        if draft.status == "SENT":
+            audit_logger.log_event(
+                action="SEND_BLOCKED_IDEMPOTENCY",
+                draft_id=draft_id,
+                approval_id=approval_id,
+                content_hash=draft.content_hash,
+                recipient=draft.recipient,
+                result="BLOCKED: The email was already sent.",
+            )
+            return {
+                "success": False,
+                "status": "ALREADY_SENT",
+                "message": "The email was already sent.",
+                "real_email_sent": False,
+            }
+
+        # 4. Dispatch via Mock Provider (or passed provider)
+        try:
+            send_result: MockSendResult = effective_provider.send(
+                recipient=draft.recipient,
+                subject=draft.subject,
+                body=draft.body,
+                attachments=draft.attachments,
+                draft_id=draft.draft_id,
+                approval_id=approval_id,
+                content_hash=draft.content_hash,
+            )
+        except Exception as exc:
+            audit_logger.log_event(
+                action="SEND_FAILED_PROVIDER",
+                draft_id=draft.draft_id,
+                approval_id=approval_id,
+                content_hash=draft.content_hash,
+                recipient=draft.recipient,
+                result=f"PROVIDER_ERROR: {str(exc)}",
+            )
+            return {
+                "success": False,
+                "status": "PROVIDER_FAILURE",
+                "message": f"Email provider send failed: {str(exc)}",
+                "real_email_sent": False,
+            }
+
+        # 5. Immediately Consume Approval Token & Update Draft Status
+        consume_approval_token(approval_id)
+        draft.status = "SENT"
+
 
     # 6. Perform Independent Verification
     try:

@@ -122,8 +122,10 @@ def remove_device(device_id: int | None = None, token: str | None = None) -> dic
 
 def _prune_expired() -> None:
     now = time.time()
-    for key in [k for k, v in _PENDING.items() if v["expires_at"] < now]:
-        _PENDING.pop(key, None)
+    with _lock:
+        for key in [k for k, v in _PENDING.items() if v["expires_at"] < now]:
+            _PENDING.pop(key, None)
+
 
 
 def create_approval(capability: str, description: str,
