@@ -378,24 +378,27 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         } else if (
           action.startsWith('spotify_') ||
           action === 'play_track' ||
-          /\b(?:play|pause|resume|spotify)\b/i.test(lowerCmd)
+          action === 'play_music' ||
+          /\b(?:spotify|gaana\s+bajao|play\s+(?:song|music|track|playlist|kesariya|arijit|hindi|\w+\s+song))\b/i.test(lowerCmd)
         ) {
-          window.dispatchEvent(new CustomEvent('friday-open-spotify'));
-          if (/\b(?:play|resume)\b/i.test(lowerCmd)) {
-            const songQuery = lowerCmd.replace(/^(?:friday\s+)?(?:please\s+)?(?:play|resume)\s+(?:my\s+)?/i, '').replace(/\s+playlist$/i, '').trim();
-            const spotifyUri = songQuery ? `spotify:search:${encodeURIComponent(songQuery)}` : 'spotify:';
-            try { window.location.href = spotifyUri; } catch (_) {}
-            window.dispatchEvent(new CustomEvent('friday-external-action', {
-              detail: {
-                title: songQuery ? `Spotify: ${songQuery}` : 'Spotify App',
-                subtitle: songQuery ? `Opening in Spotify App · "${songQuery}"` : 'Opening Spotify App',
-                url: spotifyUri,
-                label: 'OPEN SPOTIFY APP',
-                type: 'spotify'
+          const isExplicitMusic = action.startsWith('spotify_') || action === 'play_track' || action === 'play_music' || /\b(?:spotify|music|song|track|playlist|gaana|kesariya|arijit|dil)\b/i.test(lowerCmd);
+          if (isExplicitMusic) {
+            window.dispatchEvent(new CustomEvent('friday-open-spotify'));
+            if (/\b(?:play|resume)\b/i.test(lowerCmd)) {
+              const songQuery = lowerCmd.replace(/^(?:friday\s+)?(?:please\s+)?(?:play|resume)\s+(?:my\s+)?/i, '').replace(/\s+(?:on\s+spotify|playlist)$/i, '').trim();
+              if (songQuery && !/^(?:music|song|track|spotify|the\s+song|something)$/i.test(songQuery)) {
+                const spotifyUri = `spotify:search:${encodeURIComponent(songQuery)}`;
+                window.dispatchEvent(new CustomEvent('friday-external-action', {
+                  detail: {
+                    title: `Spotify: ${songQuery}`,
+                    subtitle: `Ready to play on Spotify · "${songQuery}"`,
+                    url: spotifyUri,
+                    label: 'PLAY IN SPOTIFY',
+                    type: 'spotify'
+                  }
+                }));
               }
-            }));
-          } else if (/\bspotify\b/i.test(lowerCmd)) {
-            try { window.location.href = 'spotify:'; } catch (_) {}
+            }
           }
         } else if (action === 'open_url' && data.target) {
           try { window.open(data.target, '_blank'); } catch (_) {}
