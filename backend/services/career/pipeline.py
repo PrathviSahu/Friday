@@ -116,22 +116,36 @@ def run_job_pipeline(
     # Map of accepted jobs by signature for cross-provider provenance merging
     accepted_by_signature: Dict[str, Dict[str, Any]] = {}
 
-    # Load user career preferences
+    # Load user career preferences and merge with passed filters
     try:
         try:
             from backend.services import career_db
         except ImportError:
             from services import career_db
-        user_prefs = career_db.get_preferences() or {}
+        if hasattr(career_db, "get_all_preferences"):
+            user_prefs = career_db.get_all_preferences() or {}
+        elif hasattr(career_db, "get_preferences"):
+            user_prefs = career_db.get_preferences() or {}
+        else:
+            user_prefs = {}
+
         resumes = career_db.get_all_resumes() or []
         primary_resume = resumes[0] if resumes else {"title": "Default Resume", "content_json": {}}
     except Exception:
         user_prefs = {}
         primary_resume = {"title": "Default Resume", "content_json": {}}
 
+    # Merge explicit caller filters over DB preferences
+    if filters:
+        user_prefs.update(filters)
+        if "blacklist" in filters:
+            for bl_entry in filters["blacklist"]:
+                blacklisted_map[bl_entry.strip().lower()] = "Explicit filter blacklist"
+
     min_sal_pref = float(user_prefs.get("min_salary", 0.0) or 0.0)
     remote_pref = (user_prefs.get("remote_preference") or "").strip().lower()
     target_locations = [loc.strip().lower() for loc in (user_prefs.get("preferred_locations") or []) if isinstance(loc, str)]
+
 
     for raw in all_raw_jobs:
         # Step 2: Normalize into Canonical Schema

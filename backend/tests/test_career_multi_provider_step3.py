@@ -17,6 +17,9 @@ from backend.services import career_db
 def init_db():
     """Initialize DB tables before tests."""
     career_db.init_career_db()
+    career_db.upsert_preference("min_salary", 0)
+    career_db.upsert_preference("target_salary", 0)
+
 
 
 # ==============================================================================
