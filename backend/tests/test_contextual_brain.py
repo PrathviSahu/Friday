@@ -155,3 +155,83 @@ class TestContextualBrain:
         # Step 4: "What was that song?"
         r4 = respond("What was that song?")
         assert "kesariya" in r4["reply"].lower()
+
+    # ── G. 15 NATURAL CONVERSATION STRESS TESTS (PHASE 4.5) ──
+
+    def test_15_natural_conversation_stress_suite(self):
+        """Runs the 15 exact natural human conversational stress tests."""
+
+        # 1. "Find me a good Java job." -> "What about the salary?"
+        r1_1 = respond("Find me a good Java job.")
+        assert "zepto" in r1_1["reply"].lower() or "java" in r1_1["reply"].lower()
+        r1_2 = respond("What about the salary?")
+        assert "8–12 lpa" in r1_2["reply"].lower()
+
+        # 2. "Should I apply?"
+        r2 = respond("Should I apply?")
+        assert "recommend" in r2["reply"].lower()
+
+        # 3. "No, the other one."
+        r3 = respond("No, the other one.")
+        assert "jpmorgan" in r3["reply"].lower() or "alternative" in r3["reply"].lower()
+
+        # 4. "Check BTC." -> "What about RSI?"
+        r4_1 = respond("Check BTC.")
+        assert "btc" in r4_1["reply"].lower()
+        r4_2 = respond("What about RSI?")
+        assert "btc" in r4_2["reply"].lower()
+        assert "rsi" in r4_2["reply"].lower()
+
+        # 5. "Actually forget BTC, check ETH."
+        r5 = respond("Actually forget BTC, check ETH.")
+        assert "eth" in r5["reply"].lower()
+
+        # 6. "Compare that with the one before."
+        r6 = respond("Compare that with the one before.")
+        assert "eth/btc" in r6["reply"].lower() or "btc" in r6["reply"].lower()
+
+        # 7. "Forget trading. Let's look at jobs."
+        r7 = respond("Forget trading. Let's look at jobs.")
+        assert get_context().current_domain == "CAREER"
+
+        # 8. "Okay, now go back to BTC."
+        r8 = respond("Okay, now go back to BTC.")
+        assert "btc" in r8["reply"].lower()
+
+        # 9. Ambiguity with both active: "Check this."
+        update_context(domain="CAREER", job_title="SDE", company="ZDL", trading_symbol="BTC")
+        r9 = respond("Check this.")
+        assert "do you want me to analyze the" in r9["reply"].lower()
+
+        # 10. "Remember I don't want jobs below 6 LPA." -> "Show me jobs."
+        r10_1 = respond("Remember I don't want jobs below 6 LPA.")
+        assert "6 lpa" in r10_1["reply"].lower() or "recorded" in r10_1["reply"].lower()
+        r10_2 = respond("Show me jobs.")
+        assert "6 lpa" in r10_2["reply"].lower()
+
+        # 11. "Forget my salary preference." -> "Show me jobs."
+        r11_1 = respond("Forget my salary preference.")
+        assert "cleared" in r11_1["reply"].lower()
+        r11_2 = respond("Show me jobs.")
+        assert "6 lpa" not in r11_2["reply"].lower()
+
+        # 12. "Find Kesariya." -> "No, the Kannada one." -> "Play it."
+        r12_1 = respond("Find Kesariya.")
+        assert "kesariya" in r12_1["reply"].lower()
+        r12_2 = respond("No, the Kannada one.")
+        assert "kannada" in r12_2["reply"].lower()
+        r12_3 = respond("Play it.")
+        assert r12_3["action"] == "play_specific"
+        assert "kannada" in r12_3["target_app"].lower()
+
+        # 13. "What was that song?"
+        r13 = respond("What was that song?")
+        assert "kannada" in r13["reply"].lower()
+
+        # 14. "Bro, that first job looked better. Why?"
+        r14 = respond("Bro, that first job looked better. Why?")
+        assert "zepto" in r14["reply"].lower() or "96%" in r14["reply"].lower()
+
+        # 15. "Actually never mind, go back to the one from JPMorgan."
+        r15 = respond("Actually never mind, go back to the one from JPMorgan.")
+        assert "jpmorgan" in r15["reply"].lower()
