@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from auth import require_boss
+from auth import require_boss, require_public_demo
 from services.tts import generate_speech
 from services.weather import get_weather
 from services.web_search import search_web_instant
@@ -30,7 +30,7 @@ class ReminderRequest(BaseModel):
     seconds: int
 
 
-@router.post("/tts", dependencies=[Depends(require_boss)])
+@router.post("/tts", dependencies=[Depends(require_public_demo)])
 async def tts_endpoint(req: TTSRequest):
     """Generate British female voice audio using Edge-TTS"""
     try:
@@ -47,7 +47,7 @@ async def tts_endpoint(req: TTSRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/weather", dependencies=[Depends(require_boss)])
+@router.get("/weather", dependencies=[Depends(require_public_demo)])
 def weather_endpoint():
     """Return live weather data."""
     return get_weather()

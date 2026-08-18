@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from auth import require_boss
+from auth import require_boss, require_public_demo
 from services.permissions import require_permission
 from services.system_control import open_app, close_app
 from services.system_stats import get_system_stats
@@ -94,7 +94,7 @@ def lock_display_endpoint():
     return {"status": "ok" if ok else "error"}
 
 
-@router.get("/system/stats", dependencies=[Depends(require_boss)])
+@router.get("/system/stats", dependencies=[Depends(require_public_demo)])
 def system_stats_endpoint():
     """Return live CPU, RAM, Disk, and Battery stats."""
     return get_system_stats()

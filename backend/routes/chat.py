@@ -5,7 +5,7 @@ import asyncio
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
-from auth import require_boss, is_boss_request
+from auth import require_boss, require_public_demo, is_boss_request
 from ratelimit import is_rate_limited
 from services.brain import respond, get_proactive_suggestion
 from services.stt import transcribe_audio, STTUnavailableError
@@ -37,7 +37,7 @@ class SpeechCorrectionRequest(BaseModel):
     corrected_text: str
 
 
-@router.post("/chat/text", dependencies=[Depends(require_boss)])
+@router.post("/chat/text", dependencies=[Depends(require_public_demo)])
 async def chat_text_endpoint(req: ChatTextRequest, request: Request):
     """Text-based chat endpoint for FRIDAY AI brain with memory learning.
     Rate limited: 30 requests / 60s per IP to protect Groq/Gemini API credits.
@@ -101,7 +101,7 @@ def record_speech_correction(req: SpeechCorrectionRequest):
     return {"status": "ok" if ok else "error"}
 
 
-@router.post("/speech/transcribe", dependencies=[Depends(require_boss)])
+@router.post("/speech/transcribe", dependencies=[Depends(require_public_demo)])
 async def speech_transcribe_endpoint(request: Request, audio: UploadFile = File(...)):
     """Transcribe a voice clip with the best free-tier STT engine.
 

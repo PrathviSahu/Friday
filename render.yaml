@@ -29,7 +29,6 @@ services:
         sync: false
       - key: FRIDAY_API_TOKEN
         generateValue: true
-        # NOTE: if the frontend is hosted separately (e.g. Vercel), build it with
-        # VITE_FRIDAY_TOKEN set to this same value so every request carries
-        # X-FRIDAY-Token (the browser can never read Render dashboard secrets).
-        # In Docker the token is baked into the frontend automatically.
+        # Master owner authentication token: used for private remote administration
+        # (entered via runtime session unlock) and internal Docker orchestration.
+        # The public Vercel frontend safely accesses the public recruiter demo tier without hardcoded secrets.

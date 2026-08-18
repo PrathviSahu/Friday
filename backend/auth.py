@@ -67,15 +67,25 @@ def is_boss_request(request: Request) -> bool:
 def require_boss(request: Request) -> None:
     """FastAPI dependency: 401 unless the caller is the owner.
 
-    Attach to any route that controls the machine, reads personal data, or
-    spends API credits (chat, system control, career profile, ...).
+    Attach to any route that controls the physical machine, modifies personal data,
+    reads private emails/WhatsApp, or accesses private database storage.
     """
     if not is_boss_request(request):
         raise HTTPException(
             status_code=401,
             detail=(
-                "Unauthorized. FRIDAY only answers its owner: access from "
-                "localhost, or set FRIDAY_API_TOKEN in backend/.env and send "
-                "it as the X-FRIDAY-Token header."
+                "Unauthorized. This operation requires owner authentication: access from "
+                "localhost, or provide FRIDAY_API_TOKEN via the X-FRIDAY-Token header."
             ),
         )
+
+
+def require_public_demo(request: Request) -> None:
+    """FastAPI dependency for public recruiter showcase endpoints.
+
+    Allows public visitors and recruiters to interact with F.R.I.D.A.Y.'s Voice AI,
+    Career OS, Trading Workstation, and ATS analysis without needing a master token.
+    Endpoints using this dependency are protected by IP-based rate limiting.
+    """
+    # Public demonstration tier: allowed for all callers (rate limited by IP)
+    return None

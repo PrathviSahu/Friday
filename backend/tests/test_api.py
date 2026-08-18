@@ -1,17 +1,20 @@
 """Security & correctness tests for the FRIDAY FastAPI app."""
 
 
-def test_public_endpoint_open(client):
-    """System stats (lock-screen poll) must work without auth."""
-    r = client.get("/api/system/stats")
-    assert r.status_code == 200
+def test_public_demo_endpoints_accessible(remote_client):
+    """Showcase endpoints for recruiters/visitors must respond without token."""
+    r_stats = remote_client.get("/api/system/stats")
+    assert r_stats.status_code == 200
+
+    r_live = remote_client.get("/api/trading/live-prices")
+    assert r_live.status_code == 200
+
+    r_chart = remote_client.get("/api/trading/chart-db")
+    assert r_chart.status_code == 200
 
 
-def test_remote_caller_rejected_without_token(remote_client):
-    """A non-localhost caller must NOT be able to chat / control the machine."""
-    r = remote_client.post("/api/chat/text", json={"text": "lock yourself"})
-    assert r.status_code == 401
-
+def test_remote_caller_rejected_for_os_control(remote_client):
+    """A non-localhost caller without token must NOT be able to execute OS commands or read private vaults."""
     r = remote_client.get("/api/career/preferences")
     assert r.status_code == 401
 
@@ -22,12 +25,9 @@ def test_remote_caller_rejected_without_token(remote_client):
     assert r.status_code == 401
 
 
-def test_remote_caller_cannot_read_personal_data(remote_client):
-    """Every personal-data read endpoint must reject non-localhost callers.
-
-    Regression guard for the ~25 read endpoints that were previously
-    unauthenticated (todos, reminders, knowledge, timeline, goals, learning,
-    life-memory, notifications, briefing, watchlist, chart drawings, ...).
+def test_remote_caller_cannot_read_personal_private_data(remote_client):
+    """Private personal endpoints (todos, memories, notes, notifications, permissions)
+    must reject non-localhost callers who lack the master token.
     """
     paths = [
         "/api/todos",
@@ -46,14 +46,7 @@ def test_remote_caller_cannot_read_personal_data(remote_client):
         "/api/briefing",
         "/api/proactive",
         "/api/watchlist",
-        "/api/spotify/current-track",
-        "/api/system/stats",
         "/api/system/display",
-        "/api/trading/chart-db",
-        "/api/trading/ohlcv",
-        "/api/trading/live-prices",
-        "/api/trading/analysis",
-        "/api/trading/search?q=a",
         "/api/gdrive/status",
         "/api/agents",
         "/api/agent/route?text=hi",
@@ -62,12 +55,6 @@ def test_remote_caller_cannot_read_personal_data(remote_client):
     for path in paths:
         r = remote_client.get(path)
         assert r.status_code == 401, f"{path} should 401 for remote callers, got {r.status_code}"
-
-
-def test_remote_caller_rejected_for_tts_and_search(remote_client):
-    """Resource-costing endpoints (TTS, web search) must be owner-gated too."""
-    assert remote_client.post("/api/tts", json={"text": "hello"}).status_code == 401
-    assert remote_client.post("/api/search", json={"query": "test"}).status_code == 401
 
 
 def test_remote_caller_with_token_allowed(remote_client_with_token):

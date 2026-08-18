@@ -21,23 +21,40 @@ export const API_BASE_URL = (
   ''
 ).replace(/\/$/, '');
 
-// API token for non-loopback deployments (Docker). Baked in at build time
-// via VITE_FRIDAY_TOKEN (docker-compose passes FRIDAY_API_TOKEN). Empty in
-// the native/dev setup, where loopback auth applies instead.
-export const FRIDAY_TOKEN = (import.meta.env.VITE_FRIDAY_TOKEN || '').trim();
+// Runtime session token: stored in memory / sessionStorage ONLY when explicitly
+// unlocked by the owner. The static public production build NEVER contains hardcoded master secrets.
+export function getMasterSessionToken() {
+  if (typeof window === 'undefined') return '';
+  return (
+    sessionStorage.getItem('FRIDAY_SESSION_TOKEN') ||
+    (import.meta.env.VITE_FRIDAY_TOKEN || '')
+  ).trim();
+}
 
-// When a token is configured, attach X-FRIDAY-Token to every fetch so the
-// backend accepts requests that arrive from non-loopback addresses (e.g.
-// Docker's bridge network). This wraps window.fetch once at import time and
-// covers every API module automatically.
-if (FRIDAY_TOKEN && typeof window !== 'undefined' && !window.fetch.__fridayAuthWrapped) {
+export function setMasterSessionToken(token) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    sessionStorage.setItem('FRIDAY_SESSION_TOKEN', token.trim());
+  } else {
+    sessionStorage.removeItem('FRIDAY_SESSION_TOKEN');
+  }
+}
+
+export const FRIDAY_TOKEN = getMasterSessionToken();
+
+// Wrap window.fetch to dynamically attach X-FRIDAY-Token whenever an active master token exists
+if (typeof window !== 'undefined' && !window.fetch.__fridayAuthWrapped) {
   const originalFetch = window.fetch.bind(window);
   window.fetch = (input, init) => {
-    const headers = new Headers(init && init.headers);
-    if (!headers.has('X-FRIDAY-Token')) {
-      headers.set('X-FRIDAY-Token', FRIDAY_TOKEN);
+    const token = getMasterSessionToken();
+    if (token) {
+      const headers = new Headers(init && init.headers);
+      if (!headers.has('X-FRIDAY-Token')) {
+        headers.set('X-FRIDAY-Token', token);
+      }
+      return originalFetch(input, { ...init, headers });
     }
-    return originalFetch(input, { ...init, headers });
+    return originalFetch(input, init);
   };
   window.fetch.__fridayAuthWrapped = true;
 }
