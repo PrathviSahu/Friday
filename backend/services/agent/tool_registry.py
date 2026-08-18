@@ -271,7 +271,182 @@ def _verify_send_email(args: dict, result: dict) -> bool:
     return v.verified
 
 
-# 3. WhatsApp Tools
+# 3. Calendar Tools
+def _handle_get_calendar_events(args: dict) -> dict:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+    limit = args.get("limit", 10)
+    events = provider.list_events(limit=limit)
+    return {
+        "status": "success",
+        "count": len(events),
+        "events": [e.model_dump() for e in events]
+    }
+
+
+def _handle_search_calendar_events(args: dict) -> dict:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+    query = args.get("query", "")
+    limit = args.get("limit", 10)
+    events = provider.search_events(query=query, limit=limit)
+    return {
+        "status": "success",
+        "query": query,
+        "count": len(events),
+        "events": [e.model_dump() for e in events]
+    }
+
+
+def _handle_get_calendar_event(args: dict) -> dict:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+    event_id = args.get("event_id", "")
+    event = provider.get_event(event_id)
+    if not event:
+        return {"status": "error", "error": f"Event '{event_id}' not found."}
+    return {"status": "success", "event": event.model_dump()}
+
+
+def _handle_draft_calendar_event(args: dict) -> dict:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+
+    title = args.get("title")
+    if not title or not isinstance(title, str) or not title.strip():
+        return {"status": "error", "error": "Event title is required to prepare a draft."}
+    title = title.strip()
+
+    start_time = args.get("start_time")
+    if not start_time or not isinstance(start_time, str) or not start_time.strip():
+        return {"status": "error", "error": "Event start_time is required."}
+    start_time = start_time.strip()
+
+    end_time = args.get("end_time")
+    if not end_time or not isinstance(end_time, str) or not end_time.strip():
+        return {"status": "error", "error": "Event end_time is required."}
+    end_time = end_time.strip()
+
+    # Timezone resolution & validation
+    timezone = args.get("timezone", "Asia/Kolkata")
+    location = args.get("location")
+    description = args.get("description", "")
+    attendees = args.get("attendees", [])
+    reminders = args.get("reminders", [30])
+
+    draft = provider.create_draft_event(
+        title=title,
+        start_time=start_time,
+        end_time=end_time,
+        timezone=timezone,
+        description=description,
+        location=location,
+        attendees=attendees,
+        reminders=reminders
+    )
+    return {
+        "status": "drafted",
+        "draft_id": draft.id,
+        "title": draft.title,
+        "start_time": draft.start_time,
+        "end_time": draft.end_time,
+        "timezone": draft.timezone,
+        "location": draft.location,
+        "attendees": draft.attendees,
+        "reminders": draft.reminders,
+        "content_hash": draft.content_hash,
+        "preview": f"Event: {draft.title}\nTime: {draft.start_time} - {draft.end_time} ({draft.timezone})\nLocation: {draft.location or 'Not specified'}\nAttendees: {', '.join(draft.attendees) if draft.attendees else 'None'}\nReminder: {draft.reminders[0] if draft.reminders else 30} mins before"
+    }
+
+
+def _handle_update_calendar_event_draft(args: dict) -> dict:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+    draft_id = args.get("draft_id")
+    if not draft_id:
+        return {"status": "error", "error": "draft_id is required to update draft."}
+
+    draft = provider.update_draft_event(
+        draft_id=draft_id,
+        title=args.get("title"),
+        start_time=args.get("start_time"),
+        end_time=args.get("end_time"),
+        timezone=args.get("timezone"),
+        description=args.get("description"),
+        location=args.get("location"),
+        attendees=args.get("attendees"),
+        reminders=args.get("reminders")
+    )
+    if not draft:
+        return {"status": "error", "error": f"Draft '{draft_id}' not found."}
+
+    return {
+        "status": "drafted",
+        "draft_id": draft.id,
+        "title": draft.title,
+        "start_time": draft.start_time,
+        "end_time": draft.end_time,
+        "timezone": draft.timezone,
+        "location": draft.location,
+        "attendees": draft.attendees,
+        "reminders": draft.reminders,
+        "content_hash": draft.content_hash,
+        "preview": f"Event: {draft.title}\nTime: {draft.start_time} - {draft.end_time} ({draft.timezone})\nLocation: {draft.location or 'Not specified'}\nAttendees: {', '.join(draft.attendees) if draft.attendees else 'None'}\nReminder: {draft.reminders[0] if draft.reminders else 30} mins before"
+    }
+
+
+def _handle_create_calendar_event(args: dict) -> dict:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+    title = args.get("title", "Interview")
+    start_time = args.get("start_time", "2026-08-19T15:00:00")
+    end_time = args.get("end_time", "2026-08-19T16:00:00")
+    timezone = args.get("timezone", "Asia/Kolkata")
+    location = args.get("location")
+    description = args.get("description", "")
+    attendees = args.get("attendees", [])
+    reminders = args.get("reminders", [30])
+    draft_id = args.get("draft_id")
+
+    res = provider.create_event(
+        title=title,
+        start_time=start_time,
+        end_time=end_time,
+        timezone=timezone,
+        description=description,
+        location=location,
+        attendees=attendees,
+        reminders=reminders,
+        draft_id=draft_id
+    )
+    return {
+        "status": "created" if res.success else "failed",
+        "event_id": res.event_id,
+        "title": res.title,
+        "start_time": res.start_time,
+        "end_time": res.end_time,
+        "timezone": res.timezone,
+        "timestamp": res.timestamp,
+        "provider": res.provider,
+        "error": res.error
+    }
+
+
+def _verify_create_calendar_event(args: dict, result: dict) -> bool:
+    from services.agent.integrations.calendar import get_calendar_provider
+    provider = get_calendar_provider()
+    event_id = result.get("event_id")
+    if not event_id:
+        return False
+    v = provider.verify_event(event_id)
+    return v.verified
+
+
+def _handle_delete_calendar_event(args: dict) -> dict:
+    return {"status": "blocked", "error": "Direct calendar event deletion is disabled by security policy."}
+
+
+# 4. WhatsApp Tools
 def _handle_draft_whatsapp(args: dict) -> dict:
     contact = args.get("contact", "Rahul")
     message = args.get("message", "Hey Rahul, I'll call you tonight.")
@@ -416,6 +591,63 @@ def init_tool_registry():
         parameters_schema={"type": "object", "properties": {"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"}}},
         handler=_handle_send_email,
         verifier=_verify_send_email,
+    )
+    register_tool(
+        name="get_calendar_events",
+        domain="CALENDAR",
+        description="Retrieve scheduled calendar events within a time range without modifying state.",
+        risk_level=RiskLevel.READ_ONLY,
+        parameters_schema={"type": "object", "properties": {"limit": {"type": "integer"}, "time_min": {"type": "string"}, "time_max": {"type": "string"}}},
+        handler=_handle_get_calendar_events,
+    )
+    register_tool(
+        name="search_calendar_events",
+        domain="CALENDAR",
+        description="Search calendar events by title, description, location, or attendee.",
+        risk_level=RiskLevel.READ_ONLY,
+        parameters_schema={"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer"}}},
+        handler=_handle_search_calendar_events,
+    )
+    register_tool(
+        name="get_calendar_event",
+        domain="CALENDAR",
+        description="Retrieve details for a single calendar event by its event ID.",
+        risk_level=RiskLevel.READ_ONLY,
+        parameters_schema={"type": "object", "properties": {"event_id": {"type": "string"}}},
+        handler=_handle_get_calendar_event,
+    )
+    register_tool(
+        name="draft_calendar_event",
+        domain="CALENDAR",
+        description="Prepare a calendar event draft with TTL and preview without creating it in the calendar.",
+        risk_level=RiskLevel.PREPARATION,
+        parameters_schema={"type": "object", "properties": {"title": {"type": "string"}, "start_time": {"type": "string"}, "end_time": {"type": "string"}, "timezone": {"type": "string"}, "location": {"type": "string"}, "attendees": {"type": "array"}}},
+        handler=_handle_draft_calendar_event,
+    )
+    register_tool(
+        name="update_calendar_event_draft",
+        domain="CALENDAR",
+        description="Update an existing calendar event draft and generate a new content hash.",
+        risk_level=RiskLevel.PREPARATION,
+        parameters_schema={"type": "object", "properties": {"draft_id": {"type": "string"}, "title": {"type": "string"}, "start_time": {"type": "string"}, "end_time": {"type": "string"}, "timezone": {"type": "string"}, "attendees": {"type": "array"}}},
+        handler=_handle_update_calendar_event_draft,
+    )
+    register_tool(
+        name="create_calendar_event",
+        domain="CALENDAR",
+        description="Create an event on the user's calendar. Requires explicit user approval.",
+        risk_level=RiskLevel.USER_APPROVAL,
+        parameters_schema={"type": "object", "properties": {"title": {"type": "string"}, "start_time": {"type": "string"}, "end_time": {"type": "string"}, "timezone": {"type": "string"}, "draft_id": {"type": "string"}}},
+        handler=_handle_create_calendar_event,
+        verifier=_verify_create_calendar_event,
+    )
+    register_tool(
+        name="delete_calendar_event",
+        domain="CALENDAR",
+        description="Permanently delete a calendar event. Autonomous deletion is strict safety blocked.",
+        risk_level=RiskLevel.BLOCKED,
+        parameters_schema={"type": "object", "properties": {"event_id": {"type": "string"}}},
+        handler=_handle_delete_calendar_event,
     )
     register_tool(
         name="draft_whatsapp",

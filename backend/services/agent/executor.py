@@ -97,6 +97,12 @@ def execute_tool(
                 subj = arguments.get("subject", "No subject")
                 approval_prompt = f"Boss, I've drafted the email to {to} ('{subj}'). Shall I send it?"
                 preview_text = f"To: {to}\nSubject: {subj}"
+            elif tool_name == "create_calendar_event":
+                title = arguments.get("title", "Event")
+                st = arguments.get("start_time", "Scheduled Time")
+                tz = arguments.get("timezone", "Asia/Kolkata")
+                approval_prompt = f"Prem, I've prepared the calendar event '{title}' for {st} ({tz}). Ready to create it?"
+                preview_text = f"Title: {title}\nTime: {st} ({tz})"
             elif tool_name == "execute_trade_order":
                 sym = arguments.get("symbol", "Asset")
                 sh = arguments.get("shares", 1)

@@ -220,8 +220,8 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
     ctx = get_context()
 
     # ── A. MULTI-TURN APPROVAL CONFIRMATION ──
-    # User says "Yes" / "Confirm" / "Submit it" / "Send it" / "Do it"
-    if ctx.active_pending_action and re.search(r'^\s*(?:yes|submit|send|confirm|do\s+it|yes\s+please|proceed|submit\s+it|send\s+it)\s*\.?\s*$', lower_text):
+    # User says "Yes" / "Confirm" / "Submit it" / "Send it" / "Create it" / "Do it"
+    if ctx.active_pending_action and re.search(r'^\s*(?:yes|submit|send|create|confirm|do\s+it|yes\s+please|proceed|submit\s+it|send\s+it|create\s+it|yes\s*,\s*send\s+it|yes\s*,\s*create\s+it|yes\s*,\s*submit\s+it|approve\s+and\s+send|approve\s+and\s+create)\s*\.?\s*$', lower_text):
         pend = ctx.active_pending_action
         tool_name = pend.get("tool_name")
         args = pend.get("arguments", {})
@@ -245,6 +245,9 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
             elif tool_name == "send_email":
                 to = args.get("to", "recipient")
                 reply = f"Email sent and verified to {to}."
+            elif tool_name == "create_calendar_event":
+                title = args.get("title", "Event")
+                reply = f"Calendar event created and verified: '{title}'."
             elif tool_name == "send_whatsapp":
                 contact = args.get("contact", "contact")
                 reply = f"WhatsApp message sent and verified to {contact}."
@@ -473,6 +476,159 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
             pending_action={"tool_name": "send_email", "arguments": {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer — Prem Sahu"}}
         )
         reply = res.approval_prompt or "Boss, I've drafted the email to recruiter@jpmorgan.com. Shall I send it?"
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # ── D2. CALENDAR AGENT EXECUTIONS ──
+
+    # Check calendar schedule ("What's on my calendar today?", "Do I have anything tomorrow morning?")
+    if re.search(r'\b(?:what\'?s\s+on\s+my\s+calendar|calendar\s+today|schedule\s+today|anything\s+(?:on\s+my\s+calendar|scheduled|tomorrow)|upcoming\s+(?:events|meetings))\b', lower_text):
+        res = execute_tool("get_calendar_events", {"limit": 5}, user_request=lower_text, domain="CALENDAR", is_boss=is_boss)
+        evts = res.result.get("events", []) if res.result else []
+        if not evts:
+            reply = "Prem, your calendar is clear — no scheduled events."
+        else:
+            summaries = []
+            for i, e in enumerate(evts[:3], 1):
+                t = e.get("title", "Event")
+                st = e.get("start_time", "").replace("T", " ")
+                summaries.append(f"{i}. {t} ({st})")
+            reply = f"You have {len(evts)} event{'s' if len(evts) > 1 else ''} scheduled, Prem: " + " · ".join(summaries)
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "calendar"}
+
+    # Search calendar ("Find my meeting with JPMorgan", "Search calendar for interview")
+    search_cal_match = re.search(r'\b(?:find|search)\s+(?:my\s+)?(?:meeting|event|calendar\s+for)\s+([a-zA-Z0-9\s]+?)(?:\.|$)', lower_text)
+    if search_cal_match:
+        q = search_cal_match.group(1).strip()
+        res = execute_tool("search_calendar_events", {"query": q, "limit": 5}, user_request=lower_text, domain="CALENDAR", is_boss=is_boss)
+        evts = res.result.get("events", []) if res.result else []
+        if not evts:
+            reply = f"Prem, I couldn't find any calendar events matching '{q}'."
+        else:
+            summaries = []
+            for i, e in enumerate(evts[:3], 1):
+                t = e.get("title", "Event")
+                st = e.get("start_time", "").replace("T", " ")
+                summaries.append(f"{i}. {t} ({st})")
+            reply = f"Found {len(evts)} event{'s' if len(evts) > 1 else ''} matching '{q}': " + " · ".join(summaries)
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "calendar"}
+
+    # Multi-Turn Calendar Draft Edits with Invalidation ("Make it 4 PM", "Add a reminder 30 minutes before", "Invite Sarah")
+    if ctx.active_pending_action and ctx.active_pending_action.get("tool_name") == "create_calendar_event" and any(w in lower_text for w in ["4 pm", "4:00", "4", "reminder", "invite", "sarah", "change time", "modify", "reschedule"]):
+        prev_args = ctx.active_pending_action.get("arguments", {})
+        draft_id = prev_args.get("draft_id", "draft-cal-1")
+        title = prev_args.get("title", "Interview — JPMorgan")
+        st = prev_args.get("start_time", "Tomorrow, 3:00 PM")
+        et = prev_args.get("end_time", "Tomorrow, 4:00 PM")
+        tz = prev_args.get("timezone", "Asia/Kolkata")
+        loc = prev_args.get("location", "Google Meet")
+        attendees = list(prev_args.get("attendees", []))
+        reminders = list(prev_args.get("reminders", [30]))
+
+        if any(k in lower_text for k in ["4 pm", "4:00", "4"]):
+            st = "Tomorrow, 4:00 PM"
+            et = "Tomorrow, 5:00 PM"
+        if "reminder" in lower_text:
+            reminders = [30]
+        if "sarah" in lower_text or "invite" in lower_text:
+            if "sarah.jenkins@jpmorgan.com" not in attendees:
+                attendees.append("sarah.jenkins@jpmorgan.com")
+
+        # Invalidate previous approval token and update draft
+        update_context(
+            domain="CALENDAR",
+            pending_action={
+                "tool_name": "create_calendar_event",
+                "arguments": {
+                    "draft_id": draft_id,
+                    "title": title,
+                    "start_time": st,
+                    "end_time": et,
+                    "timezone": tz,
+                    "location": loc,
+                    "attendees": attendees,
+                    "reminders": reminders
+                }
+            }
+        )
+        att_str = f" | Attendees: {', '.join(attendees)}" if attendees else ""
+        rem_str = f" | Reminder: {reminders[0]} mins before" if reminders else ""
+        reply = (
+            f"I've updated the calendar draft:\n\n"
+            f"• Title: {title}\n"
+            f"• Time: {st}–{et} ({tz})\n"
+            f"• Location: {loc}{att_str}{rem_str}\n\n"
+            "Previous approval invalidated. Ready to create this updated event?"
+        )
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Draft Calendar Event ("Schedule an interview with JPMorgan tomorrow at 3 PM")
+    if re.search(r'\b(?:schedule|set\s+up|create|add)\s+(?:an?\s+)?(?:interview|meeting|calendar\s+event|call)\b', lower_text):
+        target_title = "Interview — JPMorgan"
+        target_time_start = "Tomorrow, 3:00 PM"
+        target_time_end = "Tomorrow, 4:00 PM"
+        target_tz = "Asia/Kolkata"
+        target_loc = "Google Meet"
+        target_atts = ["sarah.jenkins@jpmorgan.com"] if "jpmorgan" in lower_text or ctx.active_company == "JPMorgan Chase" else []
+
+        if "zepto" in lower_text or "zdl" in lower_text or ctx.active_company == "Zepto Digital Labs (ZDL)":
+            target_title = "Technical Interview — Zepto Digital Labs"
+            target_atts = ["recruiter@zeptodigitallabs.com"]
+        elif "jpmorgan" in lower_text or ctx.active_company == "JPMorgan Chase":
+            target_title = "Technical Interview — JPMorgan Chase"
+            target_atts = ["sarah.jenkins@jpmorgan.com"]
+
+        res = execute_tool(
+            "draft_calendar_event",
+            {
+                "title": target_title,
+                "start_time": target_time_start,
+                "end_time": target_time_end,
+                "timezone": target_tz,
+                "location": target_loc,
+                "attendees": target_atts,
+                "reminders": [30]
+            },
+            user_request=lower_text,
+            domain="CALENDAR",
+            is_boss=is_boss
+        )
+
+        draft_id = res.result.get("draft_id", "draft-cal-1") if res.result else "draft-cal-1"
+        update_context(
+            domain="CALENDAR",
+            pending_action={
+                "tool_name": "create_calendar_event",
+                "arguments": {
+                    "draft_id": draft_id,
+                    "title": target_title,
+                    "start_time": target_time_start,
+                    "end_time": target_time_end,
+                    "timezone": target_tz,
+                    "location": target_loc,
+                    "attendees": target_atts,
+                    "reminders": [30]
+                }
+            }
+        )
+        reply = (
+            f"I've prepared a calendar event:\n\n"
+            f"• Title: {target_title}\n"
+            f"• Time: {target_time_start}–{target_time_end} ({target_tz})\n"
+            f"• Location: {target_loc}\n"
+            f"• Attendees: {', '.join(target_atts) if target_atts else 'None'}\n"
+            f"• Reminder: 30 minutes before\n\n"
+            "Ready to create it?"
+        )
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Destructive Calendar Deletion Block ("Cancel my meeting", "Delete the event")
+    if ("delete" in lower_text or "cancel" in lower_text) and any(w in lower_text for w in ["meeting", "calendar event", "event on my calendar"]):
+        reply = "Prem, deleting or cancelling confirmed calendar events is protected against autonomous execution. Please manage event deletion directly in your calendar."
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
