@@ -170,36 +170,80 @@ def _verify_job_submission(args: dict, result: dict) -> bool:
 
 
 # 2. Email Tools
+def _handle_read_emails(args: dict) -> dict:
+    from services.agent.integrations.email import get_email_provider
+    provider = get_email_provider()
+    limit = args.get("limit", 10)
+    unread_only = args.get("unread_only", True)
+    messages = provider.get_messages(limit=limit, unread_only=unread_only)
+    return {
+        "status": "success",
+        "count": len(messages),
+        "messages": [m.model_dump() for m in messages]
+    }
+
+
+def _handle_search_emails(args: dict) -> dict:
+    from services.agent.integrations.email import get_email_provider
+    provider = get_email_provider()
+    query = args.get("query", "")
+    limit = args.get("limit", 10)
+    messages = provider.search_messages(query=query, limit=limit)
+    return {
+        "status": "success",
+        "query": query,
+        "count": len(messages),
+        "messages": [m.model_dump() for m in messages]
+    }
+
+
 def _handle_draft_email(args: dict) -> dict:
-    to = args.get("to", "recruiter@company.com")
-    subject = args.get("subject", "Application for Software Engineer")
-    body = args.get("body", "Dear Recruiter,\n\nI am excited to express my interest in the Software Engineer position...")
+    from services.agent.integrations.email import get_email_provider
+    provider = get_email_provider()
+    to = args.get("to", "recruiter@jpmorgan.com")
+    subject = args.get("subject", "Application for Software Engineer — Prem Sahu")
+    body = args.get("body", "Dear Hiring Team,\n\nI am reaching out regarding the Software Engineer position at JPMorgan Chase...")
+    attachments = args.get("attachments", ["Resume_v3.pdf"])
+    draft = provider.create_draft(to=to, subject=subject, body=body, attachments=attachments)
     return {
         "status": "drafted",
-        "draft_id": "DRAFT-8841",
-        "to": to,
-        "subject": subject,
-        "body": body,
-        "preview": f"To: {to}\nSubject: {subject}\n\n{body}"
+        "draft_id": draft.id,
+        "to": draft.to,
+        "subject": draft.subject,
+        "body": draft.body,
+        "attachments": draft.attachments,
+        "preview": f"To: {draft.to}\nSubject: {draft.subject}\nAttachments: {', '.join(draft.attachments)}\n\n{draft.body}"
     }
 
 
 def _handle_send_email(args: dict) -> dict:
-    to = args.get("to", "recruiter@company.com")
-    subject = args.get("subject", "Application for Software Engineer")
-    # Verified dispatch record
-    message_id = f"<msg-20260818-{abs(hash(to + subject)) % 100000}@friday.ai>"
+    from services.agent.integrations.email import get_email_provider
+    provider = get_email_provider()
+    to = args.get("to", "recruiter@jpmorgan.com")
+    subject = args.get("subject", "Application for Software Engineer — Prem Sahu")
+    body = args.get("body", "Dear Hiring Team,\n\nI am reaching out regarding the Software Engineer position...")
+    attachments = args.get("attachments", [])
+    draft_id = args.get("draft_id")
+    res = provider.send_message(to=to, subject=subject, body=body, attachments=attachments, draft_id=draft_id)
     return {
-        "status": "sent",
-        "message_id": message_id,
-        "to": to,
-        "subject": subject,
-        "timestamp": "2026-08-18T16:50:00Z"
+        "status": "sent" if res.success else "failed",
+        "message_id": res.message_id,
+        "to": res.recipient,
+        "subject": res.subject,
+        "timestamp": res.timestamp,
+        "provider": res.provider,
+        "error": res.error
     }
 
 
 def _verify_send_email(args: dict, result: dict) -> bool:
-    return bool(result and result.get("status") == "sent" and result.get("message_id"))
+    from services.agent.integrations.email import get_email_provider
+    provider = get_email_provider()
+    msg_id = result.get("message_id")
+    if not msg_id:
+        return False
+    v = provider.verify_message(msg_id)
+    return v.verified
 
 
 # 3. WhatsApp Tools
@@ -314,6 +358,22 @@ def init_tool_registry():
         parameters_schema={"type": "object", "properties": {"job_id": {"type": "string"}, "company": {"type": "string"}, "role": {"type": "string"}}},
         handler=_handle_submit_job_application,
         verifier=_verify_job_submission,
+    )
+    register_tool(
+        name="read_emails",
+        domain="COMMUNICATION",
+        description="Fetch recent unread emails without modifying external state.",
+        risk_level=RiskLevel.READ_ONLY,
+        parameters_schema={"type": "object", "properties": {"limit": {"type": "integer"}, "unread_only": {"type": "boolean"}}},
+        handler=_handle_read_emails,
+    )
+    register_tool(
+        name="search_emails",
+        domain="COMMUNICATION",
+        description="Search inbox emails by sender, subject, or query keyword.",
+        risk_level=RiskLevel.READ_ONLY,
+        parameters_schema={"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer"}}},
+        handler=_handle_search_emails,
     )
     register_tool(
         name="draft_email",

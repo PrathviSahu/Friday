@@ -31,7 +31,8 @@ from services.agent.verification import (
 from services.agent.audit_logger import (
     log_audit_record,
     check_idempotency,
-    record_idempotency
+    record_idempotency,
+    clear_idempotency_store,
 )
 
 __all__ = [
@@ -56,4 +57,5 @@ __all__ = [
     "log_audit_record",
     "check_idempotency",
     "record_idempotency",
+    "clear_idempotency_store",
 ]

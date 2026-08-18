@@ -331,27 +331,130 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
 
     # ── D. COMMUNICATION AGENT EXECUTIONS ──
 
-    # Draft Email ("Draft an email to the recruiter")
+    # Check unread emails ("Check my unread emails", "Any important emails today?")
+    if re.search(r'\b(?:check\s+(?:my\s+)?(?:unread\s+)?emails|any\s+(?:important\s+)?emails|show\s+(?:my\s+)?unread\s+emails|unread\s+emails)\b', lower_text):
+        res = execute_tool("read_emails", {"limit": 5, "unread_only": True}, user_request=lower_text, domain="COMMUNICATION", is_boss=is_boss)
+        msgs = res.result.get("messages", []) if res.result else []
+        if not msgs:
+            reply = "Prem, your inbox is all caught up — no unread emails."
+        else:
+            summaries = []
+            for i, m in enumerate(msgs[:3], 1):
+                sender = m.get("sender_name") or m.get("sender", "Unknown")
+                subj = m.get("subject", "No Subject")
+                summaries.append(f"{i}. {sender}: '{subj}'")
+            reply = f"You have {len(msgs)} unread email{'s' if len(msgs) > 1 else ''}, Prem: " + " · ".join(summaries)
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Search emails ("Find emails from LinkedIn", "Show emails from recruiters")
+    search_email_match = re.search(r'\b(?:find|search|show|get)\s+(?:emails\s+from|emails\s+about|emails\s+for)\s+([a-zA-Z\s]+?)(?:\.|$)', lower_text)
+    if search_email_match or (("linkedin" in lower_text or "recruiter" in lower_text) and "email" in lower_text and not any(w in lower_text for w in ["draft", "send", "write"])):
+        query = "LinkedIn" if "linkedin" in lower_text else ("recruiter" if "recruiter" in lower_text else (search_email_match.group(1).strip() if search_email_match else "job"))
+        res = execute_tool("search_emails", {"query": query, "limit": 5}, user_request=lower_text, domain="COMMUNICATION", is_boss=is_boss)
+        msgs = res.result.get("messages", []) if res.result else []
+        if not msgs:
+            reply = f"Prem, I couldn't find any emails matching '{query}' in your inbox."
+        else:
+            summaries = []
+            for i, m in enumerate(msgs[:3], 1):
+                sender = m.get("sender_name") or m.get("sender", "Unknown")
+                subj = m.get("subject", "No Subject")
+                summaries.append(f"{i}. {sender}: '{subj}'")
+            reply = f"Found {len(msgs)} email{'s' if len(msgs) > 1 else ''} matching '{query}': " + " · ".join(summaries)
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Edit Draft Flow with Approval Invalidation ("Make it shorter", "Make it more professional")
+    if ctx.active_pending_action and ctx.active_pending_action.get("tool_name") == "send_email" and any(w in lower_text for w in ["shorter", "concise", "professional", "formal", "change subject", "modify", "edit"]):
+        prev_args = ctx.active_pending_action.get("arguments", {})
+        target_to = prev_args.get("to", "recruiter@jpmorgan.com")
+        target_subj = prev_args.get("subject", "Application for Software Engineer — Prem Sahu")
+        
+        if "shorter" in lower_text or "concise" in lower_text:
+            new_body = (
+                "Dear Hiring Team,\n\n"
+                "I am writing to express my interest in the Software Engineer position at JPMorgan Chase. "
+                "With strong experience building high-scale Spring Boot microservices, sub-100ms APIs, and React interfaces, "
+                "I would love to connect. Resume attached.\n\n"
+                "Best regards,\nPrem Sahu"
+            )
+        else:
+            new_body = (
+                "Dear Sarah Jenkins and Hiring Committee,\n\n"
+                "I am writing to submit my formal application for the Software Engineer — Full Stack position at JPMorgan Chase. "
+                "Attached is my updated curriculum vitae for your consideration.\n\n"
+                "Sincerely,\nPrem Sahu"
+            )
+
+        # Invalidate previous approval token and update draft
+        update_context(
+            domain="COMMUNICATION",
+            pending_action={
+                "tool_name": "send_email",
+                "arguments": {
+                    "to": target_to,
+                    "subject": target_subj,
+                    "body": new_body,
+                    "attachments": ["Resume_v3.pdf"]
+                }
+            }
+        )
+        reply = f"I've updated the draft to be more concise:\n\n\"{new_body[:160]}...\"\n\nPrevious approval invalidated. Ready to send this revised version to {target_to}?"
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Draft Email ("Draft an email to the recruiter for the second job", "Draft an email to the recruiter")
     if "draft" in lower_text and "email" in lower_text:
+        target_to = "recruiter@jpmorgan.com"
+        target_comp = "JPMorgan Chase"
+        target_role = "Software Engineer — Full Stack"
+
+        if "zepto" in lower_text or "zdl" in lower_text or ctx.active_company == "Zepto Digital Labs (ZDL)":
+            target_to = "recruiter@zeptodigitallabs.com"
+            target_comp = "Zepto Digital Labs"
+            target_role = "Software Development Engineer"
+        elif "second" in lower_text or "jpmorgan" in lower_text or ctx.active_company == "JPMorgan Chase":
+            target_to = "recruiter@jpmorgan.com"
+            target_comp = "JPMorgan Chase"
+            target_role = "Software Engineer — Full Stack"
+
+        draft_body = (
+            f"Dear Hiring Team at {target_comp},\n\n"
+            f"I am writing to express my strong interest in the {target_role} position. "
+            "With production experience designing 50+ Spring Boot REST APIs, sub-100ms MySQL query optimization, "
+            "and responsive React frontends, my background directly aligns with your engineering requirements.\n\n"
+            "Attached is my resume (Resume_v3.pdf) for your review. I look forward to hearing from you.\n\n"
+            "Best regards,\nPrem Sahu"
+        )
+        draft_subj = f"Application for {target_role} — Prem Sahu"
+
         res = execute_tool(
             "draft_email",
             {
-                "to": "recruiter@jpmorgan.com",
-                "subject": "Application for Software Engineer — Prem Sahu",
-                "body": "Dear Hiring Team,\n\nI am reaching out regarding the Software Engineer position..."
+                "to": target_to,
+                "subject": draft_subj,
+                "body": draft_body,
+                "attachments": ["Resume_v3.pdf"]
             },
             user_request=lower_text,
             domain="COMMUNICATION",
             is_boss=is_boss
         )
+
         update_context(
             domain="COMMUNICATION",
             pending_action={
                 "tool_name": "send_email",
-                "arguments": {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer — Prem Sahu"}
+                "arguments": {
+                    "to": target_to,
+                    "subject": draft_subj,
+                    "body": draft_body,
+                    "attachments": ["Resume_v3.pdf"]
+                }
             }
         )
-        reply = "I've drafted the email to recruiter@jpmorgan.com ('Application for Software Engineer — Prem Sahu'). Ready to send?"
+        reply = f"I've drafted the email to {target_to} ('{draft_subj}'). Attachment: Resume_v3.pdf. Ready to send?"
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
@@ -359,7 +462,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
     if re.search(r'\b(?:send\s+(?:an\s+)?email|email\s+the\s+recruiter)\b', lower_text) and not ctx.active_pending_action:
         res = execute_tool(
             "send_email",
-            {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer"},
+            {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer — Prem Sahu"},
             user_request=lower_text,
             domain="COMMUNICATION",
             is_boss=is_boss,
@@ -367,7 +470,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         )
         update_context(
             domain="COMMUNICATION",
-            pending_action={"tool_name": "send_email", "arguments": {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer"}}
+            pending_action={"tool_name": "send_email", "arguments": {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer — Prem Sahu"}}
         )
         reply = res.approval_prompt or "Boss, I've drafted the email to recruiter@jpmorgan.com. Shall I send it?"
         log_conversation(role="assistant", message=reply)

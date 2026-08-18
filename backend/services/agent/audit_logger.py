@@ -56,7 +56,7 @@ def sanitize_payload(payload: Any) -> Any:
     if isinstance(payload, dict):
         sanitized = {}
         for k, v in payload.items():
-            if any(sec in k.lower() for sec in ["password", "token", "api_key", "secret", "bearer", "private_key", "auth"]):
+            if any(sec in k.lower() for sec in ["password", "pass", "token", "api_key", "secret", "bearer", "private_key", "auth", "credential"]):
                 sanitized[k] = "[REDACTED_SECRET]"
             else:
                 sanitized[k] = sanitize_payload(v)
@@ -84,6 +84,12 @@ def record_idempotency(idempotency_key: str):
     """Mark an action as executed to prevent duplicates."""
     with _audit_lock:
         _idempotency_store[idempotency_key] = time.time()
+
+
+def clear_idempotency_store():
+    """Clear in-memory idempotency cache (useful for tests)."""
+    with _audit_lock:
+        _idempotency_store.clear()
 
 
 def log_audit_record(
