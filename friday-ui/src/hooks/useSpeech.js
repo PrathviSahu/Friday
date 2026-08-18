@@ -426,6 +426,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
       else start();
     };
 
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     // ══════════════════ ENGINE 1: BROWSER WEB SPEECH API ══════════════════
     const start = () => {
       if (cancelled || !enabledRef.current || micBlockedRef.current) return;
@@ -439,10 +441,14 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         return;
       }
 
+      // Ensure no background media streams hold the microphone before SpeechRec starts
+      teardownWhisper();
       teardownBrowserRec();
 
       rec = new SpeechRec();
-      rec.continuous     = true;
+      // On mobile (Android Chrome), continuous: true locks the system AudioRecord buffer
+      // and causes "cannot record now as chrome is recording" collisions.
+      rec.continuous     = !isMobile;
       rec.interimResults = true; // interim for responsiveness; finals drive commands
       rec.lang           = 'en-IN';
 
@@ -465,7 +471,7 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             switchToWhisper('no-speech');
             return;
           }
-          const delay = Math.min(500 * Math.pow(2, noSpeechStreak - 1), 5000);
+          const delay = isMobile ? Math.max(800, 400 * noSpeechStreak) : Math.min(500 * Math.pow(2, noSpeechStreak - 1), 5000);
           scheduleRestart(delay);
         } else if (e.error === 'network') {
           networkErrors += 1;
@@ -474,12 +480,18 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             switchToWhisper('network');
             return;
           }
-          scheduleRestart(1000);
-        } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+          scheduleRestart(1200);
+        } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
           console.warn('[Voice] Microphone permission denied — voice disabled. Allow mic access to use voice.');
           micBlockedRef.current = true;
+        } else if (e.error === 'audio-capture') {
+          // Hardware mic busy/in-use — clean teardown and back off
+          console.warn('[Voice] Audio capture busy — backing off to let audio subsystem release...');
+          teardownBrowserRec();
+          teardownWhisper();
+          scheduleRestart(1500);
         } else {
-          scheduleRestart(1200);
+          scheduleRestart(isMobile ? 1200 : 800);
         }
       };
 
@@ -487,7 +499,8 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         activeRef.current = false;
         if (cancelled || !enabledRef.current || micBlockedRef.current) return;
         if (modeRef.current !== 'browser') return; // engine switched underneath us
-        const delay = noSpeechStreak > 0 ? Math.min(500 * noSpeechStreak, 3000) : 300;
+        // On mobile Android, allow 700ms for system microphone driver to release
+        const delay = isMobile ? Math.max(700, 300 * noSpeechStreak) : (noSpeechStreak > 0 ? Math.min(500 * noSpeechStreak, 3000) : 300);
         scheduleRestart(delay);
       };
 
@@ -549,13 +562,14 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         return;
       }
 
+      teardownWhisper();
       teardownBrowserRec();
 
       let finals = '';
       let interim = '';
       let latestCaptured = '';
       const sessionRec = new SpeechRec();
-      sessionRec.continuous     = true; // continuous capture while space is held
+      sessionRec.continuous     = !isMobile; // On mobile, single-shot avoids locking Android audio
       sessionRec.interimResults = true;
       sessionRec.lang           = 'en-IN';
 
