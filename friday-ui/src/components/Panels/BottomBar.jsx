@@ -93,14 +93,19 @@ export default function BottomBar() {
 
             <Waveform />
 
-            <div className="relative font-orbitron text-[10px] sm:text-[11px] tracking-[0.35em] text-[#00B7FF] uppercase mb-2">
+            <div className="relative z-10 my-1 font-orbitron text-[10px] sm:text-[11px] font-medium tracking-[0.3em] text-[#00D9FF] uppercase drop-shadow-[0_0_8px_rgba(0,183,255,0.4)]">
                 {prompt}
             </div>
 
             {responseMessage ? (
-                <div className="font-grotesk text-[11px] text-[#DFFAFF] tracking-[0.1em] mb-2.5 max-w-[620px] mx-auto">
+                <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="relative z-10 px-4 py-2.5 my-2 rounded-lg bg-[#00101d]/85 border border-[#00B7FF]/35 shadow-[0_0_14px_rgba(0,183,255,0.18)] font-grotesk text-[11.5px] sm:text-[12.5px] leading-relaxed text-[#DFFAFF] tracking-[0.03em] max-w-[620px] mx-auto text-center"
+                >
                     {responseMessage}
-                </div>
+                </motion.div>
             ) : null}
 
             <div className="mb-2.5 flex flex-wrap items-center justify-center gap-2">
