@@ -26,7 +26,13 @@ from .approval import (
     validate_calendar_approval,
 )
 from .parser import evaluate_calendar_confirmation, is_explicit_calendar_approval
-from .provider import MockCalendarProvider, RealCalendarProvider, MockCalendarResult
+from .provider import (
+    BaseCalendarProvider,
+    MockCalendarProvider,
+    RealCalendarProvider,
+    GoogleCalendarProvider,
+    MockCalendarResult,
+)
 from .verifier import IndependentCalendarVerifier, IndependentCalendarVerificationError
 from .audit import calendar_audit_logger
 
@@ -37,6 +43,19 @@ _default_mock_calendar_provider = MockCalendarProvider()
 def get_default_mock_calendar_provider() -> MockCalendarProvider:
     """Return the default mock calendar provider instance."""
     return _default_mock_calendar_provider
+
+
+def check_calendar_connection(provider: Optional[Any] = None) -> Dict[str, Any]:
+    """Perform read-only connection check against the active or passed calendar provider."""
+    eff_provider = provider if provider is not None else _default_mock_calendar_provider
+    res = eff_provider.check_connection()
+
+    calendar_audit_logger.log_event(
+        action="CALENDAR_CONNECTION_CHECK",
+        result=f"STATUS_{res.get('status')}",
+    )
+
+    return res
 
 
 def read_calendar_events(
