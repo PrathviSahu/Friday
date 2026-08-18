@@ -9,6 +9,7 @@ export default function BottomBar() {
     const { stateLabel, appState, responseMessage, conversationMode, runAuthSequence, locked, setWorkspace, unlockDemo, setResponseMessage } = useOrbState();
 
     const QUICK_COMMANDS = [
+        { cmd: 'recruiter_tour', label: '🎬 Recruiter Tour' },
         { cmd: 'capabilities', label: '✨ Capabilities' },
         { cmd: 'career', label: '💼 Career OS' },
         { cmd: 'trading', label: '📈 Trading Station' },
@@ -30,6 +31,26 @@ export default function BottomBar() {
     const handleCommandClick = async (cmd) => {
         if (cmd === 'lock') {
             runAuthSequence('lock');
+            return;
+        }
+        if (cmd === 'recruiter_tour') {
+            if (locked) unlockDemo?.();
+            const tourIntro = "Welcome! Starting the F.R.I.D.A.Y. Recruiter Showcase. First, here is the Career Intelligence Center with live ATS match scoring.";
+            setResponseMessage(tourIntro);
+            try { await speak(tourIntro); } catch (_) {}
+            setWorkspace('career');
+            setTimeout(async () => {
+                const step2 = "Next: Quantum Trading Workstation with real-time financial charts and multi-asset technical analysis.";
+                setResponseMessage(step2);
+                try { await speak(step2); } catch (_) {}
+                setWorkspace('trading');
+            }, 6500);
+            setTimeout(async () => {
+                const step3 = "And here is the 17-in-1 Workspace Dashboard featuring live streaming Spotify music, Task Matrix, and System health.";
+                setResponseMessage(step3);
+                try { await speak(step3); } catch (_) {}
+                window.dispatchEvent(new CustomEvent('friday-open-dashboard'));
+            }, 13000);
             return;
         }
         if (cmd === 'capabilities') {
