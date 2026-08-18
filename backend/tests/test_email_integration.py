@@ -43,6 +43,76 @@ class TestEmailIntegrationSuite:
         prov.set_connection_status(EmailConnectionStatus.NOT_CONFIGURED)
         assert prov.check_connection() == EmailConnectionStatus.NOT_CONFIGURED
 
+        prov.set_connection_status(EmailConnectionStatus.PARTIALLY_CONNECTED)
+        assert prov.check_connection() == EmailConnectionStatus.PARTIALLY_CONNECTED
+
+    def test_smtp_imap_provider_not_configured_when_env_empty(self, monkeypatch):
+        """SmtpImapEmailProvider truthfully returns NOT_CONFIGURED when env is empty."""
+        from services.agent.integrations.email.smtp_provider import SmtpImapEmailProvider
+        monkeypatch.delenv("FRIDAY_EMAIL_HOST", raising=False)
+        monkeypatch.delenv("FRIDAY_EMAIL_USER", raising=False)
+        monkeypatch.delenv("FRIDAY_EMAIL_PASS", raising=False)
+
+        prov = SmtpImapEmailProvider()
+        test_res = prov.test_connection()
+        assert test_res.status == EmailConnectionStatus.NOT_CONFIGURED
+        assert test_res.imap_connected is False
+        assert test_res.smtp_connected is False
+        assert "missing" in test_res.imap_detail.lower()
+
+    def test_smtp_imap_provider_connection_matrix(self, monkeypatch):
+        """Tests deterministic mock connection combinations (both ok, imap fails, smtp auth fails)."""
+        from services.agent.integrations.email.smtp_provider import SmtpImapEmailProvider
+        from services import email_agent
+        monkeypatch.setenv("FRIDAY_EMAIL_HOST", "imap.test.com")
+        monkeypatch.setenv("FRIDAY_EMAIL_USER", "test@test.com")
+        monkeypatch.setenv("FRIDAY_EMAIL_PASS", "testpass")
+
+        # Case A: Both succeed -> CONNECTED
+        monkeypatch.setattr(email_agent, "test_imap_connection", lambda timeout=10: (True, "IMAP OK"))
+        monkeypatch.setattr(email_agent, "test_smtp_connection", lambda timeout=10: (True, "SMTP OK"))
+        prov = SmtpImapEmailProvider()
+        res_both = prov.test_connection()
+        assert res_both.status == EmailConnectionStatus.CONNECTED
+        assert res_both.imap_connected is True
+        assert res_both.smtp_connected is True
+
+        # Case B: IMAP ok, SMTP fails -> PARTIALLY_CONNECTED
+        monkeypatch.setattr(email_agent, "test_imap_connection", lambda timeout=10: (True, "IMAP OK"))
+        monkeypatch.setattr(email_agent, "test_smtp_connection", lambda timeout=10: (False, "SMTP Timeout"))
+        res_partial = prov.test_connection()
+        assert res_partial.status == EmailConnectionStatus.PARTIALLY_CONNECTED
+        assert res_partial.imap_connected is True
+        assert res_partial.smtp_connected is False
+
+        # Case C: Auth failure -> AUTHENTICATION_FAILED
+        monkeypatch.setattr(email_agent, "test_imap_connection", lambda timeout=10: (False, "IMAP Authentication failed: Invalid credentials"))
+        monkeypatch.setattr(email_agent, "test_smtp_connection", lambda timeout=10: (False, "SMTP Authentication failed: 535 Auth failed"))
+        res_auth = prov.test_connection()
+        assert res_auth.status == EmailConnectionStatus.AUTHENTICATION_FAILED
+
+        # Case D: Network failure / Timeout -> TEMPORARILY_UNAVAILABLE
+        monkeypatch.setattr(email_agent, "test_imap_connection", lambda timeout=10: (False, "IMAP connection failed: [Errno 60] Operation timed out"))
+        monkeypatch.setattr(email_agent, "test_smtp_connection", lambda timeout=10: (False, "SMTP connection failed: [Errno 61] Connection refused"))
+        res_timeout = prov.test_connection()
+        assert res_timeout.status == EmailConnectionStatus.TEMPORARILY_UNAVAILABLE
+
+    def test_connection_test_redacts_credentials(self, monkeypatch):
+        """Connection test detail messages never expose password strings."""
+        from services.agent.integrations.email.smtp_provider import SmtpImapEmailProvider
+        from services import email_agent
+        monkeypatch.setenv("FRIDAY_EMAIL_HOST", "imap.test.com")
+        monkeypatch.setenv("FRIDAY_EMAIL_USER", "test@test.com")
+        monkeypatch.setenv("FRIDAY_EMAIL_PASS", "SuperSecretPassword999")
+
+        monkeypatch.setattr(email_agent, "test_imap_connection", lambda timeout=10: (False, "IMAP Authentication failed"))
+        monkeypatch.setattr(email_agent, "test_smtp_connection", lambda timeout=10: (False, "SMTP Authentication failed"))
+
+        prov = SmtpImapEmailProvider()
+        res = prov.test_connection()
+        assert "SuperSecretPassword999" not in res.imap_detail
+        assert "SuperSecretPassword999" not in res.smtp_detail
+
     # ── 2. READ & SEARCH TESTS ──
 
     def test_read_unread_emails(self):

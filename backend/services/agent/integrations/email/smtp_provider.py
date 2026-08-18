@@ -9,6 +9,7 @@ from typing import List, Optional
 from services.agent.integrations.email.provider import (
     EmailProvider,
     EmailConnectionStatus,
+    ConnectionTestResult,
     EmailMessage,
     EmailDraft,
     SendResult,
@@ -21,14 +22,41 @@ class SmtpImapEmailProvider(EmailProvider):
     """Live IMAP / SMTP Email Provider."""
 
     def check_connection(self) -> EmailConnectionStatus:
+        res = self.test_connection()
+        return res.status
+
+    def test_connection(self) -> ConnectionTestResult:
+        """Runs independent IMAP and SMTP connection tests."""
         if not email_agent.is_configured():
-            return EmailConnectionStatus.NOT_CONFIGURED
-        try:
-            conn = email_agent._connect_imap()
-            conn.logout()
-            return EmailConnectionStatus.CONNECTED
-        except Exception:
-            return EmailConnectionStatus.AUTHENTICATION_FAILED
+            return ConnectionTestResult(
+                status=EmailConnectionStatus.NOT_CONFIGURED,
+                imap_connected=False,
+                smtp_connected=False,
+                imap_detail="Missing host, username, or password in environment.",
+                smtp_detail="Missing host, username, or password in environment.",
+                tested_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            )
+
+        imap_ok, imap_detail = email_agent.test_imap_connection(timeout=10)
+        smtp_ok, smtp_detail = email_agent.test_smtp_connection(timeout=10)
+
+        if imap_ok and smtp_ok:
+            status = EmailConnectionStatus.CONNECTED
+        elif imap_ok or smtp_ok:
+            status = EmailConnectionStatus.PARTIALLY_CONNECTED
+        elif "authentication failed" in imap_detail.lower() or "authentication failed" in smtp_detail.lower():
+            status = EmailConnectionStatus.AUTHENTICATION_FAILED
+        else:
+            status = EmailConnectionStatus.TEMPORARILY_UNAVAILABLE
+
+        return ConnectionTestResult(
+            status=status,
+            imap_connected=imap_ok,
+            smtp_connected=smtp_ok,
+            imap_detail=imap_detail,
+            smtp_detail=smtp_detail,
+            tested_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        )
 
     def get_messages(self, limit: int = 10, unread_only: bool = True) -> List[EmailMessage]:
         try:

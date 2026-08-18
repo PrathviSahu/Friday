@@ -15,7 +15,17 @@ class EmailConnectionStatus(str, Enum):
     CREDENTIALS_STORED = "CREDENTIALS_STORED"
     AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED"
     CONNECTED = "CONNECTED"
+    PARTIALLY_CONNECTED = "PARTIALLY_CONNECTED"
     TEMPORARILY_UNAVAILABLE = "TEMPORARILY_UNAVAILABLE"
+
+
+class ConnectionTestResult(BaseModel):
+    status: EmailConnectionStatus
+    imap_connected: bool
+    smtp_connected: bool
+    imap_detail: str
+    smtp_detail: str
+    tested_at: str
 
 
 class EmailMessage(BaseModel):
@@ -67,6 +77,11 @@ class EmailProvider(ABC):
     @abstractmethod
     def check_connection(self) -> EmailConnectionStatus:
         """Returns truthful connection status."""
+        pass
+
+    @abstractmethod
+    def test_connection(self) -> ConnectionTestResult:
+        """Runs independent IMAP and SMTP connection tests."""
         pass
 
     @abstractmethod

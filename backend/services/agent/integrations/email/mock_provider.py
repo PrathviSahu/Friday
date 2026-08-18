@@ -11,6 +11,7 @@ from typing import List, Optional, Dict, Any
 from services.agent.integrations.email.provider import (
     EmailProvider,
     EmailConnectionStatus,
+    ConnectionTestResult,
     EmailMessage,
     EmailDraft,
     SendResult,
@@ -69,6 +70,17 @@ class MockEmailProvider(EmailProvider):
 
     def check_connection(self) -> EmailConnectionStatus:
         return self.status
+
+    def test_connection(self) -> ConnectionTestResult:
+        is_conn = (self.status == EmailConnectionStatus.CONNECTED)
+        return ConnectionTestResult(
+            status=self.status,
+            imap_connected=is_conn,
+            smtp_connected=is_conn,
+            imap_detail="Mock IMAP service active." if is_conn else f"Mock status: {self.status.value}",
+            smtp_detail="Mock SMTP service active." if is_conn else f"Mock status: {self.status.value}",
+            tested_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        )
 
     def set_connection_status(self, new_status: EmailConnectionStatus):
         self.status = new_status

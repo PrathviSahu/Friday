@@ -6,6 +6,7 @@ from typing import Optional
 from services.agent.integrations.email.provider import (
     EmailProvider,
     EmailConnectionStatus,
+    ConnectionTestResult,
     EmailMessage,
     EmailDraft,
     SendResult,
@@ -40,6 +41,7 @@ def set_email_provider(provider: Optional[EmailProvider]):
 __all__ = [
     "EmailProvider",
     "EmailConnectionStatus",
+    "ConnectionTestResult",
     "EmailMessage",
     "EmailDraft",
     "SendResult",

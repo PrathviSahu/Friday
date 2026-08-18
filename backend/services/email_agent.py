@@ -92,14 +92,55 @@ def _ensure_configured() -> None:
         )
 
 
-# ── IMAP primitives ──────────────────────────────────────────────────────
-
-def _connect_imap():
-    """Open an IMAP4_SSL connection. (Separate function so tests can fake it.)"""
+def _connect_imap(timeout: int = 10):
+    """Open an IMAP4_SSL connection with explicit timeout."""
     _ensure_configured()
-    conn = imaplib.IMAP4_SSL(_imap_host(), _imap_port())
+    conn = imaplib.IMAP4_SSL(_imap_host(), _imap_port(), timeout=timeout)
     conn.login(_user(), _password())
     return conn
+
+
+def test_imap_connection(timeout: int = 10) -> tuple[bool, str]:
+    """Test IMAP connection and authentication with an explicit timeout without fetching messages."""
+    if not is_configured():
+        return False, "Email credentials not configured."
+    try:
+        conn = imaplib.IMAP4_SSL(_imap_host(), _imap_port(), timeout=timeout)
+        try:
+            conn.login(_user(), _password())
+            return True, "IMAP connection and authentication succeeded."
+        except imaplib.IMAP4.error as auth_err:
+            return False, f"IMAP authentication failed: {auth_err}"
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+    except Exception as net_err:
+        return False, f"IMAP connection failed: {net_err}"
+
+
+def test_smtp_connection(timeout: int = 10) -> tuple[bool, str]:
+    """Test SMTP connection, STARTTLS, and authentication with an explicit timeout without sending."""
+    if not is_configured():
+        return False, "Email credentials not configured."
+    try:
+        server = smtplib.SMTP(_smtp_host(), _smtp_port(), timeout=timeout)
+        try:
+            server.starttls(context=ssl.create_default_context())
+            server.login(_user(), _password())
+            return True, "SMTP connection, STARTTLS, and authentication succeeded."
+        except smtplib.SMTPAuthenticationError as auth_err:
+            return False, f"SMTP authentication failed: {auth_err}"
+        except Exception as smtp_err:
+            return False, f"SMTP error: {smtp_err}"
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                pass
+    except Exception as net_err:
+        return False, f"SMTP connection failed: {net_err}"
 
 
 def _decode_header_value(value) -> str:
