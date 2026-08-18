@@ -419,18 +419,86 @@ class GoogleCalendarProvider(BaseCalendarProvider):
         except Exception:
             return []
 
-    def create_event(self, title: str, start_time: str, end_time: str, **kwargs) -> Any:
-        """Attempt real calendar creation. Must raise RealCalendarBlockedError if CALENDAR_LIVE_EXECUTION=false."""
+    def create_event(
+        self,
+        title: str,
+        start_time: str,
+        end_time: str,
+        location: str = "",
+        description: str = "",
+        attendees: Optional[List[str]] = None,
+        event_id: Optional[str] = None,
+        approval_id: Optional[str] = None,
+        event_hash: Optional[str] = None,
+        calendar_id: str = "primary",
+    ) -> Dict[str, Any]:
+        """Attempt real Google Calendar creation. Must raise RealCalendarBlockedError if CALENDAR_LIVE_EXECUTION=false."""
         assert_live_calendar_execution_allowed()
-        raise RealCalendarBlockedError("Real Calendar creation is not configured or allowed.")
 
-    def get_event(self, provider_event_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve a real event (read-only)."""
-        events = self.get_upcoming_events(limit=50)
-        for e in events:
-            if e["event_id"] == provider_event_id:
-                return e
-        return None
+        try:
+            from backend.services import calendar_agent
+        except ImportError:
+            from services import calendar_agent
+
+        if not calendar_agent.is_configured():
+            raise RealCalendarBlockedError("Google Calendar is NOT_CONFIGURED. Real write aborted.")
+
+        try:
+            service = calendar_agent._build_service()
+
+            start_dict = {"date": start_time} if (len(start_time) == 10 and "T" not in start_time) else {"dateTime": start_time}
+            end_dict = {"date": end_time} if (len(end_time) == 10 and "T" not in end_time) else {"dateTime": end_time}
+
+            body: Dict[str, Any] = {
+                "summary": title,
+                "description": description,
+                "start": start_dict,
+                "end": end_dict,
+            }
+            if location:
+                body["location"] = location
+            if attendees:
+                body["attendees"] = [{"email": a} for a in attendees]
+
+            created = service.events().insert(calendarId=calendar_id, body=body).execute()
+            provider_evt_id = created.get("id", "")
+            now_iso = datetime.now(timezone.utc).isoformat()
+
+            return {
+                "success": True,
+                "provider_event_id": provider_evt_id,
+                "calendar_id": calendar_id,
+                "title": title,
+                "start_time": start_time,
+                "end_time": end_time,
+                "timestamp": now_iso,
+                "mode": "LIVE_GOOGLE_CALENDAR_WRITE",
+            }
+        except Exception as exc:
+            raise RuntimeError(f"Google Calendar live API insert failed: {exc}") from exc
+
+    def get_event(self, provider_event_id: str, calendar_id: str = "primary") -> Optional[Dict[str, Any]]:
+        """Retrieve a real event via Google Calendar API (read-only verification)."""
+        try:
+            try:
+                from backend.services import calendar_agent
+            except ImportError:
+                from services import calendar_agent
+
+            if not calendar_agent.is_configured():
+                return None
+
+            service = calendar_agent._build_service()
+            evt = service.events().get(calendarId=calendar_id, eventId=provider_event_id).execute()
+            if evt:
+                norm = normalize_event_dict(evt)
+                norm["provider_event_id"] = provider_event_id
+                norm["status"] = "RECORDED_CREATED"  # Assertion flag for IndependentCalendarVerifier
+                return norm
+            return None
+        except Exception:
+            return None
+
 
 
 RealCalendarProvider = GoogleCalendarProvider

@@ -375,6 +375,8 @@ def create_calendar_event_with_approval(
             "real_event_created": False,
         }
 
+    provider_evt_id = creation_result.provider_event_id if hasattr(creation_result, "provider_event_id") else creation_result.get("provider_event_id", "")
+
     # 5. Consume Approval Token & Update Draft Status
     consume_calendar_approval_token(approval_id)
     draft.status = "CREATED"
@@ -383,7 +385,7 @@ def create_calendar_event_with_approval(
     try:
         verification_data = IndependentCalendarVerifier.verify_event(
             provider=effective_provider,
-            provider_event_id=creation_result.provider_event_id,
+            provider_event_id=provider_evt_id,
             expected_title=draft.title,
             expected_start_time=draft.start_time,
             expected_end_time=draft.end_time,
@@ -397,14 +399,14 @@ def create_calendar_event_with_approval(
             approval_id=approval_id,
             event_hash=draft.event_hash,
             title=draft.title,
-            provider_event_id=creation_result.provider_event_id,
+            provider_event_id=provider_evt_id,
             result=f"VERIFICATION_FAILED: {str(ver_err)}",
         )
         return {
             "success": False,
             "status": "VERIFICATION_FAILURE",
             "message": str(ver_err),
-            "provider_event_id": creation_result.provider_event_id,
+            "provider_event_id": provider_evt_id,
             "real_event_created": False,
         }
 
@@ -415,7 +417,7 @@ def create_calendar_event_with_approval(
         approval_id=approval_id,
         event_hash=draft.event_hash,
         title=draft.title,
-        provider_event_id=creation_result.provider_event_id,
+        provider_event_id=provider_evt_id,
         result="SUCCESS",
         verification_result=verification_data,
     )
@@ -424,9 +426,11 @@ def create_calendar_event_with_approval(
         "success": True,
         "status": "SUCCESS",
         "message": "Calendar event created and verified.",
-        "provider_event_id": creation_result.provider_event_id,
-        "mode": "DRY-RUN / MOCK CALENDAR PROVIDER",
+        "provider_event_id": provider_evt_id,
+        "mode": "LIVE_GOOGLE_CALENDAR_WRITE" if attempt_real_calendar else "DRY-RUN / MOCK CALENDAR PROVIDER",
         "verified": True,
         "verification_details": verification_data,
-        "real_event_created": False,
+        "real_event_created": True if attempt_real_calendar else False,
     }
+
+
