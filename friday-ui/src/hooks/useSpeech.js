@@ -386,18 +386,21 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             window.dispatchEvent(new CustomEvent('friday-open-spotify'));
             if (/\b(?:play|resume)\b/i.test(lowerCmd)) {
               const songQuery = lowerCmd.replace(/^(?:friday\s+)?(?:please\s+)?(?:play|resume)\s+(?:my\s+)?/i, '').replace(/\s+(?:on\s+spotify|playlist)$/i, '').trim();
-              if (songQuery && !/^(?:music|song|track|spotify|the\s+song|something)$/i.test(songQuery)) {
-                const spotifyUri = `spotify:search:${encodeURIComponent(songQuery)}`;
-                window.dispatchEvent(new CustomEvent('friday-external-action', {
-                  detail: {
-                    title: `Spotify: ${songQuery}`,
-                    subtitle: `Ready to play on Spotify · "${songQuery}"`,
-                    url: spotifyUri,
-                    label: 'PLAY IN SPOTIFY',
-                    type: 'spotify'
-                  }
-                }));
-              }
+              const effectiveQuery = songQuery && !/^(?:music|song|track|spotify|the\s+song|something)$/i.test(songQuery) ? songQuery : 'Kesariya';
+              
+              // Trigger real audio playback in Friday's Liquid Player
+              window.dispatchEvent(new CustomEvent('friday-play-track', { detail: { query: effectiveQuery } }));
+
+              const spotifyUri = `spotify:search:${encodeURIComponent(effectiveQuery)}`;
+              window.dispatchEvent(new CustomEvent('friday-external-action', {
+                detail: {
+                  title: `Spotify: ${effectiveQuery}`,
+                  subtitle: `Playing '${effectiveQuery}' · Tap to open in app`,
+                  url: spotifyUri,
+                  label: 'OPEN FULL SONG IN SPOTIFY',
+                  type: 'spotify'
+                }
+              }));
             }
           }
         } else if (action === 'open_url' && data.target) {

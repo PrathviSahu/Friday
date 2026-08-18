@@ -125,11 +125,69 @@ export default function SpotifyCard() {
         return () => clearTimeout(timer);
     }, [songQuery]);
 
+    const audioPlayerRef = useRef(null);
+
+    const startWebAudioPlayback = async (query) => {
+        if (!query) return false;
+        try {
+            const cleanQuery = query.replace(/^(?:play|resume|song|track)\s+/i, '').trim();
+            const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanQuery)}&entity=song&limit=1`);
+            if (res.ok) {
+                const data = await res.json();
+                const track = data.results?.[0];
+                if (track && track.previewUrl) {
+                    if (audioPlayerRef.current) {
+                        try { audioPlayerRef.current.pause(); } catch (_) {}
+                        audioPlayerRef.current = null;
+                    }
+                    const audio = new Audio(track.previewUrl);
+                    audioPlayerRef.current = audio;
+                    audio.volume = volume / 100;
+                    audio.ontimeupdate = () => setProgress(Math.floor(audio.currentTime));
+                    audio.onended = () => setSpotifyTrack(prev => ({ ...prev, playing: false }));
+                    audio.onplay = () => setSpotifyTrack(prev => ({ ...prev, playing: true }));
+                    audio.onpause = () => setSpotifyTrack(prev => ({ ...prev, playing: false }));
+
+                    setSpotifyTrack({
+                        title: track.trackName,
+                        artist: track.artistName,
+                        album: track.collectionName || '',
+                        artwork_url: (track.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+                        playing: true,
+                        position: 0,
+                        duration: Math.round(track.trackTimeMillis ? track.trackTimeMillis / 1000 : 30),
+                        volume
+                    });
+                    await audio.play();
+                    setIsVisible(true);
+                    return true;
+                }
+            }
+        } catch (err) {
+            console.warn('[Spotify Web Player] Web audio playback:', err);
+        }
+        return false;
+    };
+
     useEffect(() => {
         const handleOpen = () => setIsVisible(true);
+        const handlePlayTrack = (e) => {
+            const q = e.detail?.query;
+            if (q) {
+                startWebAudioPlayback(q);
+            }
+            setIsVisible(true);
+        };
         window.addEventListener('friday-open-spotify', handleOpen);
-        return () => window.removeEventListener('friday-open-spotify', handleOpen);
-    }, []);
+        window.addEventListener('friday-play-track', handlePlayTrack);
+        return () => {
+            window.removeEventListener('friday-open-spotify', handleOpen);
+            window.removeEventListener('friday-play-track', handlePlayTrack);
+            if (audioPlayerRef.current) {
+                try { audioPlayerRef.current.pause(); } catch (_) {}
+            }
+        };
+    }, [volume]);
 
     const playSuggestion = async (title, artist) => {
         const query = `${title} ${artist}`.trim();
@@ -137,22 +195,8 @@ export default function SpotifyCard() {
         setSuggestions([]);
         setSongQuery('');
 
-        if (query) {
-            try { window.location.href = `spotify:search:${encodeURIComponent(query)}`; } catch (_) {}
-        }
-
-        try {
-            await fetchChatText(`play ${query}`, true);
-            setTimeout(async () => {
-                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setSpotifyTrack(data);
-                    if (typeof data.position === 'number') setProgress(data.position);
-                }
-            }, 1000);
-        } catch (_) {}
-        setTimeout(() => setSearching(false), 1500);
+        await startWebAudioPlayback(query);
+        setTimeout(() => setSearching(false), 1000);
     };
 
     const totalSecs = spotifyTrack.duration || 180;
@@ -161,16 +205,21 @@ export default function SpotifyCard() {
     const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
     const handleMediaAction = async (cmd) => {
+        if (cmd === 'pause_music' || cmd === 'pause' || cmd === 'stop') {
+            if (audioPlayerRef.current) {
+                audioPlayerRef.current.pause();
+                setSpotifyTrack(prev => ({ ...prev, playing: false }));
+            }
+        } else if (cmd === 'play_music' || cmd === 'unpause' || cmd === 'resume') {
+            if (audioPlayerRef.current) {
+                audioPlayerRef.current.play();
+                setSpotifyTrack(prev => ({ ...prev, playing: true }));
+            } else if (spotifyTrack.title) {
+                startWebAudioPlayback(`${spotifyTrack.title} ${spotifyTrack.artist}`);
+            }
+        }
         try {
             await fetchChatText(cmd, true);
-            setTimeout(async () => {
-                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setSpotifyTrack(data);
-                    if (typeof data.position === 'number') setProgress(data.position);
-                }
-            }, 500);
         } catch (_) {}
     };
 
@@ -187,19 +236,11 @@ export default function SpotifyCard() {
         if (!name) return;
         setCreatingPlaylist(true);
         try {
-            await fetchChatText(`play ${name} playlist`, true);
+            await startWebAudioPlayback(name);
             setPlaylistCreatedMsg(`✨ Playing '${name}'`);
             setTimeout(() => setPlaylistCreatedMsg(''), 4000);
             setShowCreatePlaylist(false);
             setNewPlaylistName('');
-            setTimeout(async () => {
-                const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setSpotifyTrack(data);
-                    if (typeof data.position === 'number') setProgress(data.position);
-                }
-            }, 1000);
         } catch (_) {}
         setCreatingPlaylist(false);
     };
@@ -247,6 +288,9 @@ export default function SpotifyCard() {
         const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         const newSecs = Math.round(pct * totalSecs);
         setProgress(newSecs);
+        if (audioPlayerRef.current) {
+            try { audioPlayerRef.current.currentTime = newSecs; } catch (_) {}
+        }
         try {
             await fetch(`${API_ENDPOINTS.spotify}/seek`, {
                 method: 'POST',
@@ -655,7 +699,14 @@ export default function SpotifyCard() {
                             <div style={{ width: `${muted ? 0 : volume}%`, height: '100%', background: '#b3b3b3', borderRadius: 2 }} />
                             <input
                                 type="range" min="0" max="100" value={muted ? 0 : volume}
-                                onChange={e => { setVolume(Number(e.target.value)); setMuted(false); handleMediaAction(`set volume to ${e.target.value}`); }}
+                                onChange={e => {
+                                    const val = Number(e.target.value);
+                                    setVolume(val);
+                                    setMuted(false);
+                                    if (audioPlayerRef.current) {
+                                        try { audioPlayerRef.current.volume = val / 100; } catch (_) {}
+                                    }
+                                }}
                                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', margin: 0 }}
                             />
                         </div>
