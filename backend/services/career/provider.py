@@ -111,8 +111,13 @@ def compute_job_signature(company: str, title: str, location: str, remote_type: 
     norm_loc = (location or "").strip().lower()
     norm_remote = (remote_type or "").strip().lower()
 
+    if norm_remote == "remote" or "remote" in norm_loc or "anywhere" in norm_loc or "worldwide" in norm_loc:
+        norm_loc = "remote"
+        norm_remote = "remote"
+
     raw_sig = f"{norm_comp}|{norm_title}|{norm_loc}|{norm_remote}"
     return hashlib.sha256(raw_sig.encode("utf-8")).hexdigest()
+
 
 
 # ==============================================================================

@@ -18,6 +18,7 @@ from backend.services.career.provider import (
     normalize_experience_level,
     compute_job_signature,
 )
+from backend.services.career.remoteok_provider import RemoteOKJobProvider
 from backend.services.career.pipeline import (
     run_job_pipeline,
     get_existing_signatures_from_db,
@@ -34,6 +35,7 @@ __all__ = [
     "MockJobProvider",
     "LinkedInJobProvider",
     "ExistingJobScraperAdapter",
+    "RemoteOKJobProvider",
     "parse_salary_raw",
     "normalize_remote_status",
     "normalize_experience_level",
@@ -42,4 +44,5 @@ __all__ = [
     "get_existing_signatures_from_db",
     "get_blacklisted_companies_map",
 ]
+
 

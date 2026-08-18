@@ -1,11 +1,11 @@
-"""backend/services/career/pipeline.py — Canonical Career Ingestion, Deduplication, Filtering, and Ranking Pipeline.
+"""backend/services/career/pipeline.py — Canonical Multi-Source Career Ingestion, Deduplication, Filtering, and Ranking Pipeline.
 
 Orchestrates:
-ingest ──► normalize ──► deduplicate ──► filter_preferences ──► filter_blacklist ──► rank ──► persist
+Multi-Provider Ingestion ──► Normalize ──► Deduplicate (with Provenance) ──► Preference Filter ──► Blacklist Filter ──► Rank ──► Persist
 """
 
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from backend.services.career.config import DEDUP_ENABLED, MIN_MATCH_SCORE
 from backend.services.career.provider import BaseJobProvider, MockJobProvider
 
@@ -71,32 +71,50 @@ def get_blacklisted_companies_map() -> Dict[str, str]:
 def run_job_pipeline(
     query: str,
     provider: Optional[BaseJobProvider] = None,
+    providers: Optional[List[BaseJobProvider]] = None,
     filters: Optional[Dict[str, Any]] = None,
     persist_to_db: bool = True,
     run_llm_ranking: bool = True,
 ) -> Dict[str, Any]:
-    """Execute complete canonical job pipeline:
+    """Execute complete canonical multi-source job pipeline:
 
-    Ingest ──► Normalize ──► Deduplicate ──► Preference Filter ──► Blacklist Filter ──► Rank ──► Persist
+    Ingest from Providers ──► Normalize ──► Deduplicate ──► Preference Filter ──► Blacklist Filter ──► Rank ──► Persist
     """
-    effective_provider = provider if provider is not None else MockJobProvider()
+    if providers is not None:
+        effective_providers = providers
+    elif provider is not None:
+        effective_providers = [provider]
+    else:
+        effective_providers = [MockJobProvider()]
+
     filters = filters or {}
 
     accepted_jobs: List[Dict[str, Any]] = []
     filtered_jobs: List[Dict[str, Any]] = []
     duplicate_jobs: List[Dict[str, Any]] = []
     errors: List[str] = []
+    providers_status: Dict[str, str] = {}
 
-    # Step 1: Ingest raw jobs from provider
-    try:
-        raw_jobs = effective_provider.search_jobs(query=query, filters=filters)
-    except Exception as exc:
-        errors.append(f"Provider '{effective_provider.provider_name()}' search error: {str(exc)}")
-        raw_jobs = []
+    all_raw_jobs: List[Dict[str, Any]] = []
+
+    # Step 1: Ingest raw jobs with Provider Failure Isolation
+    for prov in effective_providers:
+        p_name = prov.provider_name()
+        try:
+            p_jobs = prov.search_jobs(query=query, filters=filters)
+            providers_status[p_name] = "SUCCESS"
+            all_raw_jobs.extend(p_jobs)
+        except Exception as exc:
+            err_msg = f"Provider '{p_name}' search failed: {str(exc)}"
+            errors.append(err_msg)
+            providers_status[p_name] = f"FAILED: {str(exc)}"
 
     # Load existing database signatures & blacklist map
     seen_signatures = get_existing_signatures_from_db() if DEDUP_ENABLED else set()
     blacklisted_map = get_blacklisted_companies_map()
+
+    # Map of accepted jobs by signature for cross-provider provenance merging
+    accepted_by_signature: Dict[str, Dict[str, Any]] = {}
 
     # Load user career preferences
     try:
@@ -115,10 +133,10 @@ def run_job_pipeline(
     remote_pref = (user_prefs.get("remote_preference") or "").strip().lower()
     target_locations = [loc.strip().lower() for loc in (user_prefs.get("preferred_locations") or []) if isinstance(loc, str)]
 
-    for raw in raw_jobs:
+    for raw in all_raw_jobs:
         # Step 2: Normalize into Canonical Schema
         try:
-            norm_job = effective_provider.normalize_job(raw) if hasattr(effective_provider, "normalize_job") else raw
+            norm_job = raw if (isinstance(raw, dict) and "signature" in raw) else MockJobProvider().normalize_job(raw)
         except Exception as norm_err:
             errors.append(f"Normalization failed for raw job: {norm_err}")
             continue
@@ -126,9 +144,15 @@ def run_job_pipeline(
         sig = norm_job["signature"]
         comp_name = norm_job["company"].strip().lower()
 
-        # Step 3: Deduplication Filter
+        # Step 3: Deduplication & Cross-Provider Provenance Tracking
         if DEDUP_ENABLED and sig in seen_signatures:
             norm_job["filter_reason"] = "DUPLICATE_JOB_SIGNATURE"
+            # If matching an already accepted job in current pipeline run, merge source providers
+            if sig in accepted_by_signature:
+                existing_accepted = accepted_by_signature[sig]
+                sources = existing_accepted.setdefault("source_providers", [existing_accepted["provider"]])
+                if norm_job["provider"] not in sources:
+                    sources.append(norm_job["provider"])
             duplicate_jobs.append(norm_job)
             continue
 
@@ -223,24 +247,26 @@ def run_job_pipeline(
             except Exception as db_err:
                 errors.append(f"DB Persistence failed for '{norm_job['title']}': {db_err}")
 
-
-        # Add to seen signatures for in-flight deduplication
+        # Add to seen signatures and provenance map
         seen_signatures.add(sig)
+        norm_job["source_providers"] = [norm_job["provider"]]
+        accepted_by_signature[sig] = norm_job
         accepted_jobs.append(norm_job)
 
     # Sort accepted jobs by match_score descending
     accepted_jobs.sort(key=lambda x: x.get("match_score", 0.0), reverse=True)
 
     return {
-        "success": len(errors) == 0,
-        "provider": effective_provider.provider_name(),
+        "success": len(errors) == 0 or len(accepted_jobs) > 0,
+        "providers": [p.provider_name() for p in effective_providers],
+        "providers_status": providers_status,
         "query": query,
         "accepted_jobs": accepted_jobs,
         "filtered_jobs": filtered_jobs,
         "duplicate_jobs": duplicate_jobs,
         "errors": errors,
         "stats": {
-            "total_ingested": len(raw_jobs),
+            "total_ingested": len(all_raw_jobs),
             "accepted": len(accepted_jobs),
             "filtered": len(filtered_jobs),
             "duplicates": len(duplicate_jobs),
