@@ -383,17 +383,19 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
           window.dispatchEvent(new CustomEvent('friday-open-spotify'));
           if (/\b(?:play|resume)\b/i.test(lowerCmd)) {
             const songQuery = lowerCmd.replace(/^(?:friday\s+)?(?:please\s+)?(?:play|resume)\s+(?:my\s+)?/i, '').replace(/\s+playlist$/i, '').trim();
-            if (songQuery) {
-              window.dispatchEvent(new CustomEvent('friday-external-action', {
-                detail: {
-                  title: `Spotify: ${songQuery}`,
-                  subtitle: `Playing · "${songQuery}"`,
-                  url: `https://open.spotify.com/search/${encodeURIComponent(songQuery)}`,
-                  label: 'OPEN IN SPOTIFY',
-                  type: 'spotify'
-                }
-              }));
-            }
+            const spotifyUri = songQuery ? `spotify:search:${encodeURIComponent(songQuery)}` : 'spotify:';
+            try { window.location.href = spotifyUri; } catch (_) {}
+            window.dispatchEvent(new CustomEvent('friday-external-action', {
+              detail: {
+                title: songQuery ? `Spotify: ${songQuery}` : 'Spotify App',
+                subtitle: songQuery ? `Opening in Spotify App · "${songQuery}"` : 'Opening Spotify App',
+                url: spotifyUri,
+                label: 'OPEN SPOTIFY APP',
+                type: 'spotify'
+              }
+            }));
+          } else if (/\bspotify\b/i.test(lowerCmd)) {
+            try { window.location.href = 'spotify:'; } catch (_) {}
           }
         } else if (action === 'open_url' && data.target) {
           try { window.open(data.target, '_blank'); } catch (_) {}
