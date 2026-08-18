@@ -58,6 +58,61 @@ def check_calendar_connection(provider: Optional[Any] = None) -> Dict[str, Any]:
     return res
 
 
+def list_calendars(provider: Optional[Any] = None) -> List[Dict[str, Any]]:
+    """List user's calendars using read-only provider API."""
+    eff_provider = provider if provider is not None else _default_mock_calendar_provider
+    cals = eff_provider.list_calendars()
+
+    calendar_audit_logger.log_event(
+        action="CALENDAR_LIST_CALENDARS",
+        result=f"COUNT_{len(cals)}",
+    )
+
+    return cals
+
+
+def get_today_events(provider: Optional[Any] = None, tz_name: str = "Asia/Kolkata") -> List[Dict[str, Any]]:
+    """Retrieve today's calendar events using read-only provider API."""
+    eff_provider = provider if provider is not None else _default_mock_calendar_provider
+    events = eff_provider.get_today_events(tz_name=tz_name)
+
+    calendar_audit_logger.log_event(
+        action="CALENDAR_GET_TODAY",
+        result=f"COUNT_{len(events)}",
+    )
+
+    return events
+
+
+def get_upcoming_events(limit: int = 10, provider: Optional[Any] = None, tz_name: str = "Asia/Kolkata") -> List[Dict[str, Any]]:
+    """Retrieve upcoming calendar events up to default limit of 10."""
+    eff_provider = provider if provider is not None else _default_mock_calendar_provider
+    events = eff_provider.get_upcoming_events(limit=limit, tz_name=tz_name)
+
+    calendar_audit_logger.log_event(
+        action="CALENDAR_GET_UPCOMING",
+        result=f"COUNT_{len(events)}",
+    )
+
+    return events
+
+
+def search_calendar_events(query: str, limit: int = 10, provider: Optional[Any] = None, tz_name: str = "Asia/Kolkata") -> List[Dict[str, Any]]:
+    """Search calendar events matching query string up to default limit of 10."""
+    eff_provider = provider if provider is not None else _default_mock_calendar_provider
+    if not query or not query.strip():
+        return []
+
+    events = eff_provider.search_events(query=query.strip(), limit=limit, tz_name=tz_name)
+
+    calendar_audit_logger.log_event(
+        action="CALENDAR_SEARCH",
+        result=f"QUERY_{query.strip()}_COUNT_{len(events)}",
+    )
+
+    return events
+
+
 def read_calendar_events(
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
@@ -73,6 +128,7 @@ def read_calendar_events(
     )
 
     return events
+
 
 
 def prepare_calendar_event(

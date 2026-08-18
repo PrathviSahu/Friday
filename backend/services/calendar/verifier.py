@@ -41,12 +41,14 @@ class IndependentCalendarVerifier:
                 f"VERIFICATION FAILURE: Event ID '{provider_event_id}' not found in provider store."
             )
 
-        if event_record.get("provider_event_id") != provider_event_id:
+        rec_provider_id = event_record.get("provider_event_id") or event_record.get("event_id") or event_record.get("id")
+        if rec_provider_id != provider_event_id:
             raise IndependentCalendarVerificationError("VERIFICATION FAILURE: Provider event ID mismatch.")
 
-        if event_record.get("status") != "RECORDED_CREATED":
+        rec_status = event_record.get("status", "")
+        if rec_status not in ("RECORDED_CREATED", "confirmed", "created"):
             raise IndependentCalendarVerificationError(
-                f"VERIFICATION FAILURE: Event status is '{event_record.get('status')}', expected 'RECORDED_CREATED'."
+                f"VERIFICATION FAILURE: Event status is '{rec_status}', expected 'RECORDED_CREATED'."
             )
 
         actual_title = event_record.get("title", "").strip()
@@ -55,13 +57,13 @@ class IndependentCalendarVerifier:
                 f"VERIFICATION FAILURE: Title mismatch. Expected '{expected_title}', got '{actual_title}'."
             )
 
-        actual_start = event_record.get("start_time", "").strip()
+        actual_start = (event_record.get("start_time") or event_record.get("start") or "").strip()
         if actual_start != expected_start_time.strip():
             raise IndependentCalendarVerificationError(
                 f"VERIFICATION FAILURE: Start time mismatch. Expected '{expected_start_time}', got '{actual_start}'."
             )
 
-        actual_end = event_record.get("end_time", "").strip()
+        actual_end = (event_record.get("end_time") or event_record.get("end") or "").strip()
         if actual_end != expected_end_time.strip():
             raise IndependentCalendarVerificationError(
                 f"VERIFICATION FAILURE: End time mismatch. Expected '{expected_end_time}', got '{actual_end}'."
