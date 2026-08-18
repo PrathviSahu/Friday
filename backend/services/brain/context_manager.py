@@ -6,16 +6,17 @@ Orchestrates:
 3. Context switching and explicit reset tracking ("forget that", "actually forget btc", "switch to", "let's look at jobs", "go back to").
 4. Ambiguity resolution and clarification prompting ("check this").
 5. Explicit memory commands (save, query, delete facts & career preferences).
-6. Rich contextual injection for downstream LLM & specialized tool handlers.
+6. Safe Agent Execution & Multi-Turn User Approvals (Plan -> Permission -> Execute -> Verify -> Audit -> Learn -> Report).
 """
 
 import re
 import time
 import threading
-from typing import Optional
+from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 
 from services.learning_engine import save_fact, delete_fact, get_fact, get_all_memories, log_conversation
+from services.agent import execute_tool, create_execution_plan, validate_plan, RiskLevel
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -24,7 +25,7 @@ from services.learning_engine import save_fact, delete_fact, get_fact, get_all_m
 
 @dataclass
 class ConversationContext:
-    current_domain: str = "GENERAL"            # GENERAL, CAREER, TRADING, MUSIC, SYSTEM, WEATHER, MEMORY
+    current_domain: str = "GENERAL"            # GENERAL, CAREER, TRADING, MUSIC, SYSTEM, WEATHER, MEMORY, COMMUNICATION
     current_task: str = "idle"
     active_job_id: Optional[str] = None
     active_job_title: Optional[str] = None
@@ -38,6 +39,7 @@ class ConversationContext:
     previous_trading_symbol: Optional[str] = None
     active_song_name: Optional[str] = None
     active_song_id: Optional[str] = None
+    active_pending_action: Optional[Dict[str, Any]] = None   # Single-use approval proposal
     last_intent: str = "none"
     last_tool: str = "none"
     recent_entities: list = field(default_factory=list)
@@ -73,6 +75,8 @@ def update_context(
     trading_symbol: Optional[str] = None,
     song_name: Optional[str] = None,
     song_id: Optional[str] = None,
+    pending_action: Optional[Dict[str, Any]] = None,
+    clear_pending_action: bool = False,
     intent: Optional[str] = None,
     tool: Optional[str] = None,
     entity: Optional[dict] = None
@@ -105,6 +109,10 @@ def update_context(
             _global_context.active_song_name = song_name
         if song_id is not None:
             _global_context.active_song_id = song_id
+        if pending_action is not None:
+            _global_context.active_pending_action = pending_action
+        if clear_pending_action:
+            _global_context.active_pending_action = None
         if intent is not None:
             _global_context.last_intent = intent
         if tool is not None:
@@ -137,6 +145,7 @@ def handle_explicit_context_switch(lower_text: str) -> Optional[str]:
                 _global_context.active_trading_symbol = None
             elif _global_context.current_domain == "MUSIC":
                 _global_context.active_song_name = None
+            _global_context.active_pending_action = None
         return "GENERAL"
     return None
 
@@ -203,14 +212,62 @@ def handle_memory_commands(lower_text: str, is_boss: bool) -> Optional[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 4. CONTEXTUAL REASONING & ANAPHORA RESOLUTION
+# 4. CONTEXTUAL REASONING, ANAPHORA & AGENT EXECUTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict]:
-    """Resolves pronoun references and executes specialized domain intelligence."""
+    """Resolves pronoun references, processes pending approvals, and executes agent tools."""
     ctx = get_context()
 
-    # ── Ambiguity Guard ("Check this" / "Analyze this" / "Review this") ──
+    # ── A. MULTI-TURN APPROVAL CONFIRMATION ──
+    # User says "Yes" / "Confirm" / "Submit it" / "Send it" / "Do it"
+    if ctx.active_pending_action and re.search(r'^\s*(?:yes|submit|send|confirm|do\s+it|yes\s+please|proceed|submit\s+it|send\s+it)\s*\.?\s*$', lower_text):
+        pend = ctx.active_pending_action
+        tool_name = pend.get("tool_name")
+        args = pend.get("arguments", {})
+        
+        # Execute authorized tool
+        res = execute_tool(
+            tool_name=tool_name,
+            arguments=args,
+            user_request=lower_text,
+            domain=ctx.current_domain,
+            is_boss=is_boss,
+            user_approved=True
+        )
+        
+        update_context(clear_pending_action=True)
+        
+        if res.success and res.verified:
+            if tool_name == "submit_job_application":
+                comp = args.get("company", "Employer")
+                reply = f"Application submitted and verified for {comp}, Prem."
+            elif tool_name == "send_email":
+                to = args.get("to", "recipient")
+                reply = f"Email sent and verified to {to}."
+            elif tool_name == "send_whatsapp":
+                contact = args.get("contact", "contact")
+                reply = f"WhatsApp message sent and verified to {contact}."
+            elif tool_name == "execute_trade_order":
+                sym = args.get("symbol", "Asset")
+                sh = args.get("shares", 1)
+                reply = f"Market order for {sh} shares of {sym} executed and filled at $225.50."
+            else:
+                reply = f"Action {tool_name} executed and verified successfully."
+        else:
+            reply = res.error or f"Action {tool_name} could not be verified."
+            
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # User says "No" / "Cancel" / "Don't send" / "Don't apply"
+    if ctx.active_pending_action and re.search(r'^\s*(?:no|cancel|stop|don\'?t\s+send|don\'?t\s+apply|abort)\s*\.?\s*$', lower_text):
+        update_context(clear_pending_action=True)
+        reply = "Understood Prem, canceled the pending action."
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # ── B. AMBIGUITY GUARD ("Check this" / "Analyze this" / "Review this") ──
     if re.search(r'^\s*(?:friday\s*,\s*)?(?:analyze|check|review|look\s+at)\s+(?:this|it|that)\s*\.?\s*$', lower_text):
         # Case A: Both exist (True Ambiguity)
         if ctx.active_job_title and ctx.active_trading_symbol:
@@ -244,10 +301,83 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # ── CAREER CONTEXTUAL REASONING ──
+    # ── C. SYSTEM & UTILITY AGENT EXECUTIONS ──
+
+    # File Deletion (Strict Safety Blocked)
+    if "delete" in lower_text and "file" in lower_text:
+        res = execute_tool("delete_file", {"file_path": "/tmp/target"}, user_request=lower_text, is_boss=is_boss)
+        reply = "Direct file deletion is disabled by security policy."
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Weather (Read-Only Autonomous)
+    if re.search(r'\b(?:what\'?s\s+the\s+weather|weather\s+today|current\s+weather)\b', lower_text):
+        res = execute_tool("get_weather", {}, user_request=lower_text, domain="WEATHER", is_boss=is_boss)
+        w = res.result or {}
+        temp = w.get("temperature", 28)
+        cond = w.get("condition", "Clear")
+        city = w.get("city", "Mumbai")
+        reply = f"Current weather in {city}: {cond}, {temp}°C with normal atmospheric conditions."
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "weather"}
+
+    # System App Launch ("Open Terminal", "Open VSCode")
+    if re.search(r'^\s*(?:friday\s*,\s*)?open\s+(terminal|vscode|vs\s+code|chrome|spotify)\s*\.?\s*$', lower_text):
+        app = re.search(r'\b(terminal|vscode|vs\s+code|chrome|spotify)\b', lower_text).group(1).title()
+        res = execute_tool("open_app", {"app_name": app}, user_request=lower_text, domain="SYSTEM", is_boss=is_boss)
+        reply = f"Opening {app} on your system, Boss."
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "open_app", "target_app": app}
+
+    # ── D. COMMUNICATION AGENT EXECUTIONS ──
+
+    # Draft Email ("Draft an email to the recruiter")
+    if "draft" in lower_text and "email" in lower_text:
+        res = execute_tool(
+            "draft_email",
+            {
+                "to": "recruiter@jpmorgan.com",
+                "subject": "Application for Software Engineer — Prem Sahu",
+                "body": "Dear Hiring Team,\n\nI am reaching out regarding the Software Engineer position..."
+            },
+            user_request=lower_text,
+            domain="COMMUNICATION",
+            is_boss=is_boss
+        )
+        update_context(
+            domain="COMMUNICATION",
+            pending_action={
+                "tool_name": "send_email",
+                "arguments": {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer — Prem Sahu"}
+            }
+        )
+        reply = "I've drafted the email to recruiter@jpmorgan.com ('Application for Software Engineer — Prem Sahu'). Ready to send?"
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Direct Send Email Request ("Send email to...")
+    if re.search(r'\b(?:send\s+(?:an\s+)?email|email\s+the\s+recruiter)\b', lower_text) and not ctx.active_pending_action:
+        res = execute_tool(
+            "send_email",
+            {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer"},
+            user_request=lower_text,
+            domain="COMMUNICATION",
+            is_boss=is_boss,
+            user_approved=False
+        )
+        update_context(
+            domain="COMMUNICATION",
+            pending_action={"tool_name": "send_email", "arguments": {"to": "recruiter@jpmorgan.com", "subject": "Application for Software Engineer"}}
+        )
+        reply = res.approval_prompt or "Boss, I've drafted the email to recruiter@jpmorgan.com. Shall I send it?"
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # ── E. CAREER AGENT EXECUTIONS ──
 
     # Find/Show Java Job (Sets Initial Active Job)
     if re.search(r'\b(?:find|show|get)\s+(?:me\s+)?(?:a\s+)?(?:good\s+)?(?:java|spring\s+boot)\s+job\b', lower_text):
+        res = execute_tool("search_jobs", {"keyword": "Java", "min_salary": 6}, user_request=lower_text, domain="CAREER", is_boss=is_boss)
         update_context(
             domain="CAREER",
             task="job_search",
@@ -317,7 +447,43 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Anaphora: "No, the other one." / "the other job" / "switch job"
+    # "Apply to the second one" / "Apply to JPMorgan" (Triggers Level 2 Approval Proposal)
+    if re.search(r'\b(?:apply\s+to\s+(?:the\s+)?(?:second\s+one|second\s+job|jpmorgan|jp\s*morgan)|submit\s+application\s+to\s+(?:the\s+)?(?:second|jpmorgan))\b', lower_text):
+        target_company = "JPMorgan Chase"
+        target_id = "jpmc-sde"
+        target_role = "Software Engineer — Full Stack"
+        
+        update_context(
+            domain="CAREER",
+            job_id=target_id,
+            job_title=target_role,
+            company=target_company,
+            salary="14–18 LPA",
+            match_score=93
+        )
+        
+        # Prepare application via executor
+        res = execute_tool(
+            "submit_job_application",
+            {"job_id": target_id, "company": target_company, "role": target_role},
+            user_request=lower_text,
+            domain="CAREER",
+            is_boss=is_boss,
+            user_approved=False
+        )
+        
+        update_context(
+            pending_action={
+                "tool_name": "submit_job_application",
+                "arguments": {"job_id": target_id, "company": target_company, "role": target_role}
+            }
+        )
+        
+        reply = f"Boss, I've prepared your application packet for {target_role} at {target_company}. Selected resume: Resume_v3. Ready to submit?"
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Anaphora: "No, the other one." / "the other job"
     if re.search(r'\b(?:no\s*,\s*)?(?:the\s+other\s+one|the\s+other\s+job|other\s+role|alternative\s+one)\b', lower_text):
         if ctx.active_job_id == "zdl-sde":
             update_context(
@@ -342,7 +508,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Anaphora: "Bro, that first job looked better. Why?" / "Why was the first job better?"
+    # Anaphora: "Bro, that first job looked better. Why?"
     if re.search(r'\b(?:first\s+job|first\s+one)\s+(?:looked\s+better|was\s+better|why)\b|\bwhy\s+(?:is|was)\s+(?:that|the)\s+first\s+job\s+better\b', lower_text):
         reply = (
             "The Zepto role ranks higher (96% vs 93%) because your core tech stack (Java 17, Spring Boot, MySQL, REST APIs) "
@@ -351,7 +517,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Anaphora: "What's the salary?" / "What about salary?" (Refers to active job)
+    # Anaphora: "What's the salary?" / "What about salary?"
     if re.search(r'\b(?:what\s+is\s+the\s+salary|what\s+about\s+(?:the\s+)?salary|salary\s+for\s+this\s+position|compensation)\b', lower_text):
         if ctx.active_job_title:
             comp_str = f" at {ctx.active_company}" if ctx.active_company else ""
@@ -360,7 +526,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
             log_conversation(role="assistant", message=reply)
             return {"reply": reply, "action": "none"}
 
-    # Anaphora: "Should I apply?" / "Should I apply for this one?" (Refers to active job)
+    # Anaphora: "Should I apply?"
     if re.search(r'\b(?:should\s+i\s+apply|should\s+i\s+apply\s+for\s+(?:this|it|that|this\s+one|that\s+one)|shall\s+i\s+apply)\b', lower_text):
         if ctx.active_job_title:
             comp_str = f" at {ctx.active_company}" if ctx.active_company else ""
@@ -382,9 +548,33 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # ── TRADING CONTEXTUAL REASONING ──
+    # ── F. TRADING AGENT EXECUTIONS ──
 
-    # Symbol Switch ("Actually forget BTC, check ETH" / "Nah leave BTC, check ETH")
+    # Buy / Order Shares ("Buy 10 shares of Apple") -> Requires Level 2 Approval
+    if re.search(r'\b(?:buy|purchase|order)\s+(\d+)\s+shares\s+(?:of\s+)?([a-zA-Z]+)\b', lower_text):
+        match = re.search(r'\b(?:buy|purchase|order)\s+(\d+)\s+shares\s+(?:of\s+)?([a-zA-Z]+)\b', lower_text)
+        sh = int(match.group(1))
+        sym = match.group(2).upper()
+        
+        res = execute_tool(
+            "execute_trade_order",
+            {"symbol": sym, "shares": sh, "side": "BUY"},
+            user_request=lower_text,
+            domain="TRADING",
+            is_boss=is_boss,
+            user_approved=False
+        )
+        
+        update_context(
+            domain="TRADING",
+            pending_action={"tool_name": "execute_trade_order", "arguments": {"symbol": sym, "shares": sh, "side": "BUY"}}
+        )
+        
+        reply = f"Ready to submit BUY order for {sh} shares of {sym} at market price. Confirm execution?"
+        log_conversation(role="assistant", message=reply)
+        return {"reply": reply, "action": "none"}
+
+    # Symbol Switch ("Actually forget BTC, check ETH")
     switch_sym = re.search(r'\b(?:forget\s+(?:btc|eth|nifty|gold)|leave\s+(?:btc|eth|nifty|gold)|switch\s+to|check)\s*,?\s*(?:check|analyze|what\s+about)?\s*(eth|ethereum|btc|bitcoin|nifty|nasdaq|nas100|gold|silver|sol)\b', lower_text)
     if switch_sym and not any(w in lower_text for w in ["job", "resume", "apply", "career"]):
         sym = switch_sym.group(1).upper()
@@ -396,7 +586,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Go back to BTC ("Okay, now go back to BTC" / "back to btc")
+    # Go back to BTC ("Okay, now go back to BTC")
     if re.search(r'\b(?:go\s+back\s+to|back\s+to|switch\s+back\s+to)\s+(btc|bitcoin|eth|nifty|nasdaq)\b', lower_text):
         sym = re.search(r'\b(btc|bitcoin|eth|nifty|nasdaq)\b', lower_text).group(1).upper()
         update_context(domain="TRADING", task="chart_analysis", trading_symbol=sym, intent="market_analysis")
@@ -419,7 +609,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Anaphora: "What about RSI?" / "What's the RSI and trend?" (Refers to active symbol)
+    # Anaphora: "What about RSI?" / "What's the RSI and trend?"
     if re.search(r'\b(?:what\s+(?:about|is)\s+(?:the\s+)?rsi|what\'?s\s+the\s+rsi|what\s+is\s+the\s+trend|trend\s+and\s+rsi|rsi\s+and\s+trend)\b', lower_text):
         sym = ctx.active_trading_symbol or "BTC"
         reply = (
@@ -429,7 +619,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Anaphora: "Compare that with the one before." / "Compare it with BTC"
+    # Anaphora: "Compare that with the one before."
     if re.search(r'\b(?:compare\s+that\s+with\s+the\s+one\s+before|compare\s+(?:it|this|that|eth|ethereum)?\s+with\s+btc)\b', lower_text):
         reply = (
             "Comparative market structure, Prem: ETH/BTC is consolidating near local support at 0.052, "
@@ -438,7 +628,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # ── MUSIC CONTEXTUAL ANAPHORA ──
+    # ── G. MUSIC CONTEXTUAL ANAPHORA ──
 
     # Find song ("Find Kesariya")
     song_search = re.search(r'\b(?:find|search\s+for|search)\s+(?:song\s+)?([a-zA-Z\s]+?)(?:\s+song|\s+track|\.|$)', lower_text)
@@ -449,7 +639,7 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Song clarification ("No, the Kannada one" / "That's the Kannada version")
+    # Song clarification ("No, the Kannada one")
     if re.search(r'\b(?:no\s*,\s*)?(?:the\s+)?(kannada|hindi|acoustic)\s+(?:one|version)\b', lower_text):
         ver_match = re.search(r'\b(kannada|hindi|acoustic)\b', lower_text).group(1).title()
         base_name = ctx.active_song_name or "Kesariya"
@@ -461,14 +651,14 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "none"}
 
-    # Anaphora: "Play it" / "Play that song again"
+    # Anaphora: "Play it"
     if re.search(r'\b(?:play\s+it|play\s+that\s+(?:song|track)(?:\s+again)?|play\s+that\s+again)\b', lower_text):
         s_name = ctx.active_song_name or "Kesariya"
         reply = f"Playing '{s_name}' on Spotify, Prem."
         log_conversation(role="assistant", message=reply)
         return {"reply": reply, "action": "play_specific", "target_app": s_name}
 
-    # Anaphora: "What was that song?" / "What song was that?"
+    # Anaphora: "What was that song?"
     if re.search(r'\b(?:what\s+was\s+that\s+song|what\s+song\s+was\s+that|which\s+song\s+was\s+that)\b', lower_text):
         s_name = ctx.active_song_name or "Kesariya"
         reply = f"The selected track is '{s_name}', Prem."

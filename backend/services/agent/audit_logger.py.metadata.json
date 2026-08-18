@@ -1,0 +1,4 @@
+{
+  "summary": "audit_logger.py — Structured SQLite audit logger and idempotency guard with automatic secret redaction",
+  "updatedAt": "2026-08-18T11:28:12.817774Z"
+}
