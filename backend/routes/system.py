@@ -53,7 +53,7 @@ def close_app_endpoint(req: AppRequest):
     return {"status": "ok" if ok else "error", "app": req.app}
 
 
-@router.get("/system/display")
+@router.get("/system/display", dependencies=[Depends(require_boss)])
 def get_display_endpoint():
     """Return live brightness, dark mode, system volume, and mute status."""
     return get_display_status()
@@ -94,7 +94,7 @@ def lock_display_endpoint():
     return {"status": "ok" if ok else "error"}
 
 
-@router.get("/system/stats")
+@router.get("/system/stats", dependencies=[Depends(require_boss)])
 def system_stats_endpoint():
     """Return live CPU, RAM, Disk, and Battery stats."""
     return get_system_stats()

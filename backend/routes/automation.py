@@ -27,7 +27,7 @@ class ApprovalRequest(BaseModel):
     seconds: int = 300
 
 
-@router.get("/permissions")
+@router.get("/permissions", dependencies=[Depends(require_boss)])
 def get_permissions_endpoint():
     """List all capabilities with their effective mode."""
     return {"permissions": permissions.get_permissions(),
@@ -128,7 +128,7 @@ def run_automation_now(automation_id: int):
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
-@router.get("/notifications")
+@router.get("/notifications", dependencies=[Depends(require_boss)])
 def get_notifications_endpoint(unread_only: bool = False, limit: int = 50):
     items = get_notifications(limit=limit, unread_only=unread_only)
     return {"notifications": items, "unread_count": unread_count()}
@@ -144,7 +144,7 @@ def read_notification(notification_id: int):
 
 # ── Briefing ──────────────────────────────────────────────────────────────────
 
-@router.get("/briefing")
+@router.get("/briefing", dependencies=[Depends(require_boss)])
 def briefing_endpoint():
     """Generate the smart daily briefing on demand."""
     return generate_daily_briefing()

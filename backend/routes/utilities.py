@@ -30,7 +30,7 @@ class ReminderRequest(BaseModel):
     seconds: int
 
 
-@router.post("/tts")
+@router.post("/tts", dependencies=[Depends(require_boss)])
 async def tts_endpoint(req: TTSRequest):
     """Generate British female voice audio using Edge-TTS"""
     try:
@@ -47,19 +47,19 @@ async def tts_endpoint(req: TTSRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/weather")
+@router.get("/weather", dependencies=[Depends(require_boss)])
 def weather_endpoint():
     """Return live weather data."""
     return get_weather()
 
 
-@router.post("/search")
+@router.post("/search", dependencies=[Depends(require_boss)])
 def web_search_endpoint(req: SearchRequest):
     """Search DuckDuckGo instant answer snippets."""
     return search_web_instant(req.query)
 
 
-@router.get("/reminders")
+@router.get("/reminders", dependencies=[Depends(require_boss)])
 def get_reminders_endpoint():
     """Get active timers and reminders."""
     return {"reminders": get_active_reminders()}
@@ -72,7 +72,7 @@ def add_reminder_endpoint(req: ReminderRequest):
     return {"status": "ok", "reminder": item}
 
 
-@router.get("/gdrive/status")
+@router.get("/gdrive/status", dependencies=[Depends(require_boss)])
 def get_gdrive_status_endpoint():
     """Get Google Drive background sync status."""
     return get_gdrive_sync_status()

@@ -6,14 +6,40 @@
  * presence device (POST /api/presence/register). Never prompts for
  * notification permission on load — the HUD surfaces a one-tap enable
  * action when permission is 'default'.
+ *
+ * The FRIDAY_API_TOKEN baked into the bundle is forwarded to the service
+ * worker via postMessage so its /api/presence/* fetches authenticate in
+ * Docker / hosted deployments (the SW scope is not covered by the page's
+ * window.fetch wrapper).
  */
+
+import { FRIDAY_TOKEN } from '../api/config.js';
 
 const SW_PATH = '/sw.js';
 
 export async function registerPresenceWorker() {
     if (!('serviceWorker' in navigator)) return null;
     try {
-        return await navigator.serviceWorker.register(SW_PATH);
+        const reg = await navigator.serviceWorker.register(SW_PATH);
+
+        const sendToken = () => {
+            const target = reg.active || reg.waiting || navigator.serviceWorker.controller;
+            if (target && FRIDAY_TOKEN) {
+                target.postMessage({ type: 'FRIDAY_TOKEN', token: FRIDAY_TOKEN });
+            }
+        };
+        if (reg.active) sendToken();
+        reg.addEventListener('updatefound', () => {
+            const worker = reg.installing;
+            if (worker) {
+                worker.addEventListener('statechange', () => {
+                    if (worker.state === 'activated') sendToken();
+                });
+            }
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', sendToken);
+
+        return reg;
     } catch (_) {
         return null;
     }

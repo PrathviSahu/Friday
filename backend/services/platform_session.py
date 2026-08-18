@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import sqlite3
 import asyncio
@@ -76,6 +77,10 @@ async def launch_real_browser_login(platform_key: str):
     """
     Launches a real Chromium browser window (headless=False) for the user to log in ONCE.
     Captures authenticated session cookies (li_at, etc.) and saves them to DB.
+
+    Returns an honest error dict (never raises / never 500s) when the browser
+    cannot be launched — e.g. Playwright Chromium not installed (Docker default
+    INSTALL_BROWSERS=0) or no display available on a headless server.
     """
     urls = {
         "linkedin": "https://www.linkedin.com/login",
@@ -84,70 +89,104 @@ async def launch_real_browser_login(platform_key: str):
         "wellfound": "https://wellfound.com/login",
         "foundit": "https://www.foundit.in/login"
     }
-    
-    target_url = urls.get(platform_key, "https://www.linkedin.com/login")
-    
-    async with async_playwright() as p:
-        # Launch real browser (headless=False) so user can log in & complete 2FA
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context()
-        page = await context.new_page()
-        
-        try:
-            await page.goto(target_url, timeout=30000)
-            
-            # Wait up to 120s for user to complete login
-            for _ in range(120):
-                await asyncio.sleep(1)
-                curr_url = page.url.lower()
-                cookies = await context.cookies()
-                
-                has_li_cookie = any(c['name'] == 'li_at' for c in cookies)
-                if 'feed' in curr_url or 'in/' in curr_url or 'mynetwork' in curr_url or has_li_cookie or ('naukri.com' in curr_url and 'mnjuser' in curr_url):
-                    cookies_json = json.dumps(cookies)
-                    
-                    account_name = ""
-                    headline = ""
-                    connections = 0
-                    open_to_work = 0
 
-                    try:
-                        if 'linkedin.com' in curr_url:
-                            name_el = await page.query_selector(".profile-rail-card__actor-link, .identity-headline")
-                            if name_el:
-                                account_name = (await name_el.inner_text()).strip()
-                    except Exception:
-                        pass
-                    
-                    conn = sqlite3.connect(DB_FILE)
-                    c = conn.cursor()
-                    c.execute('''
-                        INSERT OR REPLACE INTO platform_sessions 
-                        (platform_key, account_name, headline, connections_count, open_to_work, cookies_json, verified_at)
-                        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ''', (platform_key, account_name, headline, connections, open_to_work, cookies_json))
-                    conn.commit()
-                    conn.close()
-                    
+    target_url = urls.get(platform_key, "https://www.linkedin.com/login")
+    browser = None
+    try:
+        from playwright.async_api import async_playwright
+
+        # headless=False needs a desktop session. On a headless Linux server
+        # (Render, most Docker hosts) there is no display — tell the user this
+        # feature must run on their own desktop machine instead of crashing.
+        if os.name == "posix" and not sys.platform.startswith("darwin") and not os.environ.get("DISPLAY"):
+            return {
+                "status": "error",
+                "verified": False,
+                "message": (
+                    "Account connect launches a visible browser window, which "
+                    "needs a desktop display. Run FRIDAY on your own machine "
+                    "(or via start.sh) to connect career accounts."
+                ),
+            }
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=False)
+            context = await browser.new_context()
+            page = await context.new_page()
+
+            try:
+                await page.goto(target_url, timeout=30000)
+
+                # Wait up to 120s for user to complete login
+                for _ in range(120):
+                    await asyncio.sleep(1)
+                    curr_url = page.url.lower()
+                    cookies = await context.cookies()
+
+                    has_li_cookie = any(c['name'] == 'li_at' for c in cookies)
+                    if 'feed' in curr_url or 'in/' in curr_url or 'mynetwork' in curr_url or has_li_cookie or ('naukri.com' in curr_url and 'mnjuser' in curr_url):
+                        cookies_json = json.dumps(cookies)
+
+                        account_name = ""
+                        headline = ""
+                        connections = 0
+                        open_to_work = 0
+
+                        try:
+                            if 'linkedin.com' in curr_url:
+                                name_el = await page.query_selector(".profile-rail-card__actor-link, .identity-headline")
+                                if name_el:
+                                    account_name = (await name_el.inner_text()).strip()
+                        except Exception:
+                            pass
+
+                        conn = sqlite3.connect(DB_FILE)
+                        c = conn.cursor()
+                        c.execute('''
+                            INSERT OR REPLACE INTO platform_sessions 
+                            (platform_key, account_name, headline, connections_count, open_to_work, cookies_json, verified_at)
+                            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        ''', (platform_key, account_name, headline, connections, open_to_work, cookies_json))
+                        conn.commit()
+                        conn.close()
+
+                        if browser:
+                            await browser.close()
+                        return {
+                            "status": "connected",
+                            "verified": True,
+                            "platform": platform_key.capitalize(),
+                            "account_user": account_name,
+                            "headline": headline,
+                            "connections": connections,
+                            "open_to_work": bool(open_to_work),
+                            "cookie_expires_days": 14,
+                            "last_verified": "Just now",
+                            "permissions": ["Read profile", "Search jobs", "Fill applications safely"]
+                        }
+
+                if browser:
                     await browser.close()
-                    return {
-                        "status": "connected",
-                        "verified": True,
-                        "platform": platform_key.capitalize(),
-                        "account_user": account_name,
-                        "headline": headline,
-                        "connections": connections,
-                        "open_to_work": bool(open_to_work),
-                        "cookie_expires_days": 14,
-                        "last_verified": "Just now",
-                        "permissions": ["Read profile", "Search jobs", "Fill applications safely"]
-                    }
-            
-            await browser.close()
-            return {"status": "timeout", "verified": False, "message": "Login window timed out."}
-        except Exception as e:
-            await browser.close()
-            return {"status": "error", "verified": False, "message": str(e)}
+                return {"status": "timeout", "verified": False, "message": "Login window timed out."}
+            except Exception as e:
+                if browser:
+                    await browser.close()
+                return {"status": "error", "verified": False, "message": str(e)}
+    except Exception as e:
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        return {
+            "status": "error",
+            "verified": False,
+            "message": (
+                f"Could not launch browser for {platform_key}: {e}. "
+                "Install Playwright Chromium (INSTALL_BROWSERS=1 in Docker) or "
+                "run FRIDAY on a desktop machine to connect accounts."
+            ),
+        }
 
 def get_platform_session_status(platform_key: str):
     """Retrieves verified session metadata for platform.

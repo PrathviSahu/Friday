@@ -1,21 +1,24 @@
 /**
  * config.js — Centralized API configuration for F.R.I.D.A.Y. frontend.
  *
- * Default: relative URLs (''). In development the Vite dev server proxies
- * /api and /temp_audio to the FastAPI backend on 127.0.0.1:8000, so the app
- * works no matter which host/port the UI itself is served from (localhost,
- * LAN IP, the Arena preview, etc.).
+ * Resolution order:
+ *   1. VITE_API_BASE_URL  (recommended for production: absolute backend URL)
+ *   2. VITE_API_URL       (legacy alias)
+ *   3. relative '' — the Vite dev server / Docker nginx proxy /api and
+ *      /temp_audio to the FastAPI backend, so relative URLs work in every
+ *      hosted setup (localhost, LAN, preview, Docker).
  *
- * For production builds (e.g. the Tauri shell) point VITE_API_URL at the
- * backend, e.g. `VITE_API_URL=http://localhost:8000 npm run build`.
+ * IMPORTANT: there is intentionally NO hardcoded backend URL fallback. A
+ * previous version defaulted non-localhost hosts to a fixed Render URL
+ * (https://friday-api-wy2b.onrender.com) which silently broke any deployment
+ * whose backend lives at a different address. Set VITE_API_BASE_URL at build
+ * time instead, e.g. `VITE_API_BASE_URL=https://your-backend.example.com npm run build`.
  */
 
 export const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')
-    ? 'https://friday-api-wy2b.onrender.com'
-    : '')
+  ''
 ).replace(/\/$/, '');
 
 // API token for non-loopback deployments (Docker). Baked in at build time

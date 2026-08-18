@@ -20,7 +20,7 @@ class NoteCreate(BaseModel):
     source_url: str = ""
 
 
-@router.get("/knowledge")
+@router.get("/knowledge", dependencies=[Depends(require_boss)])
 def list_notes(note_type: str = None, project: str = None, limit: int = 100):
     return {"notes": knowledge.list_notes(note_type, project, limit),
             "types": knowledge.NOTE_TYPES}
@@ -35,7 +35,7 @@ def add_note(req: NoteCreate):
         f"{req.title} {req.content}") if not req.note_type else req.note_type}
 
 
-@router.get("/knowledge/search")
+@router.get("/knowledge/search", dependencies=[Depends(require_boss)])
 def search_notes(q: str = ""):
     """Search the second brain + natural-language recall answer."""
     matches = knowledge.search_notes(q, limit=8)
@@ -59,12 +59,12 @@ class ProjectSection(BaseModel):
     content: str
 
 
-@router.get("/knowledge/projects")
+@router.get("/knowledge/projects", dependencies=[Depends(require_boss)])
 def get_projects():
     return {"projects": knowledge.list_projects()}
 
 
-@router.get("/knowledge/projects/{project}")
+@router.get("/knowledge/projects/{project}", dependencies=[Depends(require_boss)])
 def get_project(project: str):
     return {"project": project, "sections": knowledge.get_project_memory(project)}
 
@@ -86,7 +86,7 @@ class TimelineEventCreate(BaseModel):
     detail: str = ""
 
 
-@router.get("/timeline")
+@router.get("/timeline", dependencies=[Depends(require_boss)])
 def get_timeline(category: str = None, since: str = None, until: str = None,
                  limit: int = 200):
     events = timeline.list_events(category, since, until, limit)
@@ -102,7 +102,7 @@ def add_timeline_event(req: TimelineEventCreate):
     return {"status": "ok", "event_id": eid}
 
 
-@router.get("/timeline/summary")
+@router.get("/timeline/summary", dependencies=[Depends(require_boss)])
 def timeline_summary(query: str = ""):
     """'What changed last month?' / 'progress this year' → summarized period."""
     since, until = timeline.period_for_query(query)
@@ -142,7 +142,7 @@ class GoalUpdate(BaseModel):
     notes: str = None
 
 
-@router.get("/goals")
+@router.get("/goals", dependencies=[Depends(require_boss)])
 def get_goals(status: str = None):
     return {"goals": goals.list_goals(status),
             "suggested_skill_gaps": goals.suggest_skill_gaps()}

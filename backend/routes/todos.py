@@ -25,7 +25,7 @@ class TodoTextRequest(BaseModel):
     text: str
 
 
-@router.get("/todos")
+@router.get("/todos", dependencies=[Depends(require_boss)])
 def get_todos_endpoint():
     """Get all todos"""
     return {"todos": get_todos()}

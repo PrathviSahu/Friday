@@ -47,5 +47,9 @@ USER friday
 
 EXPOSE 8000
 
-# Single worker: Support dynamic PORT environment variable (Render / Cloud default)
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# Single worker: Support dynamic PORT environment variable (Render / Cloud default).
+# --no-proxy-headers is REQUIRED (see auth.py / app.py): uvicorn's default
+# proxy-headers mode rewrites request.client from client-supplied
+# X-Forwarded-For / X-Real-IP, letting a remote attacker spoof 127.0.0.1 and
+# bypass owner authentication. Never remove this flag.
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --no-proxy-headers"]

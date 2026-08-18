@@ -18,7 +18,7 @@ class SpotifySeekRequest(BaseModel):
     seconds: float
 
 
-@router.get("/spotify/current-track")
+@router.get("/spotify/current-track", dependencies=[Depends(require_boss)])
 def get_spotify_track_endpoint():
     """Retrieve details of currently playing track on Spotify"""
     return get_spotify_current_track()

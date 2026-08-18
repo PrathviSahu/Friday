@@ -158,7 +158,7 @@ def set_permission_endpoint(req: PermissionRequest):
     return {"status": "ok", "guest_permitted": is_guest_permitted()}
 
 
-@router.get("/proactive")
+@router.get("/proactive", dependencies=[Depends(require_boss)])
 def proactive_endpoint():
     """Return a time-aware proactive suggestion FRIDAY can speak spontaneously."""
     return get_proactive_suggestion()
