@@ -6,6 +6,7 @@ KNOWN_ACTIONS = [
     "open_spotify", "close_spotify", "play_hindi_playlist", "play_english_playlist",
     "play_krishna_playlist", "play_specific", "play_music", "pause_music", "toggle_music", "next_track", "previous_track",
     "volume_up", "volume_down", "set_volume", "mute", "repeat", "shuffle",
+    "open_whatsapp", "search_whatsapp",
     "open_brave", "open_youtube", "open_app", "close_app", "search_web", "none"
 ]
 
@@ -45,7 +46,9 @@ _BOSS_BASE_PROMPT = (
     "'sound at 70' → volume_percent: 70. "
     "ONLY use action='play_specific' if user names a song explicitly. "
     "ACTIONS: volume_down | volume_up | play_specific | play_hindi_playlist | play_english_playlist | "
-    "pause_music | play_music | set_volume | mute | next_track | previous_track | repeat | shuffle | open_spotify | close_spotify "
+    "pause_music | play_music | set_volume | mute | next_track | previous_track | repeat | shuffle | open_spotify | close_spotify | "
+    "open_whatsapp | search_whatsapp | open_app | close_app | search_web | none. "
+    "For action='search_whatsapp', set target_app to the CONTACT NAME (e.g. 'mumma', 'vishal'), NEVER 'whatsapp'. "
     "ALWAYS respond with ONLY a single valid JSON object: "
     '{"reply": "<1 sentence max for commands>", "action": "<action>", "target_app": "", "volume_percent": -1, "remember_key": null, "remember_value": null}'
     + _OWNER_DOSSIER

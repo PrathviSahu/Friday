@@ -42,14 +42,16 @@ export function matchVoiceCommand(transcript) {
   const closeMatch = text.match(/\b(?:close|quit|band)\s+(.+)$/);
   if (closeMatch) {
     const app = closeMatch[1].trim();
-    const appMap = {
-      'chrome': 'Google Chrome', 'brave': 'Brave Browser', 'safari': 'Safari',
-      'finder': 'Finder', 'terminal': 'Terminal', 'vscode': 'Visual Studio Code',
-      'vs code': 'Visual Studio Code', 'spotify': 'Spotify', 'discord': 'Discord',
-      'slack': 'Slack', 'notion': 'Notion', 'figma': 'Figma', 'obsidian': 'Obsidian',
-      'cursor': 'Cursor', 'arc': 'Arc',
-    };
-    return { type: 'close_app', app: appMap[app] || app };
+    if (!/\b(?:and|then|to|search|find|play|look|send|type|for|mein)\b/i.test(app) && app.split(' ').length <= 3) {
+      const appMap = {
+        'chrome': 'Google Chrome', 'brave': 'Brave Browser', 'safari': 'Safari',
+        'finder': 'Finder', 'terminal': 'Terminal', 'vscode': 'Visual Studio Code',
+        'vs code': 'Visual Studio Code', 'spotify': 'Spotify', 'discord': 'Discord',
+        'slack': 'Slack', 'notion': 'Notion', 'figma': 'Figma', 'obsidian': 'Obsidian',
+        'cursor': 'Cursor', 'arc': 'Arc', 'whatsapp': 'WhatsApp',
+      };
+      return { type: 'close_app', app: appMap[app] || app };
+    }
   }
 
   // ── Workspace / navigation (Checked BEFORE generic open app) ───────────────
@@ -64,19 +66,21 @@ export function matchVoiceCommand(transcript) {
   if (/\b(?:vscode|vs code|visual studio)\b/.test(text)) { return 'vscode'; }
   if (/\b(?:browser|chrome|web)\b/.test(text)) { return 'browser'; }
 
-  // ── Open app ────────────────────────────────────────────────────────────
+  // ── Open app (Strict single app, passes compound commands to AI brain) ──────
   const openMatch = text.match(/\b(?:open|launch|start|chalu|kholo)\s+(.+)$/);
   if (openMatch) {
     const app = openMatch[1].trim();
-    const appMap = {
-      'chrome': 'Google Chrome', 'brave': 'Brave Browser', 'safari': 'Safari',
-      'finder': 'Finder', 'terminal': 'Terminal', 'vscode': 'Visual Studio Code',
-      'vs code': 'Visual Studio Code', 'spotify': 'Spotify', 'discord': 'Discord',
-      'slack': 'Slack', 'notion': 'Notion', 'figma': 'Figma', 'obsidian': 'Obsidian',
-      'cursor': 'Cursor', 'arc': 'Arc',
-    };
-    const resolved = appMap[app] || app;
-    return { type: 'open_app', app: resolved };
+    if (!/\b(?:and|then|to|search|find|play|look|send|type|for|mein)\b/i.test(app) && app.split(' ').length <= 3) {
+      const appMap = {
+        'chrome': 'Google Chrome', 'brave': 'Brave Browser', 'safari': 'Safari',
+        'finder': 'Finder', 'terminal': 'Terminal', 'vscode': 'Visual Studio Code',
+        'vs code': 'Visual Studio Code', 'spotify': 'Spotify', 'discord': 'Discord',
+        'slack': 'Slack', 'notion': 'Notion', 'figma': 'Figma', 'obsidian': 'Obsidian',
+        'cursor': 'Cursor', 'arc': 'Arc', 'whatsapp': 'WhatsApp',
+      };
+      const resolved = appMap[app] || app;
+      return { type: 'open_app', app: resolved };
+    }
   }
 
   return null;

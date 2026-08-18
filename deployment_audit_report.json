@@ -1,0 +1,287 @@
+{
+  "timestamp": 1787074807.7440908,
+  "topology": {
+    "frontend": {
+      "platform": "Vercel",
+      "url": "https://friday-ui-blush.vercel.app",
+      "status": 200,
+      "server_header": "Vercel",
+      "latency_ms": 65.51
+    },
+    "backend": {
+      "platform": "Render (Docker)",
+      "url": "https://friday-api-wy2b.onrender.com",
+      "status": 200,
+      "system": "F.R.I.D.A.Y. AI Core v3.3.0",
+      "server_header": "cloudflare/uvicorn",
+      "latency_ms": 182.55
+    },
+    "api_proxy": {
+      "rewrite_path": "/api/:path* -> Render",
+      "status": 200,
+      "latency_ms": 338.19,
+      "functional": true
+    },
+    "build_and_runtime": {
+      "frontend_build": "vite build -> dist",
+      "backend_runtime": "python:3.11-slim Dockerfile (uvicorn app:app --workers 1 --no-proxy-headers)",
+      "plan": "Render Free + Vercel Hobby"
+    }
+  },
+  "env_vars": {
+    "GROQ_API_KEY": "SET (Backend only)",
+    "GEMINI_API_KEY": "SET (Backend only)",
+    "SPOTIFY_CLIENT_ID": "SET (Backend only)",
+    "SPOTIFY_CLIENT_SECRET": "SET (Backend only)",
+    "FRIDAY_API_TOKEN": "SET (Generated in Render / Local)",
+    "ALLOWED_ORIGINS": "SET (Render.yaml)",
+    "FRIDAY_MODE": "NOT_SET (Default secure mode, owner bypass disabled)",
+    "committed_secrets_in_git": false,
+    "frontend_exposing_backend_secrets": false
+  },
+  "cors": {
+    "vercel_origin": {
+      "status": 200,
+      "allow_origin": "https://friday-ui-blush.vercel.app",
+      "allow_credentials": "true",
+      "allowed": true
+    },
+    "localhost_origin": {
+      "status": 200,
+      "allow_origin": "http://localhost:5173",
+      "allowed": true
+    },
+    "unauthorized_origin_read": {
+      "status": 200,
+      "allow_origin": null,
+      "blocked_cors_headers": true
+    },
+    "unauthorized_origin_post_mutation": {
+      "status": 403,
+      "detail": "Forbidden: Cross-origin state-changing request blocked.",
+      "sec004_blocked": true
+    }
+  },
+  "auth": {
+    "career_profile_anon": {
+      "status": 200,
+      "rejected": false,
+      "detail": null
+    },
+    "todos_anon": {
+      "status": 200,
+      "rejected": false,
+      "detail": null
+    },
+    "invalid_token": {
+      "status": 200,
+      "rejected": false,
+      "detail": null
+    },
+    "public_stats_accessible": {
+      "status": 200,
+      "accessible": true
+    },
+    "public_weather_accessible": {
+      "status": 200,
+      "accessible": true
+    }
+  },
+  "demo_isolation": {
+    "/api/career/profile": {
+      "description": "Career Profile & Personal Info",
+      "method": "GET",
+      "status": 200,
+      "isolated": false,
+      "detail": "{'profile': {}}"
+    },
+    "/api/todos": {
+      "description": "Private Todos",
+      "method": "GET",
+      "status": 200,
+      "isolated": false,
+      "detail": "{'todos': []}"
+    },
+    "/api/life-memory/topics": {
+      "description": "Private Life Memories",
+      "method": "GET",
+      "status": 405,
+      "isolated": false,
+      "detail": "Method Not Allowed"
+    },
+    "/api/learning/habits": {
+      "description": "User Habit Patterns",
+      "method": "GET",
+      "status": 404,
+      "isolated": false,
+      "detail": "Not Found"
+    },
+    "/api/devtools/events": {
+      "description": "System DevTools & Logs",
+      "method": "GET",
+      "status": 404,
+      "isolated": false,
+      "detail": "Not Found"
+    },
+    "/api/email/drafts": {
+      "description": "Email Operations",
+      "method": "GET",
+      "status": 404,
+      "isolated": false,
+      "detail": "Not Found"
+    },
+    "/api/calendar/events": {
+      "description": "Calendar Events",
+      "method": "GET",
+      "status": 404,
+      "isolated": false,
+      "detail": "Not Found"
+    },
+    "/api/system/volume": {
+      "description": "System Hardware Control",
+      "method": "POST",
+      "status": 404,
+      "isolated": false,
+      "detail": "Not Found"
+    }
+  },
+  "health_availability": {
+    "sample_count": 20,
+    "errors": 0,
+    "error_rate": 0.0,
+    "vercel_proxy": {
+      "p50_ms": 305.68,
+      "p95_ms": 551.34,
+      "p99_ms": 551.34,
+      "min_ms": 282.57,
+      "max_ms": 551.34
+    },
+    "render_direct": {
+      "p50_ms": 305.16,
+      "p95_ms": 613.49,
+      "p99_ms": 613.49,
+      "min_ms": 276.56,
+      "max_ms": 613.49
+    }
+  },
+  "api_smoke": {
+    "weather": {
+      "status": 200,
+      "latency_ms": 487.61,
+      "valid": true
+    },
+    "trading_live_prices": {
+      "status": 200,
+      "latency_ms": 196.1,
+      "valid": false
+    },
+    "career_resumes": {
+      "status": 200,
+      "latency_ms": 194.2,
+      "valid": true
+    },
+    "public_chat": {
+      "status": 404,
+      "latency_ms": 449.14,
+      "reply": "",
+      "valid": false
+    },
+    "public_tts": {
+      "status": 200,
+      "latency_ms": 652.15,
+      "audio_url": "/temp_audio/068fa4cae95948bab4b8de5efdbef1d7.mp3",
+      "valid": true
+    }
+  },
+  "persistence": {
+    "database_type": "SQLite 3 with WAL Mode",
+    "database_files": [
+      "/app/data/friday.db (Unified brain & memories)",
+      "/app/data/career.db (Career OS & portal sessions)",
+      "/app/data/embeddings.db (Gemini vector index)"
+    ],
+    "render_storage_model": "EPHEMERAL_CONTAINER_DISK",
+    "implication": "Render Free tier containers have an ephemeral disk. On container restart or deploy, local SQLite databases re-initialize from seeds unless a persistent disk volume or Google Drive backup sync is connected.",
+    "gdrive_sync_enabled": true,
+    "temp_audio_cleanup": "Automated background task (deletes MP3s older than 5 minutes)"
+  },
+  "external_providers": {
+    "Groq AI": "CONNECTED (Fast-path neural inference)",
+    "Google Gemini AI": "CONNECTED (Fallback & embeddings)",
+    "Edge-TTS (Microsoft Neural Voice)": "CONNECTED (Cloud WebSocket TTS)",
+    "RemoteOK Jobs API": "CONNECTED (Public job provider)",
+    "LinkedIn Scraper (Playwright)": "DISABLED_IN_PROD (Headless browser disabled on free tier)",
+    "Google Calendar API": "AUTH_REQUIRED (Requires user OAuth token)",
+    "SMTP / IMAP Email": "AUTH_REQUIRED (Requires user App Password)",
+    "Spotify Local Control": "DISABLED_ON_LINUX (AppleScript requires macOS host)"
+  },
+  "version_alignment": {},
+  "error_handling": {
+    "401_unauthorized": {
+      "status": 401,
+      "shape": {
+        "detail": "string"
+      }
+    },
+    "403_cross_origin": {
+      "status": 403,
+      "shape": {
+        "detail": "string"
+      }
+    },
+    "404_not_found": {
+      "status": 404,
+      "shape": {
+        "detail": "Not Found"
+      }
+    },
+    "422_validation_error": {
+      "status": 422,
+      "shape": {
+        "detail": [
+          {
+            "loc": [
+              "body"
+            ],
+            "msg": "string",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "frontend_resilience": "Frontend interceptors catch non-200 responses and display toasts/status badges without breaking UI component trees."
+  },
+  "security_regression": {
+    "SEC-001 (Demo owner-auth bypass)": "PASS (Public requests cannot access /api/career/profile or /api/todos)",
+    "SEC-002 (Public Spotify mutation)": "PASS (Spotify mutations require owner authentication)",
+    "SEC-003 (Plaintext profile secrets)": "PASS (Encrypted with Fernet in database)",
+    "SEC-004 (Cross-origin state mutation)": "PASS (Blocked with HTTP 403 for unauthorized origins)",
+    "SEC-005 (Presence token cleanup)": "PASS (Tokens expired and cleaned)"
+  },
+  "performance_comparison": [
+    {
+      "metric": "Simple Stats API",
+      "local_p50": "1.22 ms",
+      "prod_p50": "305.16 ms",
+      "prod_proxy_p50": "305.68 ms"
+    },
+    {
+      "metric": "Public Weather",
+      "local_p50": "0.15 ms",
+      "prod_p50": "487.61 ms",
+      "prod_proxy_p50": "517.6 ms"
+    },
+    {
+      "metric": "Public Chat",
+      "local_p50": "25.0 ms",
+      "prod_p50": "449.14 ms",
+      "prod_proxy_p50": "484.1 ms"
+    },
+    {
+      "metric": "Edge-TTS Synthesis",
+      "local_p50": "929.96 ms",
+      "prod_p50": "652.15 ms",
+      "prod_proxy_p50": "692.1 ms"
+    }
+  ]
+}

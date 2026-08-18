@@ -23,29 +23,45 @@ from services.brain.constants import (
 from services.brain.clients import _get_groq_client, _extract_json
 
 
+_last_saved_track = ["", ""]
+
+
 def build_system_prompt(text: str, is_boss: bool, guest_active: bool, brevity_mode: str) -> str:
     """Assembles rich context (memories, live track, time, todos, RAG embeddings) for the LLM."""
+    global _last_saved_track
     if is_boss:
         memory_str = get_memory_context_string()
         recent_history = get_recent_conversation(limit=4)
         history_str = "\n".join([f"{h['role'].upper()}: {h['message']}" for h in recent_history])
 
-        # Semantic memory (Gemini embeddings RAG)
-        try:
-            from services.embeddings import semantic_context
-            semantic_str = semantic_context(text, k=3)
-        except Exception:
-            semantic_str = ""
+        # Semantic memory (Gemini embeddings RAG) — bounded non-blocking retrieval
+        semantic_str = ""
+        if text and len(text.strip()) > 15:
+            try:
+                from services.embeddings import semantic_context_fast
+                semantic_str = semantic_context_fast(text, k=3, timeout_sec=0.04)
+            except Exception:
+                semantic_str = ""
 
-        # Live system context
+
+        # Live system context (cached fast lookup)
         track = get_spotify_current_track()
-        track_context = f"'{track.get('title')}' by {track.get('artist')} ({track.get('state')})" if track.get("title") else "Nothing playing."
+        track_title = track.get("title", "")
+        track_artist = track.get("artist", "")
+        track_context = f"'{track_title}' by {track_artist} ({track.get('state')})" if track_title else "Nothing playing."
         local_time_str = time.strftime("%I:%M %p")
         hour = int(time.strftime("%H"))
 
-        if track.get("title"):
-            save_fact("last_played_track", track.get("title"), "spotify")
-            save_fact("last_played_artist", track.get("artist", ""), "spotify")
+        # Only update permanent memory when the song actually changes
+        if track_title and (track_title != _last_saved_track[0] or track_artist != _last_saved_track[1]):
+            _last_saved_track[0] = track_title
+            _last_saved_track[1] = track_artist
+            try:
+                save_fact("last_played_track", track_title, "spotify")
+                save_fact("last_played_artist", track_artist, "spotify")
+            except Exception:
+                pass
+
 
         try:
             todos = get_todos()

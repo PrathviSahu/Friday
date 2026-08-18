@@ -25,10 +25,13 @@ const DASH_SYMBOLS = [
     { key: 'OANDA:XAUUSD',   label: 'GOLD (XAU)' },
 ];
 
+import RecruiterDemoHub from '../../components/RecruiterDemo/RecruiterDemoHub';
+
 export default function Dashboard({ onLock }) {
     const { setWorkspace } = useOrbState();
     const [stats, setStats] = useState({ cpu_percent: 0, ram_percent: 0, battery_percent: 0, power_plugged: false, disk_percent: 0, ram_used_gb: 0, ram_total_gb: 0 });
     const [market, setMarket] = useState({});
+    const [recruiterDemoOpen, setRecruiterDemoOpen] = useState(false);
 
     useEffect(() => {
         let alive = true;
@@ -71,12 +74,19 @@ export default function Dashboard({ onLock }) {
                         style={{ boxShadow: '0 0 6px rgba(99, 102, 241, 0.15)' }}>
                         Career OS
                     </button>
+                    <button onClick={() => setRecruiterDemoOpen(true)}
+                        className="border border-cyan-400/50 bg-cyan-500/10 hover:bg-cyan-500/25 px-3 py-1 rounded text-[8px] font-orbitron tracking-widest text-cyan-300 transition-all uppercase cursor-pointer flex items-center gap-1.5"
+                        style={{ boxShadow: '0 0 10px rgba(6, 182, 212, 0.3)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                        Recruiter Demo Tour
+                    </button>
                     <button onClick={onLock}
                         className="border border-[#ff4444]/30 bg-[#ff4444]/5 hover:bg-[#ff4444]/15 px-3 py-1 rounded text-[8px] font-orbitron tracking-widest text-[#ff6666] transition-all uppercase cursor-pointer"
                         style={{ boxShadow: '0 0 6px rgba(255, 68, 68, 0.15)' }}>
                         Secure Console [Lock]
                     </button>
                 </div>
+
                 <div className="flex items-center gap-6">
                     <div className="font-orbitron text-xs tracking-widest text-[#00B7FF] flex items-center gap-2 drop-shadow-[0_0_8px_rgba(0,183,255,0.4)]">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" style={{ boxShadow: '0 0 6px #00ff00' }} />
@@ -220,6 +230,11 @@ export default function Dashboard({ onLock }) {
                     </span>
                 </div>
             </div>
+
+            <RecruiterDemoHub
+                isOpen={recruiterDemoOpen}
+                onClose={() => setRecruiterDemoOpen(false)}
+            />
         </div>
     );
 }

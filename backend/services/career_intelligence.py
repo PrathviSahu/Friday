@@ -23,35 +23,95 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
 from groq import Groq
 
 _groq_client = None
+_gemini_client = None
 
 
 def _groq():
     global _groq_client
     if _groq_client is None:
-        _groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+        api_key = os.environ.get("GROQ_API_KEY", "")
+        if api_key and api_key != "your_key_here":
+            try:
+                _groq_client = Groq(api_key=api_key)
+            except Exception:
+                _groq_client = None
     return _groq_client
 
 
+def _gemini():
+    global _gemini_client
+    if _gemini_client is None:
+        api_key = os.environ.get("GEMINI_API_KEY", "")
+        if api_key and api_key != "your_key_here":
+            try:
+                from google import genai
+                _gemini_client = genai.Client(api_key=api_key)
+            except Exception:
+                _gemini_client = None
+    return _gemini_client
+
+
 def _llm(system_prompt: str, user_prompt: str, json_mode: bool = False,
-         model: str = "llama-3.3-70b-versatile", max_tokens: int = 1500) -> str:
-    """Call Groq with a system + user prompt. Returns raw string."""
-    try:
-        kwargs = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.4,
-        }
-        if json_mode:
-            kwargs["response_format"] = {"type": "json_object"}
-        resp = _groq().chat.completions.create(**kwargs)
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"[Career AI] Error: {e}")
-        return "{}" if json_mode else ""
+         model: Optional[str] = None, max_tokens: int = 1500) -> str:
+    """Call Groq or Gemini with resilient failover. Returns raw string."""
+    groq_model = model or os.getenv("GROQ_MODEL", "groq/compound-mini")
+
+    # 1. Try Groq
+    groq_client = _groq()
+    if groq_client:
+        try:
+            kwargs = {
+                "model": groq_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": max_tokens,
+                "temperature": 0.3,
+            }
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+            resp = groq_client.chat.completions.create(**kwargs)
+            text = (resp.choices[0].message.content or "").strip()
+            if text:
+                return text
+        except Exception as e:
+            print(f"[Career AI] Groq call failed ({e}), failing over to Gemini...")
+
+    # 2. Try Gemini
+    gem_client = _gemini()
+    if gem_client:
+        try:
+            from google.genai import types
+            gem_models = [
+                os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+                "gemini-3.5-flash",
+                "gemini-3.6-flash",
+                "gemini-3.7-flash"
+            ]
+            for gm in gem_models:
+                try:
+                    config = types.GenerateContentConfig(
+                        temperature=0.3,
+                        max_output_tokens=max_tokens,
+                    )
+                    if json_mode:
+                        config.response_mime_type = "application/json"
+                    resp = gem_client.models.generate_content(
+                        model=gm,
+                        contents=[system_prompt, user_prompt],
+                        config=config,
+                    )
+                    text = (resp.text or "").strip()
+                    if text:
+                        return text
+                except Exception as ge:
+                    print(f"[Career AI] Gemini {gm} failed: {ge}")
+                    continue
+        except Exception as e:
+            print(f"[Career AI] Gemini client error: {e}")
+
+    return "{}" if json_mode else ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

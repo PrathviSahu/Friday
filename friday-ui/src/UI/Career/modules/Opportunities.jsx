@@ -220,7 +220,7 @@ const SAMPLE_JOBS = [
     if (!selectedJob) return;
     setSubmittingApp(true);
     try {
-      await createApplication(selectedJob.id, { resume_id: selectedResumeId });
+      await createApplication(selectedJob.id, selectedResumeId);
       await updateJobStatus(selectedJob.id, 'applied');
       setShowApprovalModal(false);
       loadJobs();

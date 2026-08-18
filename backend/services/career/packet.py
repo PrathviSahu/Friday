@@ -341,6 +341,9 @@ def generate_application_packet(
         except Exception:
             res_content = {}
 
+    if not res_content.get("skills") and profile.get("skills"):
+        res_content["skills"] = profile.get("skills")
+
     # 3. ATS Score & Skill Gaps
     ats_report = estimate_ats_score(job, res_content)
     skill_gaps = analyze_skill_gaps(job, res_content)

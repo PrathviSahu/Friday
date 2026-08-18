@@ -901,8 +901,20 @@ PLAYLIST_ENGLISH = os.getenv("SPOTIFY_PLAYLIST_ENGLISH", "spotify:playlist:2CCKz
 PLAYLIST_KRISHNA = os.getenv("SPOTIFY_PLAYLIST_KRISHNA", "spotify:playlist:3Fd9z849SrTBEtHDTgQvXo")
 
 
-def get_spotify_current_track() -> dict:
-    """Fetch details of currently active Spotify track via AppleScript or Web API."""
+_spotify_track_cache = {"track": {}, "expires_at": 0.0}
+_spotify_track_lock = threading.Lock()
+
+
+def get_spotify_current_track(force_refresh: bool = False) -> dict:
+    """Fetch details of currently active Spotify track via AppleScript or Web API with TTL cache."""
+    global _spotify_track_cache
+    now = time.time()
+    if not force_refresh:
+        with _spotify_track_lock:
+            if _spotify_track_cache["track"] and now < _spotify_track_cache["expires_at"]:
+                return dict(_spotify_track_cache["track"])
+
+    track_result = {}
     if IS_MAC and is_spotify_running():
         try:
             SEP = "|||SEP|||"
@@ -923,7 +935,7 @@ def get_spotify_current_track() -> dict:
                 end try
             end tell
             '''
-            res = subprocess.check_output(["osascript", "-e", script], timeout=3).decode("utf-8").strip()
+            res = subprocess.check_output(["osascript", "-e", script], timeout=2).decode("utf-8").strip()
             if res and res != "STOPPED" and SEP in res:
                 parts = res.split(SEP)
                 title       = parts[0].strip()
@@ -937,7 +949,7 @@ def get_spotify_current_track() -> dict:
 
                 is_ad = "ad-free" in title.lower() or "advertisement" in title.lower() or ("spotify" in title.lower() and not artist)
 
-                return {
+                track_result = {
                     "playing":     state == "playing",
                     "is_ad":       is_ad,
                     "title":       title,
@@ -951,6 +963,13 @@ def get_spotify_current_track() -> dict:
                 }
         except Exception as err:
             print(f"[Automation] Error fetching current track via AppleScript: {err}")
+
+    if track_result:
+        with _spotify_track_lock:
+            _spotify_track_cache["track"] = track_result
+            _spotify_track_cache["expires_at"] = time.time() + 4.0
+        return track_result
+
 
     # Fallback to Spotify Web Player API
     web_track = _get_spotify_current_track_web()
@@ -1258,6 +1277,138 @@ def open_whatsapp_desktop(phone: str = "") -> bool:
         return False
 
 
+def search_whatsapp_desktop(query: str) -> dict:
+    """Focus WhatsApp Desktop on macOS, clear previous search (Cmd+A -> Delete), and type contact/query."""
+    if not IS_MAC:
+        return {"ok": False, "error": "WhatsApp Desktop search is only supported on macOS."}
+    clean = query.strip()
+    # Guard against accidentally typing the application name into the search bar
+    if not clean or clean.lower() in ["whatsapp", "whats app", "wa", "the app", "app"]:
+        open_whatsapp_desktop()
+        return {"ok": True, "query": ""}
+    try:
+        safe_q = clean.replace('"', '\\"')
+        script = f'''
+        tell application "WhatsApp" to activate
+        delay 0.3
+        tell application "System Events"
+            keystroke "f" using {{command down}}
+            delay 0.2
+            keystroke "a" using {{command down}}
+            delay 0.1
+            key code 51
+            delay 0.1
+            keystroke "{safe_q}"
+        end tell
+        '''
+        subprocess.run(["osascript", "-e", script], timeout=5, capture_output=True)
+        return {"ok": True, "query": clean}
+    except Exception as err:
+        print(f"[WhatsApp Search] Error: {err}")
+        return {"ok": False, "error": str(err)}
+
+
+def clear_whatsapp_search_desktop() -> dict:
+    """Focus WhatsApp Desktop on macOS and clear/close the active search bar."""
+    if not IS_MAC:
+        return {"ok": False, "error": "WhatsApp Desktop search is only supported on macOS."}
+    try:
+        script = '''
+        tell application "WhatsApp" to activate
+        delay 0.3
+        tell application "System Events"
+            keystroke "f" using {command down}
+            delay 0.2
+            keystroke "a" using {command down}
+            delay 0.1
+            key code 51
+            delay 0.1
+            key code 53
+        end tell
+        '''
+        subprocess.run(["osascript", "-e", script], timeout=5, capture_output=True)
+        return {"ok": True}
+    except Exception as err:
+        print(f"[WhatsApp Clear Search] Error: {err}")
+        return {"ok": False, "error": str(err)}
+
+
+def open_whatsapp_chat(contact_name: str, message: str = "", send_immediately: bool = False) -> dict:
+    """Focus WhatsApp Desktop on macOS, search for contact, open their chat, and optionally type/send a message."""
+    if not IS_MAC:
+        return {"ok": False, "error": "WhatsApp Desktop is only supported on macOS."}
+    clean_contact = contact_name.strip()
+    if not clean_contact or clean_contact.lower() in ["whatsapp", "whats app", "wa", "the app", "app"]:
+        open_whatsapp_desktop()
+        return {"ok": True, "contact": ""}
+
+    safe_contact = clean_contact.replace('"', '\\"')
+    safe_msg = message.strip().replace('"', '\\"') if message else ""
+
+    script_lines = [
+        'tell application "WhatsApp" to activate',
+        'delay 0.3',
+        'tell application "System Events"',
+        '    keystroke "f" using {command down}',
+        '    delay 0.2',
+        '    keystroke "a" using {command down}',
+        '    delay 0.1',
+        '    key code 51',  # Delete existing search
+        '    delay 0.1',
+        f'    keystroke "{safe_contact}"',
+        '    delay 0.6',
+        '    key code 125', # Down arrow to highlight top contact
+        '    delay 0.2',
+        '    key code 36',  # Enter to open chat
+        '    delay 0.4',
+    ]
+
+    if safe_msg:
+        script_lines.extend([
+            f'    keystroke "{safe_msg}"',
+            '    delay 0.2',
+        ])
+        if send_immediately:
+            script_lines.extend([
+                '    key code 36',  # Enter to send
+                '    delay 0.2',
+            ])
+
+    script_lines.append('end tell')
+    full_script = "\n".join(script_lines)
+
+    try:
+        subprocess.run(["osascript", "-e", full_script], timeout=8, capture_output=True)
+        return {
+            "ok": True,
+            "contact": clean_contact,
+            "message": message,
+            "sent": send_immediately
+        }
+    except Exception as err:
+        print(f"[WhatsApp Chat] Error: {err}")
+        return {"ok": False, "error": str(err)}
+
+
+def press_whatsapp_send_desktop() -> dict:
+    """Focus WhatsApp Desktop on macOS and press Return (key code 36) to send the pending message."""
+    if not IS_MAC:
+        return {"ok": False, "error": "WhatsApp Desktop is only supported on macOS."}
+    try:
+        script = '''
+        tell application "WhatsApp" to activate
+        delay 0.2
+        tell application "System Events"
+            key code 36
+        end tell
+        '''
+        subprocess.run(["osascript", "-e", script], timeout=4, capture_output=True)
+        return {"ok": True}
+    except Exception as err:
+        print(f"[WhatsApp Send] Error: {err}")
+        return {"ok": False, "error": str(err)}
+
+
 def open_url_in_brave(url: str) -> bool:
     """Open a URL in Brave browser (or default browser)."""
     target_url = url if url.startswith("http") else f"https://{url}"
@@ -1406,6 +1557,22 @@ def execute_system_command(action_type: str, target: str = "", volume_percent: i
     elif action == "close_app":
         close_app(target_clean)
         return f"Closing {target_clean}, Prem."
+
+    elif action == "search_whatsapp":
+        search_whatsapp_desktop(target_clean)
+        return f"Searching for '{target_clean}' on WhatsApp, Prem."
+
+    elif action == "open_whatsapp":
+        open_whatsapp_desktop()
+        return "Opening WhatsApp Desktop, Prem."
+
+    elif action in ("open_whatsapp_chat", "whatsapp_chat"):
+        open_whatsapp_chat(target_clean)
+        return f"Opening chat with '{target_clean}' on WhatsApp, Prem."
+
+    elif action in ("send_whatsapp_desktop", "press_whatsapp_send", "send_it"):
+        press_whatsapp_send_desktop()
+        return "Message sent on WhatsApp, Prem."
 
     elif action == "search_web":
         open_google_search(target_clean)

@@ -6,7 +6,7 @@ All endpoints under /api/career/*
 
 import json
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
@@ -92,14 +92,45 @@ class JobStatusUpdate(BaseModel):
     notes: str = ""
 
 
+def _resolve_resume_id(val: Optional[Union[int, str, dict]]) -> Optional[int]:
+    """Safely resolve an integer resume_id from int, str ('primary'), or dict."""
+    if val is None or val == "":
+        return None
+    if isinstance(val, dict):
+        val = val.get("resume_id")
+        if val is None or val == "":
+            return None
+    if isinstance(val, int):
+        return val
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        try:
+            resumes = get_all_resumes()
+            if not resumes:
+                return None
+            val_lower = str(val).lower()
+            if val_lower in ("primary", "recommended", "default"):
+                for r in resumes:
+                    if r.get("is_recommended"):
+                        return r["id"]
+                return resumes[0]["id"]
+            for r in resumes:
+                if val_lower in (r.get("title") or "").lower():
+                    return r["id"]
+            return resumes[0]["id"]
+        except Exception:
+            return None
+
+
 class ApplicationCreate(BaseModel):
     job_id: int
-    resume_id: Optional[int] = None
+    resume_id: Optional[Union[int, str, dict]] = None
 
 
 class ApplicationUpdate(BaseModel):
     status: Optional[str] = None
-    resume_id: Optional[int] = None
+    resume_id: Optional[Union[int, str, dict]] = None
     notes: Optional[str] = None
     follow_up_date: Optional[str] = None
     deadline: Optional[str] = None
@@ -110,12 +141,12 @@ class ApplicationUpdate(BaseModel):
 
 class AnalyzeJobRequest(BaseModel):
     job_id: int
-    resume_id: Optional[int] = None
+    resume_id: Optional[Union[int, str, dict]] = None
 
 
 class CoverLetterRequest(BaseModel):
     job_id: int
-    resume_id: Optional[int] = None
+    resume_id: Optional[Union[int, str, dict]] = None
     tone: str = "professional"
 
 
@@ -321,41 +352,83 @@ async def upload_resume_file(file: UploadFile = File(...)):
     else:
         extracted_text = contents.decode("utf-8", errors="ignore")
 
-    # Tier 1: Try AI extraction via Groq LLM first for 100% accurate parsing
+    def _format_section(val) -> str:
+        if not val:
+            return ""
+        if isinstance(val, str):
+            return val.strip()
+        if isinstance(val, list):
+            items = []
+            for item in val:
+                if isinstance(item, dict):
+                    parts = []
+                    head = " | ".join(str(item[k]) for k in ["title", "position", "role", "company", "degree", "university", "institution", "location", "dates", "date", "score", "cgpa"] if k in item and item[k])
+                    if head:
+                        parts.append(head)
+                    desc = item.get("description") or item.get("summary")
+                    if desc:
+                        parts.append(str(desc))
+                    bullets = item.get("bullet_points") or item.get("bullets") or item.get("points") or item.get("achievements")
+                    if isinstance(bullets, list):
+                        parts.extend(f"• {b}" for b in bullets if b)
+                    elif isinstance(bullets, str) and bullets:
+                        parts.append(bullets)
+                    techs = item.get("technologies") or item.get("tech_stack")
+                    if techs:
+                        parts.append(f"Technologies: {', '.join(techs) if isinstance(techs, list) else techs}")
+                    items.append("\n".join(parts) if parts else str(item))
+                elif isinstance(item, str):
+                    items.append(f"• {item}" if not item.startswith("•") and "\n" not in item else item)
+                else:
+                    items.append(str(item))
+            return "\n\n".join(items) if any("\n" in it for it in items) else "\n".join(items)
+        if isinstance(val, dict):
+            return "\n".join(f"{k.replace('_', ' ').title()}: {v}" for k, v in val.items() if v)
+        return str(val).strip()
+
+    # Tier 1: Try AI extraction via LLM with Gemini/Groq failover
     sections = None
     try:
         from services.career_intelligence import _llm
         system_prompt = (
             "You are an expert resume parser. Analyze the provided resume text and categorize its contents into JSON with EXACTLY these 7 keys:\n"
-            "- summary: Brief summary, title, or contact/intro details\n"
-            "- skills: Technical skills, tools, languages, frameworks, databases\n"
-            "- experience: Work experience, company names, job titles, dates, achievements\n"
+            "- summary: Professional summary, profile overview, or contact intro (keep short; max 1-2 paragraphs)\n"
+            "- skills: Technical skills, tools, languages, frameworks, databases, libraries\n"
+            "- experience: Work experience, company names, job titles, dates, bullet points\n"
             "- education: Degrees, universities, graduation years, GPA/scores\n"
             "- projects: Project titles, descriptions, tech used, links\n"
             "- achievements: Awards, honors, competitive rankings, key accomplishments\n"
             "- certifications: Certifications, licenses, credentials\n\n"
-            "DO NOT dump all text into summary! Divide content accurately. Return ONLY valid JSON."
+            "DO NOT dump all text into summary! Divide content accurately across the keys. Return ONLY valid JSON."
         )
-        parsed_json = _llm(system_prompt, f"Resume Text:\n{extracted_text[:6500]}", json_mode=True)
-        if isinstance(parsed_json, dict):
-            sec = {
-                "summary": str(parsed_json.get("summary") or "").strip(),
-                "skills": str(parsed_json.get("skills") or "").strip(),
-                "experience": str(parsed_json.get("experience") or "").strip(),
-                "education": str(parsed_json.get("education") or "").strip(),
-                "projects": str(parsed_json.get("projects") or "").strip(),
-                "achievements": str(parsed_json.get("achievements") or "").strip(),
-                "certifications": str(parsed_json.get("certifications") or "").strip()
-            }
-            if sum(1 for v in sec.values() if len(v) > 5) >= 2:
-                sections = sec
+        raw_res = _llm(system_prompt, f"Resume Text:\n{extracted_text[:7000]}", json_mode=True)
+        if isinstance(raw_res, str) and raw_res.strip():
+            try:
+                parsed_json = json.loads(raw_res)
+            except Exception:
+                # Fuzzy JSON extraction if raw_res contained markdown wrapping
+                m = re.search(r"\{.*\}", raw_res, re.DOTALL)
+                parsed_json = json.loads(m.group(0)) if m else None
+
+            if isinstance(parsed_json, dict):
+                sec = {
+                    "summary": _format_section(parsed_json.get("summary")),
+                    "skills": _format_section(parsed_json.get("skills")),
+                    "experience": _format_section(parsed_json.get("experience")),
+                    "education": _format_section(parsed_json.get("education")),
+                    "projects": _format_section(parsed_json.get("projects")),
+                    "achievements": _format_section(parsed_json.get("achievements")),
+                    "certifications": _format_section(parsed_json.get("certifications"))
+                }
+                if sum(1 for v in sec.values() if len(v) > 5) >= 2:
+                    sections = sec
     except Exception as err:
         print("[Resume Upload Parser] LLM parsing fallback to regex:", err)
 
     # Tier 2: Enhanced smart section matcher fallback
     if not sections or not any(sections.values()):
         sec_keywords = [
-            ("skills", [r"technical\s+skills", r"skills\s*&\s*tools", r"core\s+competencies", r"skills", r"tech\s+stack", r"technologies", r"programming\s+languages"]),
+            ("skills", [r"technical\s+skills", r"skills\s*&\s*tools", r"core\s+competencies", r"skills", r"tech\s+stack", r"technologies", r"programming\s+languages", r"technical\s+proficiencies"]),
             ("experience", [r"work\s+experience", r"professional\s+experience", r"employment\s+history", r"experience", r"work\s+history", r"internships"]),
             ("education", [r"education", r"academic\s+background", r"academic\s+qualifications", r"degrees", r"scholastic\s+achievements"]),
             ("projects", [r"projects", r"key\s+projects", r"personal\s+projects", r"academic\s+projects", r"portfolio"]),
@@ -534,8 +607,9 @@ def analyze_job(req: AnalyzeJobRequest):
         raise HTTPException(404, "Job not found")
 
     resume_content = {}
-    if req.resume_id:
-        r = get_resume(req.resume_id)
+    res_id = _resolve_resume_id(req.resume_id)
+    if res_id:
+        r = get_resume(res_id)
         if r:
             try:
                 resume_content = json.loads(r.get("content_json") or "{}")
@@ -567,13 +641,19 @@ def list_applications(status: Optional[str] = None):
 
 @router.post("/applications")
 def create_new_application(req: ApplicationCreate):
-    app_id = create_application(req.job_id, req.resume_id)
+    job = get_job(req.job_id)
+    if not job:
+        raise HTTPException(404, f"Job {req.job_id} not found in database")
+    res_id = _resolve_resume_id(req.resume_id)
+    app_id = create_application(req.job_id, res_id)
     return {"status": "ok", "application_id": app_id}
 
 
 @router.put("/applications/{app_id}")
 def update_application_endpoint(app_id: int, req: ApplicationUpdate):
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    if "resume_id" in updates:
+        updates["resume_id"] = _resolve_resume_id(updates["resume_id"])
     if not updates:
         raise HTTPException(400, "No fields to update")
     ok = update_application(app_id, updates)
@@ -592,8 +672,9 @@ def generate_cover_letter_endpoint(req: CoverLetterRequest):
         raise HTTPException(404, "Job not found")
 
     resume_content = {}
-    if req.resume_id:
-        r = get_resume(req.resume_id)
+    res_id = _resolve_resume_id(req.resume_id)
+    if res_id:
+        r = get_resume(res_id)
         if r:
             try:
                 resume_content = json.loads(r.get("content_json") or "{}")
@@ -602,7 +683,7 @@ def generate_cover_letter_endpoint(req: CoverLetterRequest):
 
     profile = {k: v["value"] for k, v in get_profile().items()}
     content = generate_cover_letter(job, resume_content, profile, req.tone)
-    cover_id = save_cover_letter(req.job_id, req.resume_id, content, req.tone)
+    cover_id = save_cover_letter(req.job_id, res_id, content, req.tone)
     return {"status": "ok", "cover_letter_id": cover_id, "content": content}
 
 

@@ -48,6 +48,8 @@ const MODULE_MAP = {
   accounts:     AccountManager,
 };
 
+import RecruiterDemoHub from '../../components/RecruiterDemo/RecruiterDemoHub';
+
 const CareerOS = memo(function CareerOS({ onClose }) {
   const [active, setActive]       = useState('opportunities');
   const [collapsed, setCollapsed] = useState(() => {
@@ -55,6 +57,7 @@ const CareerOS = memo(function CareerOS({ onClose }) {
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [recruiterTourOpen, setRecruiterTourOpen] = useState(false);
 
   const { micEnabled, setMicEnabled } = useFriday();
   const isMuted = !micEnabled;
@@ -97,6 +100,24 @@ const CareerOS = memo(function CareerOS({ onClose }) {
           </span>
         </div>
 
+        {/* Recruiter Demo Tour Button */}
+        <button
+          onClick={() => setRecruiterTourOpen(true)}
+          title="Open Recruiter Showcase & Tour"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 12px', borderRadius: 999,
+            background: 'rgba(6, 182, 212, 0.15)',
+            border: '1px solid rgba(6, 182, 212, 0.4)',
+            color: '#67e8f9',
+            fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all 200ms',
+            boxShadow: '0 0 10px rgba(6, 182, 212, 0.2)'
+          }}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22d3ee', display: 'inline-block' }} />
+          <span>RECRUITER TOUR</span>
+        </button>
+
         {/* Refresh Button */}
         <button
           onClick={handleRefresh}
@@ -137,6 +158,11 @@ const CareerOS = memo(function CareerOS({ onClose }) {
           <X size={16} />
         </button>
       </div>
+
+      <RecruiterDemoHub
+        isOpen={recruiterTourOpen}
+        onClose={() => setRecruiterTourOpen(false)}
+      />
 
       {/* ── Mobile Horizontal Navigation Strip ──────────────────────────────── */}
       <div className="flex md:hidden items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-[#050812] overflow-x-auto scrollbar-none shrink-0">

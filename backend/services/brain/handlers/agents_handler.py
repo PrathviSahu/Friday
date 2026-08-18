@@ -49,6 +49,107 @@ def handle_agents(lower_text: str, is_boss: bool) -> Optional[dict]:
         except Exception:
             pass
 
+    # 💬 WhatsApp Open Chat & Type Message
+    m_open_msg = re.search(r'\b(?:open\s+(?:the\s+)?(?:whatsapp|whats\s*app|wa)\s+(?:and\s+)?)?(?:message|msg|text|ping)\s+(?:to\s+)?(.+?)\s+(?:saying|that|stating|about|ki|say|type|:)\s+(.+)$', lower_text)
+    if m_open_msg and not lower_text.startswith(('whatsapp pe', 'whats app pe', 'wa pe')):
+        contact = m_open_msg.group(1).replace('whatsapp', '').replace('and message', '').replace('and text', '').strip()
+        contact = re.sub(r'^(?:and|to)\s+', '', contact).strip()
+        msg = m_open_msg.group(2).strip()
+        if contact and msg:
+            from services.system_control import open_whatsapp_chat
+            open_whatsapp_chat(contact, msg)
+            reply_msg = f"Opening chat with '{contact}' and typing your message, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "open_whatsapp_chat", "target": contact, "message": msg}
+
+    m_type = re.search(r'\b(?:open\s+(?:the\s+)?(?:whatsapp\s+)?chat\s*(?:with|of)?\s*(.+?)\s+and\s+type\s+(.+))\b|\b(?:open\s+(.+?)\s+chat\s+and\s+type\s+(.+))\b', lower_text)
+    if m_type:
+        c = (m_type.group(1) or m_type.group(3) or '').strip()
+        c = re.sub(r'^(?:with|of)\s+', '', c).strip()
+        m = (m_type.group(2) or m_type.group(4) or '').strip()
+        if c and m:
+            from services.system_control import open_whatsapp_chat
+            open_whatsapp_chat(c, m)
+            reply_msg = f"Opening chat with '{c}' and typing your message, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "open_whatsapp_chat", "target": c, "message": m}
+
+    m_msg = re.search(r'\b(?:message|whatsapp|whats\s*app|text|ping)\s+(.+?)\s+(?:that|saying|stating|about|ki|say|type|:)\s+(.+)$', lower_text)
+    if m_msg and not lower_text.startswith(('whatsapp pe', 'whats app pe', 'wa pe')):
+        c = m_msg.group(1).strip()
+        m = m_msg.group(2).strip()
+        if c and m and not re.match(r'^\+?\d{8,15}$', c):
+            from services.system_control import open_whatsapp_chat
+            open_whatsapp_chat(c, m)
+            reply_msg = f"Opening chat with '{c}' and typing your message, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "open_whatsapp_chat", "target": c, "message": m}
+
+    m_hin = re.search(r'\b(?:whatsapp|whats\s*app|wa)\s+(?:pe|mein|par)\s+(.+?)\s*(?:ko)?\s+(?:message|msg|text)\s+(?:karo|bhejo|likho)\s*(?:ki|saying|that)?\s*(.+)\b', lower_text)
+    if m_hin:
+        c = m_hin.group(1).strip()
+        m = m_hin.group(2).strip()
+        if c and m:
+            from services.system_control import open_whatsapp_chat
+            open_whatsapp_chat(c, m)
+            reply_msg = f"Opening chat with '{c}' and typing your message, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "open_whatsapp_chat", "target": c, "message": m}
+
+    # 📂 WhatsApp Open Chat Only
+    m_open = (
+        re.search(r'\b(?:open\s+(?:the\s+)?(?:whatsapp\s+)?chat\s*(?:with|of)\s+(.+))\b', lower_text)
+        or re.search(r'\b(?:open\s+(.+?)\s+chat(?:\s+on\s+whatsapp)?)\b', lower_text)
+        or re.search(r'\b(?:search\s+(?:for\s+)?(.+?)\s+(?:on\s+whatsapp\s+)?and\s+open\s+chat)\b', lower_text)
+    )
+    if m_open and not any(w in lower_text for w in ["and type", "saying", "that", "message"]):
+        c = (m_open.group(1) or '').replace('on whatsapp', '').replace('with', '').replace('of', '').strip()
+        if c and c.lower() not in ["whatsapp", "whats app", "the app"]:
+            from services.system_control import open_whatsapp_chat
+            open_whatsapp_chat(c)
+            reply_msg = f"Opening chat with '{c}' on WhatsApp, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "open_whatsapp_chat", "target": c}
+
+    # 🚀 Send Pending Message
+    if re.search(r'^(?:send\s+it|send\s+(?:the\s+)?message|bhej\s+do|send\s+karo)$', lower_text):
+        from services.system_control import press_whatsapp_send_desktop
+        press_whatsapp_send_desktop()
+        reply_msg = "Message sent on WhatsApp, Prem."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "send_it"}
+
+    # 🧹 WhatsApp Clear Search
+    if re.search(r'\b(?:clear|remove|reset|close)\s+(?:the\s+)?(?:search|filter)\s+(?:from|in|on)?\s*(?:whatsapp|whats\s*app|wa)\b', lower_text) and not re.search(r'\band\s+(?:search|find)\b', lower_text):
+        from services.system_control import clear_whatsapp_search_desktop
+        clear_whatsapp_search_desktop()
+        reply_msg = "Cleared WhatsApp search filter, Prem."
+        log_conversation(role="assistant", message=reply_msg)
+        return {"reply": reply_msg, "action": "clear_whatsapp_search"}
+
+    # 🔍 WhatsApp Search Contact / Message (Supports English, Hindi & Hinglish)
+    wa_search_match = (
+        re.search(r'\b(?:clear\s+(?:the\s+)?(?:whatsapp|whats\s*app|wa)?\s*(?:search|filter)?\s*(?:from|in|on)?\s*(?:whatsapp|whats\s*app|wa)?\s+and\s+(?:search|find|look\s+for)\s*(?:again)?)\s+(?:for\s+)?(.+)\b', lower_text)
+        or re.search(r'\b(?:search|find|look\s+for|dhoondo)\s+(?:for\s+)?(.+?)\s+(?:on|in|via|pe)\s+(?:whatsapp|whats\s*app|wa)\b', lower_text)
+        or re.search(r'\b(?:on|in|via|pe)\s+(?:whatsapp|whats\s*app|wa)\s*,?\s*(?:search|find|look\s+for|dhoondo)\s+(?:again\s+)?(?:for\s+)?(.+)\b', lower_text)
+        or re.search(r'\b(?:whatsapp|whats\s*app|wa)\s+(?:pe|mein|par)\s+(.+?)(?:\s+ko)?\s+(?:dhoondo|search\s+karo|find\s+karo|search|find)\b', lower_text)
+        or re.search(r'\b(?:open\s+)?(?:the\s+)?(?:whatsapp|whats\s*app|wa)\s*(?:and|then|,)?\s*(?:search|find|look\s+for|dhoondo)\s*(?:again\s+)?(?:for\s+)?(.+)\b', lower_text)
+    )
+    if wa_search_match:
+        target = next((g.strip() for g in wa_search_match.groups() if g and g.strip()), "")
+        target = re.sub(r'^(?:again\s+|for\s+)', '', target).rstrip(".?! ").strip()
+        if target:
+            from services.system_control import search_whatsapp_desktop
+            search_whatsapp_desktop(target)
+            try:
+                from services.brain.context_manager import update_context
+                update_context(domain="WHATSAPP", task="whatsapp_search", intent="search_contact")
+            except Exception:
+                pass
+            reply_msg = f"Searching for '{target}' on WhatsApp, Prem."
+            log_conversation(role="assistant", message=reply_msg)
+            return {"reply": reply_msg, "action": "search_whatsapp", "target": target}
+
     # WhatsApp send draft
     wa_send_match = re.search(
         r'\b(?:message|whatsapp|whats\s*app|text|ping)\s+(\+?\d{8,15})\s+(?:that|saying|stating|about|re)\s+(.+)$',

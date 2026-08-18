@@ -187,7 +187,10 @@ export const getApplications = (status = null) =>
   );
 
 export const createApplication = async (job_id, resume_id = null) => {
-  const result = await api('POST', '/applications', { job_id, resume_id });
+  const actualResumeId = (typeof resume_id === 'object' && resume_id !== null)
+    ? resume_id.resume_id
+    : resume_id;
+  const result = await api('POST', '/applications', { job_id, resume_id: actualResumeId });
   invalidate('apps_', 'dashboard', 'jobs_');
   return result;
 };

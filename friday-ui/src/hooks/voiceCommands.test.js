@@ -86,9 +86,12 @@ describe('matchVoiceCommand — open/close app objects', () => {
 });
 
 describe('matchVoiceCommand — fallthrough', () => {
-  it('returns null for questions (handled by the AI brain)', () => {
+  it('returns null for questions and compound commands (handled by the AI brain)', () => {
     expect(matchVoiceCommand('what is the meaning of life')).toBe(null);
     expect(matchVoiceCommand('how do i write a resume')).toBe(null);
+    expect(matchVoiceCommand('open whatsapp and search vishal')).toBe(null);
+    expect(matchVoiceCommand('open spotify and play kesariya')).toBe(null);
+    expect(matchVoiceCommand('search for vishal on whatsapp')).toBe(null);
   });
 });
 

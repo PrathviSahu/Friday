@@ -186,9 +186,11 @@ def respond(transcript: str, is_boss: bool = True, silence_tts: bool = False) ->
     gemini_client = _get_gemini_client()
     if gemini_client:
         models_to_try = [
-            os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite-001"
+            os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+            "gemini-3.5-flash",
+            "gemini-3.6-flash",
+            "gemini-3.7-flash",
+            "gemini-2.5-flash"
         ]
         for model_name in models_to_try:
             try:

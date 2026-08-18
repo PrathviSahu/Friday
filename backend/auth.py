@@ -1,34 +1,36 @@
 """auth.py — Owner authentication for FRIDAY.
 
-FRIDAY is a single-owner personal assistant that runs on the owner's machine.
+FRIDAY is a single-owner personal assistant that runs either locally on the owner's
+machine or deployed to cloud hosting (e.g. Render / Cloud Run / VPS).
 
 Trust model:
-  * Requests arriving from the same machine (loopback / localhost) are treated
-    as the owner ("boss"). The macOS browser frontend talks to the backend
-    through the Vite dev proxy, which connects from 127.0.0.1.
-  * Requests arriving from any OTHER address (e.g. a neighbour on the LAN
-    hitting the 0.0.0.0-bound uvicorn) must present the `FRIDAY_API_TOKEN`
-    configured in backend/.env via the `X-FRIDAY-Token` header, otherwise they
-    are rejected with HTTP 401.
-
-This replaces the previous design where the HTTP client could declare itself
-the boss by sending `is_boss: true` in the request body — anyone on the
-network could impersonate the owner.
-
-NOTE: the server MUST run with uvicorn `--no-proxy-headers` (see app.py /
-start.sh). Uvicorn's default proxy-headers mode rewrites `request.client`
-from client-supplied `X-Forwarded-For` / `X-Real-IP`, which would let a
-remote attacker spoof `127.0.0.1` and bypass this check.
+  * LOCAL DEVELOPMENT (RENDER / ENVIRONMENT != production):
+      Requests arriving from loopback (127.0.0.1 / ::1 / localhost / testclient)
+      are treated as the owner ("boss").
+  * PRODUCTION DEPLOYMENT (RENDER=true or ENVIRONMENT=production):
+      Reverse proxies (like Render, Cloudflare, Nginx) route external requests to
+      the application container over a local loopback bridge (127.0.0.1).
+      Therefore, in production, client IP is NEVER trusted for owner identity.
+      ALL owner-level requests MUST present a valid `FRIDAY_API_TOKEN` via the
+      `X-FRIDAY-Token` HTTP header, compared in constant time.
 """
 
 import os
 import secrets
-
 from fastapi import Request, HTTPException
 
-# Hosts treated as "the machine itself". "testclient"/"testserver" are the
-# hostnames used by FastAPI's TestClient so tests can exercise owner paths.
+# Hosts treated as "the machine itself" in local development.
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient", "testserver"}
+
+
+def is_production_environment() -> bool:
+    """Return True if running in a cloud hosting or production environment."""
+    return (
+        os.getenv("RENDER", "").lower() in ("true", "1")
+        or os.getenv("ENVIRONMENT", "").lower() in ("production", "prod")
+        or os.getenv("FRIDAY_DEPLOYED", "").lower() in ("true", "1")
+        or os.getenv("FRIDAY_ENVIRONMENT", "").lower() in ("production", "prod")
+    )
 
 
 def get_api_token() -> str:
@@ -50,26 +52,31 @@ def is_loopback_host(host: str | None) -> bool:
 
 
 def is_boss_request(request: Request) -> bool:
-    """Owner check: loopback client or a valid FRIDAY_API_TOKEN bearer."""
-    host = request.client.host if request.client else ""
-    if is_loopback_host(host):
-        return True
+    """Owner check: constant-time token verification in production, loopback in local dev."""
     token = get_api_token()
-    if token:
-        provided = request.headers.get("X-FRIDAY-Token") or ""
-        if provided and secrets.compare_digest(provided, token):
-            return True
-    return False
+    provided = request.headers.get("X-FRIDAY-Token") or ""
 
+    # Valid token bearer is always authorized (local and production)
+    if token and provided and secrets.compare_digest(provided, token):
+        return True
+
+    # In production/cloud environments, NEVER trust client IP or loopback bridge
+    if is_production_environment():
+        return False
+
+    # In local development, allow loopback connections
+    host = request.client.host if request.client else ""
+    return is_loopback_host(host)
 
 
 def require_boss(request: Request) -> None:
-    """FastAPI dependency: 401 unless the caller is the owner.
-
-    Attach to any route that controls the physical machine, modifies personal data,
-    reads private emails/WhatsApp, or accesses private database storage.
-    """
+    """FastAPI dependency: 401 unless the caller is the authenticated owner."""
     if not is_boss_request(request):
+        if is_production_environment():
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized. Production access requires a valid X-FRIDAY-Token header.",
+            )
         raise HTTPException(
             status_code=401,
             detail=(
@@ -86,5 +93,4 @@ def require_public_demo(request: Request) -> None:
     Career OS, Trading Workstation, and ATS analysis without needing a master token.
     Endpoints using this dependency are protected by IP-based rate limiting.
     """
-    # Public demonstration tier: allowed for all callers (rate limited by IP)
     return None

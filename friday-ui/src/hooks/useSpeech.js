@@ -207,10 +207,14 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
         return;
       }
 
-      // ── Minimal Noise Filter (grunts only) ──────────────────────────────
-      const NOISE_ONLY = new Set(['uh', 'um', 'hmm', 'hm', 'ah', 'oh']);
-      if (NOISE_ONLY.has(query.toLowerCase().trim())) {
-        console.log('[Voice] Ignored grunt noise:', query);
+      // ── Minimal Noise & Hallucination Filter ───────────────────────────
+      const NOISE_ONLY = new Set([
+        'uh', 'um', 'hmm', 'hm', 'ah', 'oh', '.', '..', '...',
+        'thank you', 'thank you.', 'thanks', 'thanks.',
+        'you', 'bye', 'bye.', 'bye bye', 'goodbye', 'goodbye.'
+      ]);
+      if (NOISE_ONLY.has(query.toLowerCase().trim()) || /^[\.\,\!\?\:\;\-\s]+$/.test(query)) {
+        console.log('[Voice] Ignored grunt noise or silence hallucination:', query);
         return;
       }
 

@@ -889,14 +889,20 @@ def handle_contextual_reasoning(lower_text: str, is_boss: bool) -> Optional[dict
 
     # ── G. MUSIC CONTEXTUAL ANAPHORA ──
 
-    # Find song ("Find Kesariya")
-    song_search = re.search(r'\b(?:find|search\s+for|search)\s+(?:song\s+)?([a-zA-Z\s]+?)(?:\s+song|\s+track|\.|$)', lower_text)
-    if song_search and not any(w in lower_text for w in ["job", "role", "market", "crypto", "chart"]):
-        s_name = song_search.group(1).strip().title()
-        update_context(domain="MUSIC", task="music_search", song_name=s_name, intent="search_song")
-        reply = f"Found '{s_name}' on Spotify, Prem. Ready to play."
-        log_conversation(role="assistant", message=reply)
-        return {"reply": reply, "action": "none"}
+    # Find song ("Find song Kesariya" or "Search Kesariya on Spotify")
+    song_search = re.search(
+        r'\b(?:find|search\s+for|search)\s+(?:the\s+)?(?:song|track|music)\s+([a-zA-Z0-9\s]+?)(?:\s+on\s+spotify|\.|$)'
+        r'|\b(?:search|find)\s+([a-zA-Z0-9\s]+?)\s+(?:on|in)\s+spotify\b',
+        lower_text
+    )
+    if song_search and not any(w in lower_text for w in ["job", "role", "market", "crypto", "chart", "whatsapp", "email", "mail", "contact", "file", "web"]):
+        raw_name = (song_search.group(1) or song_search.group(2) or "").strip()
+        if raw_name:
+            s_name = raw_name.title()
+            update_context(domain="MUSIC", task="music_search", song_name=s_name, intent="search_song")
+            reply = f"Found '{s_name}' on Spotify, Prem. Ready to play."
+            log_conversation(role="assistant", message=reply)
+            return {"reply": reply, "action": "none"}
 
     # Song clarification ("No, the Kannada one")
     if re.search(r'\b(?:no\s*,\s*)?(?:the\s+)?(kannada|hindi|acoustic)\s+(?:one|version)\b', lower_text):

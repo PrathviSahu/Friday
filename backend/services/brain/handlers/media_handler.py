@@ -13,6 +13,32 @@ from services.system_control import (
 )
 from services.learning_engine import log_user_action
 
+NON_MUSIC_PLAY_PATTERNS = [
+    r'\bplay\s+around\b',
+    r'\bplay\s+with\b',
+    r'\bplay\s+(?:a\s+)?role\b',
+    r'\bplay\s+in\b',
+    r'\bplay\s+part\b',
+    r'\bplay\s+(?:a\s+)?game\b',
+    r'\bplay\s+chess\b',
+    r'\bplay\s+quiz\b',
+    r'\bplay\s+video\b',
+    r'\bplay\s+youtube\b',
+    r'\bplay\s+clip\b',
+    r'\bplay\s+recording\b',
+    r'\bplay\s*wright\b',
+    r'\bplay\s+write\b',
+    r'\bplay\s+audio\b',
+]
+
+NON_MUSIC_SONG_EXCLUDES = {
+    "music", "the music", "some music", "my music", "spotify", "playlist",
+    "hindi", "english", "volume", "sound", "it", "this", "next", "next song",
+    "next track", "previous", "previous song", "previous track", "around",
+    "with", "game", "chess", "quiz", "role", "video", "youtube", "clip",
+    "playwright", "wright", "test", "demo", "tour", "dashboard", "portal"
+}
+
 
 def clean_song_query(query: str) -> str:
     """Strips wake words, filler phrases, and trailing app names from song search queries."""
@@ -24,12 +50,9 @@ def clean_song_query(query: str) -> str:
 
 
 def handle_media(lower_text: str, is_boss: bool, extracted_vol: int, silence_tts: bool, last_action_context: dict) -> Optional[dict]:
-    """Handles Spotify media control, track cycling, playlist selection, volume levels, and aliases."""
-    # Ensure Spotify is running first if this is a playback or music control intent
-    if re.search(r'\b(?:play|unpause|resume|next|previous|skip|spotify|gaana|music)\b', lower_text) and not re.search(r'\b(?:close|quit|band)\b', lower_text):
-        if not is_spotify_running():
-            print("[Media Handler] Spotify not running — opening Spotify in background first...")
-            wait_until_spotify_running(timeout=6.0)
+    """Handles Spotify media control, track cycling, playlist selection, volume levels, and aliases.
+    Strictly avoids false-positive music triggers on conversational English sentences.
+    """
     # Close Spotify
     if re.search(r'\b(?:close|quit|stop|exit|band\s+karo)\s+(?:the\s+)?spotify\b|\bspotify\s+(?:close|quit|band\s+karo)\b', lower_text):
         close_app("Spotify")
@@ -85,7 +108,7 @@ def handle_media(lower_text: str, is_boss: bool, extracted_vol: int, silence_tts
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "previous_track", "silence_tts": silence_tts}
 
-    # Unpause / Resume
+    # Unpause / Resume (Strict command phrases only)
     if re.search(r'^(?:unpause|resume|play\s+(?:the\s+)?(?:song|music|track|spotify)|start\s+(?:playing|music|song)|play|gaana\s+chalao|music\s+chalao|gaana\s+bajao|shuru\s+karo)$', lower_text.strip()):
         execute_system_command("play_music", "", volume_percent=extracted_vol)
         reply_msg = "Resuming Spotify music, Prem."
@@ -148,8 +171,8 @@ def handle_media(lower_text: str, is_boss: bool, extracted_vol: int, silence_tts
         log_conversation(role="assistant", message=reply_msg)
         return {"reply": reply_msg, "action": "shuffle", "silence_tts": True}
 
-    # Phonetic song shortcut
-    if any(kw in lower_text for kw in ["tempo city", "help away", "temper city", "temple city"]):
+    # Phonetic song shortcut (Strict match)
+    if any(kw in lower_text for kw in ["tempo city", "temper city", "temple city"]):
         target_song = "Self Aware by Temper City"
         execute_system_command("play_specific", target_song, volume_percent=extracted_vol)
         msg = f"Playing '{target_song}' on Spotify, Prem."
@@ -160,20 +183,33 @@ def handle_media(lower_text: str, is_boss: bool, extracted_vol: int, silence_tts
         log_user_action("play_music")
         return {"reply": msg, "action": "play_specific", "silence_tts": True}
 
-    # Explicit "Play [Song]"
-    play_match = re.search(r'\bplay\b\s+(.*)', lower_text)
+    # Guard against non-music phrases or conversational questions
+    if any(re.search(pat, lower_text) for pat in NON_MUSIC_PLAY_PATTERNS):
+        return None
+
+    if re.search(r'^(?:what|why|how|when|where|who|can you explain|tell me|explain|is there)\b', lower_text.strip()):
+        return None
+
+    # Explicit "Play [Song]" — requires explicit command structure
+    play_match = re.search(r'^(?:play|start\s+playing|bajao|chalao)\s+(.+)$', lower_text.strip())
+    if not play_match:
+        # Or explicit "play <song> on spotify" / "play <song> song"
+        play_match = re.search(r'\bplay\s+(.+?)\s+(?:on\s+spotify|via\s+spotify|song|track)\b', lower_text.strip())
+
     if play_match:
         raw_song = play_match.group(1)
         cleaned_song = clean_song_query(raw_song)
-        if cleaned_song and cleaned_song.lower() not in [
-            "music", "the music", "some music", "my music", "spotify", "playlist",
-            "hindi", "english", "volume", "sound", "it", "this", "next", "next song",
-            "next track", "previous", "previous song", "previous track"
-        ]:
-            execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
-            log_conversation(role="assistant", message="ok")
-            last_action_context.update({"query": lower_text, "target": cleaned_song})
-            log_user_action("play_music")
-            return {"reply": "", "action": "play_specific", "silence_tts": True}
+        if cleaned_song:
+            first_word = cleaned_song.lower().split()[0] if cleaned_song.split() else ""
+            if (
+                cleaned_song.lower() not in NON_MUSIC_SONG_EXCLUDES
+                and first_word not in NON_MUSIC_SONG_EXCLUDES
+                and len(cleaned_song) >= 2
+            ):
+                execute_system_command("play_specific", cleaned_song, volume_percent=extracted_vol)
+                log_conversation(role="assistant", message="ok")
+                last_action_context.update({"query": lower_text, "target": cleaned_song})
+                log_user_action("play_music")
+                return {"reply": "", "action": "play_specific", "silence_tts": True}
 
     return None

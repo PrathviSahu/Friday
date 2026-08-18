@@ -177,12 +177,30 @@ def retrieve(query: str, k: int = 4) -> list:
     Returns [{"text": str, "source": str, "score": float}, ...] — empty when
     embeddings are unavailable or nothing is indexed.
     """
+_semantic_query_cache = {}
+_semantic_cache_lock = threading.Lock()
+
+
+def retrieve(query: str, k: int = 4) -> list[dict]:
+    """Return top-k matches for a query against the embeddings table with TTL caching."""
+    global _semantic_query_cache
+    if not (query or "").strip():
+        return []
+
+    q_clean = query.strip()
+    now = time.time()
+    with _semantic_cache_lock:
+        if q_clean in _semantic_query_cache:
+            res, expires_at = _semantic_query_cache[q_clean]
+            if now < expires_at:
+                return res
+
     embed = _get_embedder()
-    if embed is None or not (query or "").strip():
+    if embed is None:
         return []
     try:
         ensure_indexed()
-        vectors = embed([query.strip()[:2000]])
+        vectors = embed([q_clean[:2000]])
         if not vectors:
             return []
         qv = vectors[0]
@@ -197,9 +215,50 @@ def retrieve(query: str, k: int = 4) -> list:
             if score > 0.25:  # ignore unrelated items
                 scored.append({"text": r["text"], "source": r["source_type"], "score": score})
         scored.sort(key=lambda x: -x["score"])
-        return scored[:k]
+        result = scored[:k]
+        with _semantic_cache_lock:
+            _semantic_query_cache[q_clean] = (result, now + 120.0)
+        return result
     except Exception:
         return []
+
+
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+
+_embed_pool = ThreadPoolExecutor(max_workers=2)
+
+
+def semantic_context_fast(query: str, k: int = 4, timeout_sec: float = 0.04) -> str:
+    """Bounded, non-blocking semantic context retrieval for prompt assembly."""
+    q_clean = (query or "").strip()
+    if not q_clean:
+        return ""
+
+    now = time.time()
+    with _semantic_cache_lock:
+        if q_clean in _semantic_query_cache:
+            res, expires_at = _semantic_query_cache[q_clean]
+            if now < expires_at:
+                if not res:
+                    return ""
+                lines = ["Relevant memories for this request:"]
+                for it in res:
+                    lines.append(f"- [{it['source']}] {it['text'][:300]}")
+                return "\n".join(lines)
+
+    # If not in cache, launch future with bounded timeout
+    try:
+        future = _embed_pool.submit(retrieve, q_clean, k)
+        items = future.result(timeout=timeout_sec)
+        if not items:
+            return ""
+        lines = ["Relevant memories for this request:"]
+        for it in items:
+            lines.append(f"- [{it['source']}] {it['text'][:300]}")
+        return "\n".join(lines)
+    except (FutureTimeoutError, Exception):
+        # Do not block prompt assembly on slow external WAN calls
+        return ""
 
 
 def semantic_context(query: str, k: int = 4) -> str:
@@ -211,6 +270,9 @@ def semantic_context(query: str, k: int = 4) -> str:
     for it in items:
         lines.append(f"- [{it['source']}] {it['text'][:300]}")
     return "\n".join(lines)
+
+
+
 
 
 # ── Convenience hooks for services (guarded) ─────────────────────────────

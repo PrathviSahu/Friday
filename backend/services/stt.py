@@ -8,8 +8,9 @@ Engine selection (best free tier first):
    ~1s) and multilingual — it transcribes English, Hindi and Hinglish
    natively, which the browser Web Speech API (en-US only) cannot.
 
-2. Google Gemini 2.5 Flash (audio understanding) — free-tier fallback when
-   Groq is rate-limited (429), unconfigured, or failing.
+2. Google Gemini Flash (audio understanding) — resilient multi-model fallback
+   (gemini-3.5-flash-lite, gemini-3.5-flash, gemini-3.6-flash, gemini-2.5-flash)
+   when Groq is rate-limited (429), unconfigured, or failing.
 
 Both providers are already configured in FRIDAY (`GROQ_API_KEY` /
 `GEMINI_API_KEY`), so this costs nothing extra on the free tiers.
@@ -18,7 +19,13 @@ Both providers are already configured in FRIDAY (`GROQ_API_KEY` /
 import os
 
 GROQ_STT_MODEL = os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo")
-GEMINI_STT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_STT_MODELS = [
+    os.getenv("GEMINI_STT_MODEL", "gemini-3.5-flash-lite"),
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-2.5-flash",
+]
 
 _groq_client = None
 _gemini_client = None
@@ -48,6 +55,32 @@ def _get_gemini_client():
     return _gemini_client
 
 
+import re
+
+WHISPER_SILENCE_HALLUCINATIONS = {
+    "thank you.", "thank you", "thanks.", "thanks",
+    "thanks for watching.", "thanks for watching!",
+    "thanks for watching", "thank you for watching.",
+    "thank you for watching", "subtitles by", "subtitles",
+    "subtitles by the amara.org community", "you",
+    "bye.", "bye", "bye bye", "goodbye.", "goodbye",
+    "please subscribe", "subscribe", ".", "..", "...",
+    "so", "yeah", "okay.", "okay"
+}
+
+
+def _clean_hallucinated_transcript(raw_text: str) -> str:
+    cleaned = (raw_text or "").strip()
+    if not cleaned:
+        return ""
+    cleaned = cleaned.strip('"\'')
+    if cleaned.lower() in WHISPER_SILENCE_HALLUCINATIONS:
+        return ""
+    if re.match(r'^[\.\,\!\?\:\;\-\s]+$', cleaned):
+        return ""
+    return cleaned
+
+
 def _transcribe_groq(audio_bytes: bytes, filename: str, mime_type: str) -> dict:
     """Transcribe via Groq Whisper (free tier). Raises on failure."""
     client = _get_groq_client()
@@ -55,8 +88,6 @@ def _transcribe_groq(audio_bytes: bytes, filename: str, mime_type: str) -> dict:
         raise STTUnavailableError("GROQ_API_KEY is not configured")
 
     def _call():
-        # Using prompt guides Whisper to output in Roman/Latin script (Hinglish/English)
-        # instead of translating or writing in Devanagari script.
         return client.audio.transcriptions.create(
             model=GROQ_STT_MODEL,
             file=(filename, audio_bytes),
@@ -67,7 +98,6 @@ def _transcribe_groq(audio_bytes: bytes, filename: str, mime_type: str) -> dict:
     try:
         transcription = _call()
     except Exception as exc:
-        # If language="en" fails on some audio, try with auto-detect with Roman prompt
         try:
             transcription = client.audio.transcriptions.create(
                 model=GROQ_STT_MODEL,
@@ -75,54 +105,62 @@ def _transcribe_groq(audio_bytes: bytes, filename: str, mime_type: str) -> dict:
                 prompt="F.R.I.D.A.Y., Prem, Spotify, play, pause, next, previous, song, gaana chalao, volume, awaaz badhao",
             )
         except Exception:
-            # One retry on 429 (free-tier rate limit), then let Gemini take over.
             if getattr(exc, "status_code", None) == 429:
                 import time
-                time.sleep(3)
+                time.sleep(2)
                 transcription = _call()
             else:
                 raise
 
+    raw_text = getattr(transcription, "text", "") or ""
+    clean_text = _clean_hallucinated_transcript(raw_text)
+
     return {
-        "transcript": (getattr(transcription, "text", "") or "").strip(),
+        "transcript": clean_text,
         "language": getattr(transcription, "language", None) or "en",
         "source": "groq",
     }
 
 
 def _transcribe_gemini(audio_bytes: bytes, filename: str, mime_type: str) -> dict:
-    """Transcribe via Gemini audio understanding (free-tier fallback)."""
+    """Transcribe via Gemini audio understanding with multi-model fallback."""
     client = _get_gemini_client()
     if client is None:
         raise STTUnavailableError("GEMINI_API_KEY is not configured")
 
-    try:
-        from google.genai import types
-        response = client.models.generate_content(
-            model=GEMINI_STT_MODEL,
-            contents=[
-                "Transcribe the speech in this audio exactly as spoken in standard English/Latin alphabet. "
-                "Do NOT use Devanagari or Hindi script. If Hindi/Hinglish words are spoken (like 'gaana chalao' or 'awaaz kam'), "
-                "transcribe them phonetically in English/Latin letters (e.g., 'gaana chalao', 'play punjabi song'). "
-                "Reply with the transcript only — no quotes, no commentary.",
-                types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
-            ],
-        )
-    except Exception as exc:  # noqa: BLE001 — fall through to error path
-        raise STTUnavailableError(f"Gemini STT failed: {exc}") from exc
+    from google.genai import types
 
-    text = ""
-    try:
-        for part in response.candidates[0].content.parts or []:
-            text += part.text or ""
-    except (AttributeError, IndexError):
-        text = ""
+    last_err = None
+    for model_name in GEMINI_STT_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[
+                    "Transcribe the speech in this audio exactly as spoken in standard English/Latin alphabet. "
+                    "Do NOT use Devanagari or Hindi script. If Hindi/Hinglish words are spoken (like 'gaana chalao' or 'awaaz kam'), "
+                    "transcribe them phonetically in English/Latin letters (e.g., 'gaana chalao', 'play punjabi song'). "
+                    "Reply with the transcript only — no quotes, no commentary.",
+                    types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                ],
+            )
+            text = ""
+            try:
+                for part in response.candidates[0].content.parts or []:
+                    text += part.text or ""
+            except (AttributeError, IndexError):
+                text = ""
 
-    return {
-        "transcript": text.strip(),
-        "language": "en",
-        "source": "gemini",
-    }
+            if text.strip():
+                return {
+                    "transcript": text.strip(),
+                    "language": "en",
+                    "source": f"gemini:{model_name}",
+                }
+        except Exception as exc:
+            last_err = exc
+            continue
+
+    raise STTUnavailableError(f"Gemini STT failed across models: {last_err}") from last_err
 
 
 from services.metrics import timed as _timed
@@ -145,7 +183,7 @@ def transcribe_audio(audio_bytes: bytes, filename: str = "clip.ogg",
         if result["transcript"]:
             return result
         errors.append("Groq returned an empty transcript")
-    except Exception as exc:  # noqa: BLE001 — any failure falls back to Gemini
+    except Exception as exc:
         errors.append(f"Groq failed: {exc}")
 
     try:
@@ -153,7 +191,7 @@ def transcribe_audio(audio_bytes: bytes, filename: str = "clip.ogg",
         if result["transcript"]:
             return result
         errors.append("Gemini returned an empty transcript")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         errors.append(f"Gemini failed: {exc}")
 
     raise STTUnavailableError("; ".join(errors))

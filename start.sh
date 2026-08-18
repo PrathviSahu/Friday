@@ -32,8 +32,8 @@ for pidfile in "$FRIDAY_ROOT/logs/backend.pid" "$FRIDAY_ROOT/logs/frontend.pid";
   fi
 done
 # Fallback: anything still squatting on our ports
-kill -9 $(lsof -t -i:8000) 2>/dev/null
-kill -9 $(lsof -t -i:5173) 2>/dev/null
+kill -9 $(lsof -t -P -i:8000) 2>/dev/null
+kill -9 $(lsof -t -P -i:5173) 2>/dev/null
 sleep 1
 
 # ── Start Backend ─────────────────────────────
@@ -41,11 +41,16 @@ echo "  [2/3] Starting backend (port 8000)..."
 cd "$BACKEND"
 ./venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000 --no-proxy-headers > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
-sleep 4
 
-if lsof -i:8000 | grep -q LISTEN; then
+for i in {1..10}; do
+  if lsof -P -i:8000 2>/dev/null | grep -q LISTEN; then
     echo "  ✅ Backend running  → http://localhost:8000  (PID: $BACKEND_PID)"
-else
+    break
+  fi
+  sleep 1
+done
+
+if ! lsof -P -i:8000 2>/dev/null | grep -q LISTEN; then
     echo "  ❌ Backend failed to start. Check logs/backend.log"
     exit 1
 fi
@@ -55,11 +60,16 @@ echo "  [3/3] Starting frontend (port 5173)..."
 cd "$FRONTEND"
 npm run dev > "$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
-sleep 4
 
-if lsof -i:5173 | grep -q LISTEN; then
+for i in {1..10}; do
+  if lsof -P -i:5173 2>/dev/null | grep -q LISTEN; then
     echo "  ✅ Frontend running → http://localhost:5173  (PID: $FRONTEND_PID)"
-else
+    break
+  fi
+  sleep 1
+done
+
+if ! lsof -P -i:5173 2>/dev/null | grep -q LISTEN; then
     echo "  ❌ Frontend failed to start. Check logs/frontend.log"
     exit 1
 fi
