@@ -66,6 +66,7 @@ export const API_ENDPOINTS = {
   chatText: `${API_BASE_URL}/api/chat/text`,
   speechTranscribe: `${API_BASE_URL}/api/speech/transcribe`,
   tts: `${API_BASE_URL}/api/tts`,
+  ttsStream: `${API_BASE_URL}/api/tts/stream`,
   career: `${API_BASE_URL}/api/career`,
   trading: `${API_BASE_URL}/api/trading`,
   system: `${API_BASE_URL}/api/system`,

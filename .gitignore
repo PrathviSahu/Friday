@@ -47,3 +47,12 @@ Thumbs.db
 backend/backend.log
 backend/data/*.json
 backend/data/.vault_key
+
+# Video / Audio Recordings & Media Temp
+*.mp4
+*.mov
+*.avi
+*.webm
+*.wav
+scripts/node_modules/
+

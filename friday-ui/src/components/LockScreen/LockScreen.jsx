@@ -518,13 +518,13 @@ export default function LockScreen() {
                     <div className="my-1" />
                 )}
 
-                {/* Bottom Bar Controls */}
+                {/* Bottom Bar Controls - Perfectly Centered */}
                 <motion.div
-                    className="w-full flex justify-center pb-3 pt-1"
+                    className="w-full flex items-center justify-center pb-4 pt-1 px-4 mx-auto"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4, duration: 0.7 }}
-                    style={{ pointerEvents: 'auto' }}
+                    style={{ pointerEvents: 'auto', zIndex: 50 }}
                 >
                     <BottomBar />
                 </motion.div>

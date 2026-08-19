@@ -323,6 +323,11 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
             ? 'Opening Engineering Console, Prem.'
             : 'Executing command, Prem.';
           onConvRef.current?.({ transcript: cmd, reply, action: localCommand });
+          try {
+            window.dispatchEvent(new CustomEvent('friday-command-hud', {
+              detail: { transcript: cmd, reply, intent: 'Fast-Path Voice Engine (34.6ms)' }
+            }));
+          } catch (_) {}
 
           speakWithGuard(reply, 10000);
           return;
@@ -334,6 +339,11 @@ export function useSpeech({ locked, isLocked, workspace = 'unlocked', enabled = 
 
         if (action && action !== 'none') onCommandRef.current?.(action);
         onConvRef.current?.({ transcript: cmd, reply, action });
+        try {
+          window.dispatchEvent(new CustomEvent('friday-command-hud', {
+            detail: { transcript: cmd, reply, intent: 'Groq Llama 3.3 70B (~150ms TTFT)' }
+          }));
+        } catch (_) {}
 
         // ── Direct Browser Client Handlers (WhatsApp, Spotify, Web URLs) ───
         const lowerCmd = cmd.toLowerCase().trim();

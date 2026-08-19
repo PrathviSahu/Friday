@@ -22,6 +22,7 @@ import WhatsAppCard from './components/Panels/WhatsAppCard';
 import DocumentsCard from './components/Panels/DocumentsCard';
 import CodingCard from './components/Panels/CodingCard';
 import SlidingDashboard from './components/Panels/SlidingDashboard';
+import CommandHUDOverlay from './components/Common/CommandHUDOverlay';
 import { FridayProvider } from './context/FridayContext';
 import FridaySync from './context/FridaySync';
 import { useProactiveSuggestions } from './hooks/useProactiveSuggestions';
@@ -92,6 +93,7 @@ function FridayCore() {
 
     return (
         <>
+            <CommandHUDOverlay />
             <FridaySync />
             <LockScreen />
             <Workspace />

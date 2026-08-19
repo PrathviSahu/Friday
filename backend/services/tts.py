@@ -7,10 +7,16 @@ import uuid
 import edge_tts
 import re
 import json
+from collections import OrderedDict
+import threading
 from typing import Tuple, List, AsyncGenerator, Optional
 from services.metrics import timed as _timed
 
 SETTINGS_FILE = Path(__file__).parent.parent / 'data' / 'settings.json'
+
+_CACHE_LOCK = threading.Lock()
+_AUDIO_LRU_CACHE = OrderedDict()  # key: (text_clean, voice) -> bytes
+_MAX_CACHE_SIZE = 128
 
 
 def get_configured_voices():
@@ -158,6 +164,54 @@ async def stream_speech_chunks(
             "ttfa_ms": chunk_ttfa,
             "chunk_duration_ms": chunk_total,
         }
+
+
+async def stream_raw_speech(
+    text: str,
+    voice: str = None,
+    session_id: Optional[str] = None
+) -> AsyncGenerator[bytes, None]:
+    """Yield raw MP3 audio chunks in real-time as they stream from Edge-TTS (or memory cache)."""
+    clean = (text or "").strip()
+    if not clean:
+        return
+
+    if not voice:
+        selected_voice = VOICE_HINDI if re.search(r'[\u0900-\u097F]', clean) else VOICE_ENGLISH
+    else:
+        selected_voice = voice
+
+    cache_key = (clean, selected_voice)
+    with _CACHE_LOCK:
+        if cache_key in _AUDIO_LRU_CACHE:
+            cached_data = _AUDIO_LRU_CACHE[cache_key]
+            _AUDIO_LRU_CACHE.move_to_end(cache_key)
+            for i in range(0, len(cached_data), 8192):
+                yield cached_data[i:i+8192]
+            return
+
+    communicate = edge_tts.Communicate(clean, selected_voice)
+    collected_bytes = bytearray()
+
+    try:
+        async for chunk in communicate.stream():
+            if is_synthesis_cancelled(session_id):
+                clear_synthesis_cancellation(session_id)
+                break
+
+            if chunk.get('type') == 'audio':
+                data = chunk['data']
+                collected_bytes.extend(data)
+                yield data
+    except Exception as err:
+        print(f"[TTS Stream] Error: {err}")
+
+    # Cache short responses (< 250 chars) for instant sub-millisecond repeat access
+    if len(clean) <= 250 and collected_bytes:
+        with _CACHE_LOCK:
+            _AUDIO_LRU_CACHE[cache_key] = bytes(collected_bytes)
+            if len(_AUDIO_LRU_CACHE) > _MAX_CACHE_SIZE:
+                _AUDIO_LRU_CACHE.popitem(last=False)
 
 
 async def cleanup_temp_audio(audio_dir: Path, max_age_seconds: int = 300):

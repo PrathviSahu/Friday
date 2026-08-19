@@ -3,10 +3,11 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from auth import require_boss, require_public_demo
-from services.tts import generate_speech
+from services.tts import generate_speech, stream_raw_speech
 from services.weather import get_weather
 from services.web_search import search_web_instant
 from services.reminders import add_reminder, get_active_reminders
@@ -28,6 +29,38 @@ class SearchRequest(BaseModel):
 class ReminderRequest(BaseModel):
     message: str
     seconds: int
+
+
+@router.get("/tts/stream", dependencies=[Depends(require_public_demo)])
+async def tts_stream_get_endpoint(text: str, voice: str = None):
+    """Stream low-latency raw MP3 audio chunks via HTTP chunked transfer (<180ms TTFA)."""
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+    return StreamingResponse(
+        stream_raw_speech(text, voice=voice),
+        media_type="audio/mpeg",
+        headers={
+            "Cache-Control": "no-cache",
+            "Transfer-Encoding": "chunked",
+            "Accept-Ranges": "bytes"
+        }
+    )
+
+
+@router.post("/tts/stream", dependencies=[Depends(require_public_demo)])
+async def tts_stream_post_endpoint(req: TTSRequest, voice: str = None):
+    """Stream low-latency raw MP3 audio chunks via HTTP chunked transfer (<180ms TTFA)."""
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+    return StreamingResponse(
+        stream_raw_speech(req.text, voice=voice),
+        media_type="audio/mpeg",
+        headers={
+            "Cache-Control": "no-cache",
+            "Transfer-Encoding": "chunked",
+            "Accept-Ranges": "bytes"
+        }
+    )
 
 
 @router.post("/tts", dependencies=[Depends(require_public_demo)])

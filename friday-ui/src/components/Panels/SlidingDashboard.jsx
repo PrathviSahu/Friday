@@ -98,18 +98,18 @@ export default function SlidingDashboard({ isOpen, onClose }) {
             className="fixed inset-0 bg-[#02030A]/80 backdrop-blur-md z-[9000]"
           />
 
-          {/* Sliding Drawer Panel */}
+          {/* Sliding Drawer Panel - Spacious Sci-Fi Glassmorphism */}
           <motion.aside
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
             className={`fixed top-0 right-0 h-full ${
-              selectedCapsule ? 'w-full md:w-[740px]' : 'w-full md:w-[580px]'
-            } max-w-full bg-[#030914]/95 border-l border-[#00B7FF]/35 shadow-[-20px_0_60px_rgba(0,183,255,0.18)] z-[9001] flex flex-col font-sans backdrop-blur-2xl`}
+              selectedCapsule ? 'w-full md:w-[820px] lg:w-[940px]' : 'w-full md:w-[720px] lg:w-[860px]'
+            } max-w-full bg-[#030914]/98 border-l border-[#00B7FF]/35 shadow-[-24px_0_80px_rgba(0,183,255,0.22)] z-[9001] flex flex-col font-sans backdrop-blur-2xl`}
           >
             {/* ── Top Futuristic Stark Header ── */}
-            <div className="px-5 py-4 border-b border-[#00B7FF]/25 bg-gradient-to-r from-[#00B7FF]/10 via-transparent to-[#001428] flex items-center justify-between">
+            <div className="px-6 py-4 sm:py-5 border-b border-[#00B7FF]/25 bg-gradient-to-r from-[#00B7FF]/12 via-transparent to-[#001428] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[#00B7FF]/15 border border-[#00B7FF]/45 flex items-center justify-center text-lg shadow-[0_0_15px_rgba(0,183,255,0.3)]">
                   ⚡
@@ -222,28 +222,28 @@ export default function SlidingDashboard({ isOpen, onClose }) {
             )}
 
             {/* ── Main Content Viewport ── */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-5">
               {selectedCapsule && ActiveComponent ? (
                 /* Selected Single Capsule Workspace */
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-4"
+                  className="space-y-5"
                 >
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-[#00B7FF]/10 via-[#001020] to-transparent border border-[#00B7FF]/30 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{currentCapsuleObj?.icon}</span>
+                  <div className="p-5 rounded-2xl bg-gradient-to-r from-[#00B7FF]/12 via-[#001020] to-transparent border border-[#00B7FF]/35 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-3xl sm:text-4xl">{currentCapsuleObj?.icon}</span>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-orbitron text-base text-[#DFFAFF] tracking-wider uppercase font-semibold">
+                        <div className="flex items-center gap-2.5">
+                          <h3 className="font-orbitron text-base sm:text-lg text-[#DFFAFF] tracking-wider uppercase font-bold">
                             {currentCapsuleObj?.label}
                           </h3>
-                          <span className="px-2 py-0.5 rounded text-[8.5px] font-orbitron tracking-wider bg-[#00B7FF]/15 text-[#00D9FF] border border-[#00B7FF]/30 uppercase">
+                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-orbitron tracking-wider bg-[#00B7FF]/15 text-[#00D9FF] border border-[#00B7FF]/35 uppercase">
                             {currentCapsuleObj?.category}
                           </span>
                         </div>
-                        <p className="text-xs text-[#00B7FF]/80 font-mono mt-0.5">
+                        <p className="text-xs text-[#00B7FF]/85 font-mono mt-1">
                           {currentCapsuleObj?.tagline}
                         </p>
                       </div>
@@ -251,24 +251,24 @@ export default function SlidingDashboard({ isOpen, onClose }) {
 
                     <button
                       onClick={(e) => toggleCapsule(currentCapsuleObj.id, e)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-orbitron tracking-wider uppercase transition flex items-center gap-1.5 ${
+                      className={`px-3.5 py-2 rounded-xl text-[10.5px] font-orbitron tracking-wider uppercase transition flex items-center gap-2 ${
                         activeCapsules[currentCapsuleObj.id]
-                          ? 'bg-[#22ff99]/20 text-[#22ff99] border border-[#22ff99]/50 shadow-[0_0_10px_rgba(34,255,153,0.3)]'
+                          ? 'bg-[#22ff99]/20 text-[#22ff99] border border-[#22ff99]/50 shadow-[0_0_12px_rgba(34,255,153,0.3)]'
                           : 'bg-white/5 text-[#DFFAFF]/60 border border-white/10 hover:border-[#00B7FF]/40'
                       }`}
                     >
-                      <Pin size={12} />
+                      <Pin size={13} />
                       {activeCapsules[currentCapsuleObj.id] ? 'Pinned' : 'Pin to Active'}
                     </button>
                   </div>
 
-                  <div className="rounded-xl border border-[#00B7FF]/25 bg-[#020612]/90 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                  <div className="rounded-2xl border border-[#00B7FF]/25 bg-[#020612]/95 p-5 sm:p-6 shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
                     <ActiveComponent />
                   </div>
                 </motion.div>
               ) : activeTab === 'picker' ? (
                 /* Catalog Grid */
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                   {filteredCapsules.map((c) => {
                     const isActive = !!activeCapsules[c.id];
                     return (
@@ -277,10 +277,10 @@ export default function SlidingDashboard({ isOpen, onClose }) {
                         whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setSelectedCapsule(c.id)}
-                        className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 flex flex-col justify-between gap-3 ${
+                        className={`group relative p-5 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between gap-4 ${
                           isActive
-                            ? 'bg-gradient-to-br from-[#00B7FF]/15 via-[#001020]/90 to-[#020610] border-[#00B7FF]/50 shadow-[0_0_20px_rgba(0,183,255,0.12)]'
-                            : 'bg-gradient-to-br from-[#001428]/40 via-[#010814]/80 to-[#02040a] border-white/[0.08] hover:border-[#00B7FF]/40 hover:shadow-[0_0_18px_rgba(0,183,255,0.1)]'
+                            ? 'bg-gradient-to-br from-[#00B7FF]/18 via-[#001020]/95 to-[#020610] border-[#00B7FF]/55 shadow-[0_0_24px_rgba(0,183,255,0.15)]'
+                            : 'bg-gradient-to-br from-[#001428]/45 via-[#010814]/85 to-[#02040a] border-white/[0.08] hover:border-[#00B7FF]/45 hover:shadow-[0_0_20px_rgba(0,183,255,0.12)]'
                         }`}
                       >
                         {/* Header with Icon & Pin Button */}

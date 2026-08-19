@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | 🧪 Backend tests | **323 passing** (`pytest`) |
-| 🧪 Frontend tests | **16 passing** (`vitest`) |
+| 🧪 Frontend tests | **22 passing** (`vitest`) |
 | 🔌 API surface | **195 REST operations across 168 `/api/*` paths** (from the running app's OpenAPI schema) |
 | 🛠️ Function-calling tools | **47 JSON-schema tools** with a 4-step agentic loop |
 | 🔐 Permission capabilities | **24** gated capabilities with audit log |

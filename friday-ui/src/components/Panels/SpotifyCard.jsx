@@ -254,24 +254,29 @@ export default function SpotifyCard() {
         return () => clearInterval(iv);
     }, [spotifyTrack.playing, totalSecs]);
 
-    // Poll current track details from backend
+    // Poll current track details from backend (only when web audio is not actively playing)
     useEffect(() => {
         const fetchTrack = async () => {
+            if (audioPlayerRef.current && !audioPlayerRef.current.paused) {
+                return; // Do not overwrite active Web Audio playback!
+            }
             try {
                 const res = await fetch(`${API_ENDPOINTS.spotify}/current-track`);
                 if (res.ok) {
                     const data = await res.json();
-                    setSpotifyTrack(data);
-                    if (typeof data.position === 'number') {
-                        setProgress(currP => {
-                            if (Math.abs(currP - data.position) > 2 || !data.playing) {
-                                return data.position;
-                            }
-                            return currP;
-                        });
-                    }
-                    if (typeof data.volume === 'number') {
-                        setVolume(data.volume);
+                    if (!audioPlayerRef.current || audioPlayerRef.current.paused) {
+                        setSpotifyTrack(data);
+                        if (typeof data.position === 'number') {
+                            setProgress(currP => {
+                                if (Math.abs(currP - data.position) > 2 || !data.playing) {
+                                    return data.position;
+                                }
+                                return currP;
+                            });
+                        }
+                        if (typeof data.volume === 'number') {
+                            setVolume(data.volume);
+                        }
                     }
                 }
             } catch (_) {}
